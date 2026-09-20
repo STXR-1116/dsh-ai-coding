@@ -1,0 +1,50 @@
+/* §11.12 配置编辑器：字段、资产选择器与试运行结果面板。 */
+.editor {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--dsh-border, #cbd5e1);
+}
+
+.editorTitle {
+  margin: 0;
+  font-weight: 600;
+}
+
+.editorHint {
+  margin: 0;
+  color: var(--dsh-text-muted, #64748b);
+  overflow-wrap: anywhere;
+}
+
+.editorField {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.assetTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.assetTable th,
+.assetTable td {
+  padding: 4px 6px;
+  border: 1px solid var(--dsh-border, #cbd5e1);
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+
+.editorActions {
+  display: flex;
+  gap: 8px;
+}
+
+.dryRunPanel {
+  padding: 8px;
+  border: 1px solid var(--dsh-border-strong, #94a3b8);
+  border-radius: 6px;
+}

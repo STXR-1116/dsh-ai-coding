@@ -1,0 +1,434 @@
+/* Read-only Agent configuration cards: same visual vocabulary as the cloud workbench. */
+
+.view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+  overflow: auto;
+  padding: 16px 20px 32px;
+}
+
+.header {
+  align-items: flex-end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.title {
+  font-size: 17px;
+  margin: 0;
+}
+
+.subtitle {
+  color: var(--dsh-text-tertiary);
+  font-size: 12px;
+  margin: 4px 0 0;
+}
+
+.headerControls {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.projectLabel {
+  color: var(--dsh-text-tertiary);
+  display: flex;
+  font-size: 12px;
+  gap: 4px;
+}
+
+.projectSelect {
+  background: var(--dsh-bg-elevated);
+  border: 1px solid var(--dsh-border-subtle);
+  border-radius: 7px;
+  /* 宿主重置只改字体，select 的文字颜色必须显式指定，否则回落到 UA 黑色。 */
+  color: var(--dsh-text-primary);
+  font-size: 12px;
+  padding: 4px 8px;
+}
+
+.refresh {
+  align-items: center;
+  background: var(--dsh-bg-elevated);
+  border: 1px solid var(--dsh-border-subtle);
+  border-radius: 7px;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 12px;
+  gap: 4px;
+  padding: 4px 8px;
+}
+
+.refresh:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.stateLine {
+  color: var(--dsh-text-tertiary);
+  font-size: 14px;
+}
+
+.stateHint {
+  color: var(--dsh-text-tertiary);
+  font-size: 12px;
+}
+
+.errorBox {
+  border: 1px solid var(--dsh-status-danger);
+  border-radius: 7px;
+  font-size: 14px;
+  padding: 12px;
+}
+
+.errorCode {
+  color: var(--dsh-status-danger);
+  font-size: 12px;
+  margin: 4px 0 0;
+}
+
+.emptyBox {
+  border: 1px dashed var(--dsh-border-subtle);
+  border-radius: 7px;
+  font-size: 14px;
+  padding: 20px;
+}
+
+.fixtureLine {
+  align-items: center;
+  color: var(--dsh-text-tertiary);
+  display: flex;
+  font-size: 12px;
+  gap: 4px;
+  margin: 0;
+}
+
+.fixtureBadge {
+  background: var(--dsh-status-warning-soft);
+  border-radius: 7px;
+  color: var(--dsh-status-warning);
+  font-size: 11px;
+  padding: 4px 4px;
+}
+
+.cardList {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.card {
+  border: 1px solid var(--dsh-border-subtle);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  padding: 12px;
+}
+
+.cardHead {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.cardName {
+  flex: 1;
+  font-size: 14px;
+  margin: 0;
+}
+
+.defaultBadge {
+  background: var(--dsh-status-success-soft);
+  border-radius: 7px;
+  color: var(--dsh-accent-brand-strong);
+  font-size: 11px;
+  padding: 4px 4px;
+}
+
+.readiness_ready {
+  color: var(--dsh-status-success);
+}
+
+.readiness_degraded {
+  color: var(--dsh-status-warning);
+}
+
+.readiness_unavailable {
+  color: var(--dsh-status-danger);
+}
+
+.cardDescription {
+  color: var(--dsh-text-tertiary);
+  font-size: 12px;
+  margin: 0;
+}
+
+.cardFacts {
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  gap: 4px;
+  margin: 0;
+}
+
+.cardFacts dt {
+  color: var(--dsh-text-tertiary);
+  display: inline;
+  margin-inline-end: 4px;
+}
+
+.cardFacts dd {
+  display: inline;
+  margin: 0;
+}
+
+.unavailableFlag {
+  color: var(--dsh-status-danger);
+}
+
+.cardButton {
+  align-self: flex-start;
+  background: var(--dsh-bg-elevated);
+  border: 1px solid var(--dsh-border-subtle);
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px 8px;
+}
+
+.detailOverlay {
+  background: var(--dsh-overlay-scrim);
+  inset: 0;
+  position: fixed;
+  z-index: var(--dsh-z-drawer);
+}
+
+/* 详情抽屉：桌面右侧 420–520px（规格 §5）；≤768 全屏；右向滑入与关闭同向。 */
+.detailPanel {
+  animation: detail-drawer-in var(--dsh-duration-standard) var(--dsh-ease-standard);
+  background: var(--dsh-bg-elevated);
+  border-left: 1px solid var(--dsh-border-subtle);
+  bottom: 0;
+  /* 宽度是「边框盒」尺寸：不设 border-box 时 padding/border 会加在 100vw 之上，
+     移动端实测会得到 390+32+1=423 而不是 390。 */
+  box-sizing: border-box;
+  overflow: auto;
+  padding: 16px;
+  position: fixed;
+  right: 0;
+  top: 0;
+  width: 480px;
+}
+
+/* 关闭与进入同向（都沿 X 轴向右），退出曲线与时长按规格 §7。 */
+.detailPanel[data-closing='true'] {
+  animation: detail-drawer-out var(--dsh-duration-quick) var(--dsh-ease-exit) forwards;
+  pointer-events: none;
+}
+
+@keyframes detail-drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes detail-drawer-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .detailPanel,
+  .detailPanel[data-closing='true'] {
+    animation: none;
+  }
+}
+
+@media (max-width: 768px) {
+  /* 全屏用 inset 定位而不是 100vw：vw 含滚动条宽度，会让面板比可视区更宽。 */
+  .detailPanel {
+    border-left: none;
+    left: 0;
+    width: auto;
+  }
+}
+
+.detailHead {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.detailTitle {
+  font-size: 14px;
+  margin: 0;
+}
+
+.detailClose {
+  background: var(--dsh-bg-elevated);
+  border: 1px solid var(--dsh-border-subtle);
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px 8px;
+}
+
+.detailBody {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.detailSection h4 {
+  border-bottom: 1px solid var(--dsh-border-subtle);
+  font-size: 14px;
+  margin: 0 0 8px;
+  padding-bottom: 4px;
+}
+
+.detailSection h5 {
+  font-size: 12px;
+  margin: 8px 0 4px;
+}
+
+.factGrid {
+  display: grid;
+  font-size: 12px;
+  gap: 4px 24px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  margin: 0;
+}
+
+.factGrid dt {
+  color: var(--dsh-text-tertiary);
+}
+
+.factGrid dd {
+  margin: 4px 0 0;
+}
+
+.assetGroupTitle {
+  color: var(--dsh-text-tertiary);
+}
+
+.assetList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.assetRow {
+  align-items: center;
+  background: var(--dsh-bg-overlay);
+  border-radius: 7px;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12px;
+  gap: 8px;
+  padding: 4px 8px;
+}
+
+.assetName {
+  font-weight: 600;
+}
+
+.assetVersion {
+  color: var(--dsh-text-tertiary);
+  font-family: ui-monospace, monospace;
+}
+
+.assetFlag {
+  background: var(--dsh-status-success-soft);
+  border-radius: 7px;
+  color: var(--dsh-accent-brand-strong);
+  font-size: 11px;
+  padding: 0 4px;
+}
+
+.assetFlagOptional {
+  background: var(--dsh-bg-overlay);
+  border-radius: 7px;
+  color: var(--dsh-text-secondary);
+  font-size: 11px;
+  padding: 0 4px;
+}
+
+.assetEmpty {
+  color: var(--dsh-text-tertiary);
+  font-size: 12px;
+  margin: 0;
+}
+
+.selectionConfirmation {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--dsh-accent-brand-dim);
+  border-radius: 7px;
+  background: var(--dsh-accent-brand-soft);
+  color: var(--dsh-status-success-strong);
+  font-size: 14px;
+}
+
+.memoryCards {
+  display: grid;
+  gap: var(--dsh-space-2);
+}
+
+.memoryCard {
+  display: grid;
+  gap: var(--dsh-space-1);
+  padding: var(--dsh-space-2) var(--dsh-space-3);
+  border: 1px solid var(--dsh-border-subtle);
+  border-radius: var(--dsh-radius-sm);
+  background: var(--dsh-bg-surface);
+}
+
+.memoryCard:focus-visible {
+  outline: 2px solid var(--dsh-accent-action);
+  outline-offset: 2px;
+}
+
+.memoryCardSelected {
+  border-color: var(--dsh-accent-brand-line);
+  background: var(--dsh-accent-brand-soft);
+}
+
+.memoryCard strong {
+  color: var(--dsh-text-primary);
+  font-size: var(--dsh-type-label-size);
+}
+
+.memoryCardMeta {
+  color: var(--dsh-text-tertiary);
+  font-size: var(--dsh-type-caption-size);
+}
+
+.memoryCardState {
+  color: var(--dsh-accent-brand-text);
+  font-size: var(--dsh-type-caption-size);
+  font-weight: 600;
+}

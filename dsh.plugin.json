@@ -1,0 +1,9 @@
+{
+  "name": "dsh-ai-coding",
+  "version": "0.1.0",
+  "description": "AI Coding platform plugin for DSH: cloud workspace workbench, team skill governance, knowledge and memory surfaces",
+  "engines": {
+    "dsh": ">=0.1.2-rc.1"
+  },
+  "mount": "cordis.patch.yml"
+}

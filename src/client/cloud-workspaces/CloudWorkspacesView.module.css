@@ -1,0 +1,658 @@
+/* Cloud workspace workbench: three-pane desktop layout with narrow-screen drawers. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  min-height: 0;
+  padding: 16px;
+  box-sizing: border-box;
+  /* Adaptivity keys on the workbench's own width, not the window: the
+     docked workbench sits beside the native conversation column and must
+     collapse to the drawer layout at its rendered size. */
+  container-type: inline-size;
+  container-name: workbench;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header h2 {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  font-size: 17px;
+}
+
+.projectSelect {
+  max-width: 220px;
+  padding: 4px 8px;
+}
+
+.streamBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 14px;
+  font-size: 12px;
+  background: var(--dsh-bg-hover);
+}
+
+/* 徽章文字用随主题翻转的深化/提亮变体，浅色主题下仍满足 4.5:1。 */
+.streamBadge[data-stream-status='live'] {
+  color: var(--dsh-status-success-strong);
+}
+
+.streamBadge[data-stream-status='reconnecting'],
+.streamBadge[data-stream-status='resync'] {
+  color: var(--dsh-status-warning-text);
+}
+
+.columns {
+  display: grid;
+  /* Widths come from the drag separators via --dsh-tree-w/--dsh-panel-w; the
+     container query below overrides the whole declaration when collapsed. */
+  grid-template-columns: var(--dsh-tree-w, 260px) minmax(0, 1fr) var(--dsh-panel-w, 320px);
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+}
+
+.columns[data-dragging] {
+  user-select: none;
+  cursor: col-resize;
+}
+
+.panelDivider {
+  width: 10px;
+  margin: 0 -4px;
+  border-radius: var(--dsh-radius-sm);
+  background: transparent;
+  cursor: col-resize;
+  touch-action: none;
+  position: relative;
+  z-index: var(--dsh-z-toolbar);
+}
+
+.panelDivider::after {
+  content: '';
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 4px;
+  width: 2px;
+  border-radius: 1px;
+  background: transparent;
+}
+
+.panelDivider:hover::after,
+.panelDivider:focus-visible::after {
+  background: var(--dsh-accent-action);
+}
+
+.panelDivider:focus-visible {
+  outline: 2px solid var(--dsh-accent-action);
+  outline-offset: 2px;
+}
+
+.leftPane,
+.rightPane {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover));
+  border-radius: 10px;
+}
+
+.centerPane {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  padding: 8px;
+  border: 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover));
+  border-radius: 10px;
+}
+
+.nativeSessionPane {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: none;
+  padding: 8px;
+  border: 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover));
+  border-radius: 10px;
+}
+
+.nativeSessionBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.workspaceList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.workspaceItem,
+.workspaceActive {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 4px 8px;
+  text-align: left;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.workspaceActive {
+  background: var(--dsh-accent-brand-soft, var(--dsh-accent-action-soft));
+}
+
+.workspaceName {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.workspaceMeta {
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.workspaceError {
+  color: var(--dsh-status-danger-text);
+  font-size: 12px;
+}
+
+.fileTree ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fileItem {
+  display: block;
+  width: 100%;
+  padding: 4px 4px;
+  text-align: left;
+  font-size: 12px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.fileItem[data-kind='directory'] {
+  font-weight: 600;
+}
+
+.fileItem:hover {
+  background: var(--dsh-bg-hover);
+}
+
+.paneTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.sessionFacts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.sessionFacts dt {
+  opacity: 0.65;
+}
+
+.sessionFacts dd {
+  margin: 0;
+}
+
+.hint {
+  margin: 0;
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+.errorBanner,
+.busyBanner,
+.conflictBanner,
+.feedbackBanner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 8px;
+  border-radius: 7px;
+  font-size: 14px;
+}
+
+.errorBanner,
+.conflictBanner,
+.feedbackBanner[data-tone='conflict'],
+.feedbackBanner[data-tone='denied'],
+.feedbackBanner[data-tone='error'] {
+  background: var(--dsh-status-danger-soft);
+  color: var(--dsh-status-danger-text);
+}
+
+.busyBanner,
+.feedbackBanner[data-tone='busy'],
+.feedbackBanner[data-tone='invalid'],
+.feedbackBanner[data-tone='downstream'] {
+  background: var(--dsh-status-warning-soft, var(--dsh-status-warning-soft));
+  color: var(--dsh-status-warning, var(--dsh-status-warning-text));
+}
+
+.feedbackBanner[data-tone='success'] {
+  background: var(--dsh-status-success-soft, var(--dsh-status-success-soft));
+  color: var(--dsh-status-success, var(--dsh-status-success-strong));
+}
+
+.provenanceBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 14px;
+  font-size: 12px;
+  background: var(--dsh-bg-hover);
+  color: var(--dsh-status-warning-text);
+}
+
+.feedbackBanner[data-tone='fixture'] {
+  background: var(--dsh-status-warning-soft, var(--dsh-status-warning-soft));
+  color: var(--dsh-status-warning, var(--dsh-status-warning-text));
+}
+
+.lifecycleActions,
+.changesActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.fieldRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.planSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover));
+}
+
+.planEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover));
+  border-radius: 7px;
+}
+
+.fieldRow input {
+  padding: 4px 8px;
+  font-size: 14px;
+  border: 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover));
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+}
+
+.confirmBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px;
+  font-size: 14px;
+  border-radius: 7px;
+  background: var(--dsh-status-danger-soft);
+  color: var(--dsh-status-danger-text);
+}
+
+.dangerButton {
+  padding: 4px 12px;
+  font-size: 14px;
+  border: 1px solid var(--dsh-status-danger, var(--dsh-status-danger-text));
+  border-radius: 7px;
+  color: var(--dsh-status-danger-text);
+  background: transparent;
+  cursor: pointer;
+}
+
+.dangerButton:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.tab,
+.tabActive {
+  padding: 4px 12px;
+  font-size: 14px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.tabActive {
+  border-color: var(--dsh-accent-brand, var(--dsh-accent-action));
+  color: var(--dsh-accent-brand, var(--dsh-accent-action));
+}
+
+.panelBody {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow: auto;
+}
+
+.previewFrame {
+  width: 100%;
+  min-height: 260px;
+  border: 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover));
+  border-radius: 7px;
+  background: var(--dsh-bg-surface);
+}
+
+.previewImage {
+  max-width: 100%;
+  border-radius: 7px;
+}
+
+.previewText,
+.diffText {
+  margin: 0;
+  padding: 8px;
+  overflow: auto;
+  font-size: 12px;
+  white-space: pre-wrap;
+  border-radius: 7px;
+  background: var(--dsh-bg-hover);
+}
+
+.changeList,
+.runList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.changePath {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.runActions {
+  display: flex;
+  gap: 8px;
+}
+
+.runSnapshot {
+  color: var(--dsh-text-tertiary);
+  font-size: 11px;
+}
+
+.runItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.actionButton {
+  padding: 4px 12px;
+  font-size: 14px;
+  border: 1px solid var(--dsh-accent-brand, var(--dsh-accent-action));
+  border-radius: 7px;
+  color: var(--dsh-accent-brand, var(--dsh-accent-action));
+  background: transparent;
+  cursor: pointer;
+}
+
+.actionButton:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.iconButton {
+  padding: 4px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.drawerBar {
+  display: none;
+  gap: 8px;
+}
+
+.drawerToggle {
+  padding: 4px 12px;
+  font-size: 14px;
+  border: 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover));
+  border-radius: 7px;
+  background: transparent;
+}
+
+@container workbench (max-width: 960px) {
+  .columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .leftPane,
+  .rightPane,
+  .panelDivider {
+    display: none;
+  }
+
+  .columns[data-drawer='left'] .leftPane,
+  .columns[data-drawer='right'] .rightPane {
+    display: flex;
+  }
+
+  .drawerBar {
+    display: flex;
+  }
+}
+
+.wizardSteps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+  font-size: 11px;
+}
+
+.wizardStep {
+  padding: 4px 8px;
+  border-radius: 14px;
+  border: 1px solid var(--dsh-bg-overlay);
+  color: var(--dsh-text-tertiary);
+}
+
+.wizardStepActive {
+  border-color: var(--dsh-accent-brand);
+  color: var(--dsh-text-primary);
+}
+
+.wizardConfirm {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 8px;
+  font-size: 12px;
+}
+
+.wizardConfirm dt {
+  color: var(--dsh-text-tertiary);
+  font-size: 11px;
+}
+
+.wizardConfirm dd {
+  margin: 0;
+}
+
+.secondaryButton {
+  margin-bottom: 8px;
+}
+
+.layoutToolbar {
+  display: flex;
+  gap: 6px;
+  padding: 4px 0;
+}
+
+.columns[data-layout='focus-session'] .leftPane,
+.columns[data-layout='focus-session'] .rightPane,
+.columns[data-layout='review-diff'] .nativeSessionPane,
+.columns[data-layout='monitor-runs'] .leftPane,
+.columns[data-layout='monitor-runs'] .nativeSessionPane {
+  display: none;
+}
+
+/* §11.10 审批卡与证据抽屉：字段成组展示，不依赖颜色单独表达状态。 */
+.approvalCard {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px;
+  border: 1px solid var(--dsh-border-strong, #94a3b8);
+  border-radius: 8px;
+}
+
+.approvalGrid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 10px;
+  margin: 0;
+}
+
+.approvalGrid dt {
+  font-weight: 600;
+}
+
+.approvalGrid dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.approvalAsset {
+  display: block;
+}
+
+.evidenceDrawer {
+  position: fixed;
+  inset-inline-end: 12px;
+  bottom: 56px;
+  z-index: 40;
+  display: grid;
+  gap: 8px;
+  width: min(420px, calc(100vw - 24px));
+  max-height: 60vh;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--dsh-border-strong, #94a3b8);
+  border-radius: 10px;
+  background: var(--dsh-surface, #ffffff);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+}
+
+/* §11.11 运行脉搏：动效只在允许动效时启用（reduced-motion 合规）；
+   forced-colors 下用 CanvasText 描边，状态始终有文本标签，不依赖颜色。 */
+.pulseList {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  margin: 6px 0 0;
+  padding: 8px 8px 8px 24px;
+  border: 1px solid var(--dsh-border-strong, #94a3b8);
+  border-radius: 8px;
+}
+
+.pulseEntry {
+  overflow-wrap: anywhere;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .pulseList li {
+    transition: background-color 120ms ease;
+  }
+
+  .pulseList li:hover {
+    background-color: var(--dsh-surface-hover, #f1f5f9);
+  }
+}
+
+@media (forced-colors: active) {
+  .pulseList {
+    border: 1px solid CanvasText;
+  }
+
+  .pulseList button {
+    border: 1px solid CanvasText;
+  }
+}
+
+/* §11.13 上下文镜头：会话顶部可收起的证据视图；文本标签承载全部状态。 */
+.lensSection {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 8px;
+  justify-items: start;
+}
+
+.lensPanel {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--dsh-border-strong, #94a3b8);
+  border-radius: 8px;
+}
+
+.lensGroup {
+  display: grid;
+  gap: 4px;
+}
