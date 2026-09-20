@@ -81,9 +81,14 @@
 
 ### 门禁 2 的现状：用例全绿，但运行偶发丢 worker（环境级）
 
-**用例面**：159 文件 / 1413 用例，`skipped=0`。全绿运行已多次出现并留档，例如
-`Test Files 159 passed (159)` / `Tests 1413 passed (1413)`；干净检出 `bb4f6ea` 上
-`pnpm install && pnpm build && pnpm test` 全链路 exit 0。
+**用例面**：159 文件 / 1413 用例，`skipped=0`，**0 豁免**（没有任何用例依赖 harness
+`test-support` 而未迁）。全绿运行多次留档，例如清洁克隆 `a90bb4b` 上：
+
+```text
+git clone <repo> && pnpm install        # exit 0
+pnpm build                              # exit 0；lib/index.js 19 导出、client.js 首行为闭包包络
+pnpm test                               # Test Files 159 passed (159) / Tests 1413 passed (1413)
+```
 
 **残留问题**：约 2/5 到 1/2 的运行会有一个 worker 进程直接死亡，Vitest 报
 `[vitest-pool]: Worker forks emitted error` / `Caused by: Error: Worker exited unexpectedly`。
@@ -123,6 +128,11 @@
    任何构建都保证 face 与网关一致；`tests/remote-face.spec.ts` 退化成零依赖正则断言
    （端点计数、信封形状、命名空间绑定），不再 import 生成器、不再创建子进程，
    单文件耗时 534ms → 6ms。
+3. **守卫断言的 CRLF 失配（干净克隆抓到的真实红灯）**：该用例 `split('\n')` 切行后
+   用锚定行尾的 `$` 断言，而本仓在 Windows 上以 core.autocrlf 检出，行尾 `\r` 让断言
+   全部失配 —— 本地工作树因为生成器刚写过 LF 而完全看不出来，克隆上稳定
+   `Tests 1 failed | 1412 passed`。切行前归一化 `\r\n`，并用「把 face 文件临时转成
+   CRLF 再跑」验证 4/4 通过。
 
 ### 干净检出抓到并修复的两处缺陷
 
