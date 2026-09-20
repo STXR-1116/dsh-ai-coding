@@ -3,7 +3,7 @@
  * 归一到同一证据视图——request ID、HTTP 状态、服务端原因、revision、审计 ID、
  * 影响对象与下一步动作。下一步动作由稳定错误码映射，不由文案解析。
  */
-import type { RunOperationEvidence, WorkspaceFailure } from '@deepseek-ai/dsh-ai-coding-platform/types'
+import type { RunOperationEvidence, WorkspaceFailure } from '../../types.ts'
 
 /** 一次操作的归一结果语义：denied 只用于权限类拒绝，failed 是其余失败。 */
 export type OperationOutcome = 'succeeded' | 'partial_success' | 'denied' | 'failed'

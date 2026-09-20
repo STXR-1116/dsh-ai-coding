@@ -6,7 +6,7 @@
  * 而「不同」本身就是要展示的信息——用户要看到「绑定时可用、之后被撤回，本次运行
  * 不受影响」，而不是一个被当前状态改写过的、看起来从未就绪过的账。
  */
-import type { RunAssetSnapshot, RunAssetSnapshotEntry } from '@deepseek-ai/dsh-ai-coding-platform/types'
+import type { RunAssetSnapshot, RunAssetSnapshotEntry } from '../../types.ts'
 
 /** 绑定时刻就绪度的中文标签；词表外原样透出。 */
 export const BINDING_READINESS_LABELS: Record<string, string> = {

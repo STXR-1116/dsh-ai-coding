@@ -116,9 +116,9 @@ function conversationMessages(
   turn: number,
 ): readonly { readonly role: 'user' | 'assistant'; readonly content: string }[] {
   const messages: Array<{ readonly role: 'user' | 'assistant'; readonly content: string }> = []
-  const start = [...session.events].reverse().find(event => event.type === 'turn/start' && event.data.turn === turn)?.seq
+  const start = [...session.ownEvents()].reverse().find(event => event.type === 'turn/start' && event.data.turn === turn)?.seq
   if (start === undefined) return messages
-  for (const event of session.events) {
+  for (const event of session.ownEvents()) {
     if (event.seq < start) continue
     if (event.type === 'user/message') {
       const message = event.data

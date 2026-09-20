@@ -6,7 +6,7 @@
  */
 import { useCallback, useEffect, useState, type ReactElement } from 'react'
 import type { ClientRemote } from '@deepseek-ai/dsh-api-remotes/client'
-import type { AssetCandidate, ProfileDryRun, ProfileEditContext, WorkspaceQueryResult } from '@deepseek-ai/dsh-ai-coding-platform/types'
+import type { AssetCandidate, ProfileDryRun, ProfileEditContext, WorkspaceQueryResult } from '../../types.ts'
 import { buildAssetSelectorRows, dryRunChecksView, planProfileEdit } from '../cloud-workspaces/agent-config-editor.ts'
 import css from './AgentConfigEditor.module.css'
 

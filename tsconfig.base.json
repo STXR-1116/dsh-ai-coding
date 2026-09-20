@@ -1,0 +1,26 @@
+{
+  // Shared compiler baseline. The root `tsconfig.json` (the plugin's own two
+  // halves) and the standalone dev fixtures under `dev/*` all extend this file;
+  // before it existed, `dev/team-skill-service/tsconfig.json` extended a
+  // `../../tsconfig.base.json` left behind by the source monorepo, and every
+  // transform of `dev/team-skill-service/src/**` failed with
+  // `[TSCONFIG_ERROR] Failed to load tsconfig 'tsconfig.base.json'`.
+  "compilerOptions": {
+    "target": "es2024",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "lib": ["es2024", "dom", "dom.iterable"],
+    "jsx": "react-jsx",
+    "strict": true,
+    "noImplicitAny": true,
+    "verbatimModuleSyntax": true,
+    "rewriteRelativeImportExtensions": true,
+    "allowImportingTsExtensions": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "types": ["node"],
+    "skipLibCheck": true,
+    "noEmit": false
+  }
+}

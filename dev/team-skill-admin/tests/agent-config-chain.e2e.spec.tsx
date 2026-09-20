@@ -24,9 +24,9 @@ import { TeamSkillApi } from '../src/lib/team-skill-api.ts'
 import { CloudProfilesPage } from '../src/components/cloud-workspace-pages.tsx'
 import type { CapturedRequest } from './request-capture.ts'
 import { captureRequests } from './request-capture.ts'
-import { WorkspaceHost } from '@deepseek-ai/dsh-ai-coding-platform/src/workspace-host'
-import type { WorkspaceSessionProvider } from '@deepseek-ai/dsh-ai-coding-platform/src/workspace-host'
-import { AgentConfigView } from '@deepseek-ai/dsh-client-ui-ai-coding-platform/src/client/agent-config/AgentConfigView'
+import { WorkspaceHost } from '../../../src/workspace-host.ts'
+import type { WorkspaceSessionProvider } from '../../../src/workspace-host.ts'
+import { AgentConfigView } from '../../../src/client/agent-config/AgentConfigView.tsx'
 
 const services: ReturnType<typeof createTeamSkillService>[] = []
 afterAll(async () => {

@@ -56,7 +56,9 @@ export class TeamSkillTelemetryBackend extends SessionTelemetryBackend {
     super(ctx)
     // The coordinator registers its own capture listeners and dispose effect
     // on the context; it needs no further reference from the backend.
-    new SessionTelemetryCoordinator(ctx, this, 'live')
+    // 0.1.5 replaced the bare capture-mode string with an options object; the
+    // mode itself is unchanged (`'live'` still means "follow session events").
+    new SessionTelemetryCoordinator(ctx, this, { capture: 'live' })
   }
 
   /**

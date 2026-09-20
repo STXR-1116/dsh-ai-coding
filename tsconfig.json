@@ -1,21 +1,12 @@
 {
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "target": "es2024",
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "lib": ["es2024", "dom", "dom.iterable"],
-    "jsx": "react-jsx",
-    "strict": true,
-    "noImplicitAny": true,
-    "verbatimModuleSyntax": true,
-    "rewriteRelativeImportExtensions": true,
-    "allowImportingTsExtensions": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
+    // `tsc -p tsconfig.json` emits only declarations here; tsdown owns the
+    // JavaScript halves (`lib/index.js` host, `lib/client.js` browser bundle).
     "outDir": "lib/types",
-    "skipLibCheck": true,
-    "noEmit": false
+    // TypeScript 6 requires the output root explicitly once the program has a
+    // common source directory; declarations mirror `src/**` under `lib/types`.
+    "rootDir": "src"
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts"],
   "exclude": ["dev", "tests", "lib"]

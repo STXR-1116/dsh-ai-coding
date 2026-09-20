@@ -1,4 +1,4 @@
-import type { TeamSkillInstallStageEvidence, TeamSkillTrustCard } from '@deepseek-ai/dsh-ai-coding-platform/types'
+import type { TeamSkillInstallStageEvidence, TeamSkillTrustCard } from '../../types.ts'
 
 /** One labelled row of the trust card, ready to render. */
 export interface TrustCardRow {

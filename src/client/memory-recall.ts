@@ -1,4 +1,4 @@
-import type { TeamSkillMemoryRecallResponse } from '@deepseek-ai/dsh-ai-coding-platform/types'
+import type { TeamSkillMemoryRecallResponse } from '../types.ts'
 
 /** Chinese labels for the recall reasons the service reports. */
 const RECALL_REASON_LABELS: Readonly<Record<string, string>> = Object.freeze({

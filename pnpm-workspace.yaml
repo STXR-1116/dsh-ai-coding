@@ -1,0 +1,14 @@
+# Single-package repository: the root is the only workspace member. The
+# `dev/*` trees are a deterministic fixture backend and a standalone console;
+# they carry their own manifests and are driven from the root vitest project
+# instead of being workspace members, so `pnpm install` stays root-only.
+packages:
+  - .
+
+# pnpm 11 no longer honours `pnpm.onlyBuiltDependencies` in package.json (it
+# warns and ignores it) and writes this key here instead. esbuild's install
+# script fetches and validates its platform binary; without the approval every
+# `pnpm install` exits 1 with ERR_PNPM_IGNORED_BUILDS, which would fail the
+# clean-checkout build gate on an otherwise complete install.
+allowBuilds:
+  esbuild: true

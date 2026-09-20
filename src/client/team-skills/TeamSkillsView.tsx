@@ -1,14 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { TeamSkillInstallStageEvidence, TeamSkillTrustCard } from '@deepseek-ai/dsh-ai-coding-platform/types'
-import { installStageRows, installedStateLabel, trustCardSections } from './trust-card.ts'
 import type {
-  ClientRemote,
   TeamSkillCatalogItem,
   TeamSkillEnvironment,
   TeamSkillInstallationView,
+  TeamSkillInstallStageEvidence,
   TeamSkillProject,
-} from '@deepseek-ai/dsh-api-remotes/client'
-import type { WorkspaceListState } from '@deepseek-ai/dsh-client-runtime/client'
+  TeamSkillTrustCard,
+} from '../../types.ts'
+import { installStageRows, installedStateLabel, trustCardSections } from './trust-card.ts'
+import type { ClientRemote } from '@deepseek-ai/dsh-api-remotes/client'
+// 0.1.1-rc.2 exposed the workspace registry projection as `WorkspaceListState`
+// from the withdrawn client-runtime package. On the 0.1.5-rc.2 baseline the
+// workspace controller owns it as `WorkspaceSnapshot`, and `ui-workspace`
+// declares the global `useWorkspaces` hook as
+// `SnapshotSelectorHook<WorkspaceSnapshot>`. The consumed shape is unchanged:
+// both expose `items: readonly WorkspaceView[]`.
+import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { SnapshotSelectorHook } from '@deepseek-ai/dsh-client-ui-slots'
 import {
   IconCheckOutline14,
@@ -23,7 +30,7 @@ export interface TeamSkillsViewProps {
   /** Typed DSH Remote assembly carrying the Host-owned Team Skill namespace. */
   readonly remote: ClientRemote
   /** DSH workspace projection used only to select an opaque project id. */
-  readonly useWorkspaces: SnapshotSelectorHook<WorkspaceListState>
+  readonly useWorkspaces: SnapshotSelectorHook<WorkspaceSnapshot>
   /** Opaque selected project identity used for server-side authorization. */
   readonly projectId?: string
   /** Projects the account may explicitly choose for project-scoped Skill operations. */

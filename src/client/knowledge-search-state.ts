@@ -2,7 +2,7 @@ import type {
   TeamSkillKnowledgeBaseSummary,
   TeamSkillKnowledgeSearchResponse,
   TeamSkillKnowledgeSearchStatus,
-} from '@deepseek-ai/dsh-ai-coding-platform/types'
+} from '../types.ts'
 
 /** Reasons a selected knowledge base did not take part in one search (§3-2). */
 export type KnowledgeSkipReason = NonNullable<TeamSkillKnowledgeSearchStatus['reason']>

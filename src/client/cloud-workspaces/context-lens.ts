@@ -3,7 +3,7 @@
  * 优先级分组（规则组聚合四层），被抑制条目保留并显式标注原因，未知来源归入
  * 显式 unknown 组；项目文件部分由工作空间变更数据合成。
  */
-import type { ContextLensEntry } from '@deepseek-ai/dsh-ai-coding-platform/types'
+import type { ContextLensEntry } from '../../types.ts'
 
 /** 八层来源的中文层标签（展示层）。 */
 export const LENS_LAYER_LABELS: Record<string, string> = {

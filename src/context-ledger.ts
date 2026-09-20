@@ -119,7 +119,7 @@ export function buildContextLedger(input: {
  * @returns 按记录顺序排列的 context-ledger 事件。
  */
 export function contextLedgerEvents(session: Session): readonly SessionEvent<'context-ledger'>[] {
-  return session.events.filter((event): event is SessionEvent<'context-ledger'> => event.type === 'context-ledger')
+  return session.ownEvents().filter((event): event is SessionEvent<'context-ledger'> => event.type === 'context-ledger')
 }
 
 /**

@@ -1,33 +1,42 @@
-# Mount rows for the AI Coding platform plugin. Applied over a dsh web
-# profile with `dsh --patch cordis.patch.yml web` (or carried by the plugin
-# installer). Ported from the harness monorepo's web-app bundle patch
-# (v0.1.1-rc.2 snapshot); the two package names keep their upstream values
-# while the single-package migration settles (ROADMAP item 3).
-plugins:
-  overrides:
-    # The Host owns all Team Skill service calls and local filesystem writes.
-    # Browser code receives only its Typert Remote projection.
+# The dsh-ai-coding bundle patch: the merged single-package mount rows, applied
+# after every earlier layer (dsh-base, then dsh-web-app) when this package is
+# listed in the profile's `dsh.profile.bundles` via `dsh plugin --profile web add`.
+#
+# Shape: a patch file is a top-level YAML ARRAY of loader patch entries. The
+# previous `plugins: overrides:` object here was the pre-merge draft's shape and
+# is rejected by the 0.1.5 loader.
+#
+# A patch replaces the targeted row's whole `config`, so any later layer that
+# wants different values restates every key it owns. Row order carries no load
+# semantics (activation is service-availability driven).
+#
+# `!!js` is the only expression dialect the config schema allows, and
+# `dshHomePath` is provided by the boot context for exactly this purpose.
+
+- insert:
+    # Host gateway AND the single browser roster entry. This row must keep the
+    # BARE package name: the browser roster only reads `dsh.client` from rows
+    # whose name is an exact package specifier, and the client bundle is
+    # discovered from this package's `exports["./client"]`.
     - id: ai-coding-platform
-      name: '@deepseek-ai/dsh-ai-coding-platform'
+      name: 'dsh-ai-coding'
       config:
         apiBaseUrl: !!js process.env.DSH_AI_CODING_PLATFORM_API_URL
         accessToken: !!js process.env.DSH_AI_CODING_PLATFORM_ACCESS_TOKEN
         stateDirectory: !!js dshHomePath('ai-coding-platform')
         globalSkillRoot: !!js dshHomePath('skills')
 
-    # The cloud workspace Remote face of the same package: a separate row
-    # because the workbench calls a different service namespace
+    # The cloud workspace Remote face of the same package: a separate host-only
+    # row because the workbench calls a different service namespace
     # (`cloudWorkspaces`) and a deployment may host it at a different endpoint.
     # `authMode` defaults to `account`. Set DSH_CLOUD_WORKSPACE_ACCESS_TOKEN
     # together with authMode 'static-token' for a no-login deployment.
+    # Subpath rows never contribute a client bundle, and the package may not be
+    # named by a second bare-name row (that is a duplicate client source and an
+    # aborted boot).
     - id: cloud-workspaces
-      name: '@deepseek-ai/dsh-ai-coding-platform/workspace'
+      name: 'dsh-ai-coding/workspace'
       config:
         apiBaseUrl: !!js process.env.DSH_CLOUD_WORKSPACE_API_URL ?? process.env.DSH_AI_CODING_PLATFORM_API_URL
         accessToken: !!js process.env.DSH_CLOUD_WORKSPACE_ACCESS_TOKEN
         authMode: !!js process.env.DSH_CLOUD_WORKSPACE_AUTH_MODE
-
-    # First-party AI Coding platform surface: login, projects, team assets,
-    # and local collection views mounted through the sidebar and shell overlay.
-    - id: ui-ai-coding-platform
-      name: '@deepseek-ai/dsh-client-ui-ai-coding-platform'

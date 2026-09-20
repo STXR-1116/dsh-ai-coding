@@ -1,9 +1,29 @@
 /** Full-screen, browser-local demo surface for the first-party platform. */
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ComponentType, type ReactNode } from 'react'
-import type { ClientRemote, TeamSkillAccessSummary, TeamSkillAccountResult, TeamSkillAccountRole, TeamSkillAccountState, TeamSkillAsset, TeamSkillChangePasswordRequest, TeamSkillEnvironment, TeamSkillLoginRequest, TeamSkillOrganization, TeamSkillProject, TeamSkillProjectAsset, TeamSkillKnowledgeBaseSummary, TeamSkillKnowledgeSearchResponse, TeamSkillKnowledgePreview, TeamSkillMemory, TeamSkillMemoryPage, TeamSkillMemoryMutation, TeamSkillMemoryRecallResponse } from '@deepseek-ai/dsh-api-remotes/client'
-import type { CollectorSnapshot, CollectorStatus } from '@deepseek-ai/dsh-ai-coding-platform/types'
+import type { ClientRemote, SessionId } from '@deepseek-ai/dsh-api-remotes/client'
+import type {
+  CollectorSnapshot,
+  CollectorStatus,
+  TeamSkillAccessSummary,
+  TeamSkillAccountResult,
+  TeamSkillAccountRole,
+  TeamSkillAccountState,
+  TeamSkillAsset,
+  TeamSkillChangePasswordRequest,
+  TeamSkillEnvironment,
+  TeamSkillKnowledgeBaseSummary,
+  TeamSkillKnowledgePreview,
+  TeamSkillKnowledgeSearchResponse,
+  TeamSkillLoginRequest,
+  TeamSkillMemory,
+  TeamSkillMemoryMutation,
+  TeamSkillMemoryPage,
+  TeamSkillMemoryRecallResponse,
+  TeamSkillOrganization,
+  TeamSkillProject,
+  TeamSkillProjectAsset,
+} from '../types.ts'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client'
 import type { ILayout } from '@deepseek-ai/dsh-client-ui-layout/client'
 import { IconArchiveOutline20, IconAgentPresetOutline16, IconChevronLeftOutline14, IconChevronRightOutline14, IconCloseOutline16, IconDataOutline16, IconFolderOpenOutline16, IconGoalOutline16, IconInspectOutline12, IconPauseOutline16, IconPlayOutline16, IconQueueOutline14, IconRefreshOutline16, IconSearchOutline16, IconSettingsOutline14, IconSkillOutline16, IconSparkle16, IconUserOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { DEFAULT_APPEARANCE, loadAppearance, resolveTheme, saveAppearance, type Appearance } from './appearance.ts'
@@ -17,8 +37,8 @@ import {
   knowledgeSelectorTotals,
 } from './knowledge-search-state.ts'
 import { memoryRecallRows, memoryRecallVerdict, memoryTierLabel } from './memory-recall.ts'
-import { CloudWorkspacesView } from './cloud-workspaces/CloudWorkspacesView'
-import { AgentConfigView } from './agent-config/AgentConfigView'
+import { CloudWorkspacesView } from './cloud-workspaces/CloudWorkspacesView.tsx'
+import { AgentConfigView } from './agent-config/AgentConfigView.tsx'
 import css from './PlatformSurface.module.css'
 
 /** Full props for the root-scoped overlay slot. */
@@ -798,7 +818,13 @@ function PlatformShell({ controller, t, remote, layout, useSessions, useWorkspac
       setProjectDetailIssue(surfaceIssueFromCode(result.error.code, result.error.message))
       setKnowledgePhase('failed')
       setKnowledgeIssue(surfaceIssueFromCode(result.error.code, result.error.message))
-      if (result.error.code === 'PROJECT_NOT_MEMBER' || result.error.code === 'RESOURCE_NOT_FOUND') {
+      // 0.1.5 narrows `RemoteResult.error.code` to the merged `RemoteErrorCode`
+      // vocabulary, which a plugin widens only by claiming its own throwing
+      // codes. These two are emitted by the Team Skill service rather than
+      // declared here, so the membership test is taken over the wire string:
+      // the comparison is unchanged, only its static domain is widened.
+      const failureCode: string = result.error.code
+      if (failureCode === 'PROJECT_NOT_MEMBER' || failureCode === 'RESOURCE_NOT_FOUND') {
         clearStoredProjectId(currentStorageKey(userId))
         await loadAccessSummary(userId)
       }
@@ -1010,19 +1036,16 @@ function PlatformShell({ controller, t, remote, layout, useSessions, useWorkspac
   }, [docked])
   useEffect(() => {
     if (!docked) {
-      layout.reserveRight(0)
+      layout.closeRightbar()
       return
     }
-    const el = surfaceRef.current
-    /* v8 ignore next -- the ref is always attached by effect time. */
-    if (el === null) return
-    const observer = new ResizeObserver(() => {
-      layout.reserveRight(el.getBoundingClientRect().width)
-    })
-    observer.observe(el)
+    // 0.1.5 replaced the pixel-width geometry call `reserveRight(px)` with a
+    // presentation report: the frame owns the track width, so the overlay only
+    // declares that its right panel is docked — a reserved grid track, not a
+    // fullscreen cover. That removes the width measurement the old call needed.
+    layout.openRightbar(true, false)
     return () => {
-      observer.disconnect()
-      layout.reserveRight(0)
+      layout.closeRightbar()
     }
   }, [docked, layout])
 

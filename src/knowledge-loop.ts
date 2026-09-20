@@ -82,7 +82,7 @@ export class TeamSkillKnowledgeLoop {
  * @returns Knowledge-search events in append order.
  */
 export function knowledgeSearchEvents(session: Session): readonly SessionEvent<'knowledge-search'>[] {
-  return session.events.filter((event): event is SessionEvent<'knowledge-search'> => event.type === 'knowledge-search')
+  return session.ownEvents().filter((event): event is SessionEvent<'knowledge-search'> => event.type === 'knowledge-search')
 }
 
 function toSessionEvent(
@@ -90,7 +90,7 @@ function toSessionEvent(
   turn: number,
   step: number,
   response: TeamSkillKnowledgeSearchResponse,
-): SessionEventData {
+): TeamSkillKnowledgeSearchEventData {
   return {
     turn,
     step,
@@ -136,7 +136,15 @@ function failureReason(status: 'failed' | 'not-ready' | 'signed-out'): string {
   return 'external_error'
 }
 
-interface SessionEventData {
+/**
+ * Durable `knowledge-search` event payload.
+ *
+ * Exported so the package's single `SessionEventMap` augmentation
+ * (`src/session-events.ts`) can bind this exact shape to the event type: on the
+ * 0.1.5-rc.2 baseline the session package seals its event vocabulary, so the
+ * declaration must name the type it registers.
+ */
+export interface TeamSkillKnowledgeSearchEventData {
   readonly turn: number
   readonly step: number
   readonly query: string

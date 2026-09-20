@@ -1,4 +1,4 @@
-import type { AgentRunSnapshot, WorkspaceChanges, WorkspaceStreamState } from '@deepseek-ai/dsh-ai-coding-platform/types'
+import type { AgentRunSnapshot, WorkspaceChanges, WorkspaceStreamState } from '../../types.ts'
 
 /**
  * 恢复中心（蓝图 §5.2/§8.3，仅记录与呈现）：把失败运行、挂起审批（paused）、

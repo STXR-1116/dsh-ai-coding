@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react'
-import type { ClientRemote, TeamSkillProject } from '@deepseek-ai/dsh-api-remotes/client'
+import type { ClientRemote } from '@deepseek-ai/dsh-api-remotes/client'
 import type {
   AgentAssetBinding,
   AgentExecutionPolicy,
   AgentProfileSummary,
   AgentTypeSchema,
+  TeamSkillProject,
   WorkspaceQueryResult,
-} from '@deepseek-ai/dsh-ai-coding-platform/types'
+} from '../../types.ts'
 import { IconRefreshOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
-import { AgentConfigEditor } from './AgentConfigEditor'
+import { AgentConfigEditor } from './AgentConfigEditor.tsx'
 import css from './AgentConfigView.module.css'
 
 /** Failure codes that mean the Host account session must be refreshed upstream. */

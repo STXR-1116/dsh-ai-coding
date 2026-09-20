@@ -3,10 +3,16 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { InvariantFailure, InvariantInstaller } from '@deepseek-ai/dsh-invariants'
 import type { Session, SessionEvent } from '@deepseek-ai/dsh-session'
 
-const PACKAGE_NAME = '@deepseek-ai/dsh-ai-coding-platform'
+/**
+ * This package owns the invariant contribution. The pre-merge two-package
+ * split registered the host companion as `@deepseek-ai/dsh-ai-coding-platform`
+ * and the client companion as `@deepseek-ai/dsh-client-ui-ai-coding-platform`;
+ * the merged single package registers once, under its own name.
+ */
+const PACKAGE_NAME = 'dsh-ai-coding'
 
 /** Cordis companion plugin name. */
-export const name = 'ai-coding-platform-invariant'
+export const name = 'dsh-ai-coding-invariant'
 /** Invariant registry required by the companion. */
 export const inject = ['invariants']
 

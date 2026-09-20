@@ -3,7 +3,7 @@
  * 观测的事件流重联合并为一条按时间排序的时间线。未知 kind 显式呈现为
  * unknown——不丢弃、不改写；渲染条目有上限，超出部分按需加载（低性能降级）。
  */
-import type { RunPulseEntry } from '@deepseek-ai/dsh-ai-coding-platform/types'
+import type { RunPulseEntry } from '../../types.ts'
 
 /** 客户端观测的一次事件流重连。 */
 export interface PulseReconnect {

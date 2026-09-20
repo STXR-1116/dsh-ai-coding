@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import type { ClientRemote, TeamSkillProject } from '@deepseek-ai/dsh-api-remotes/client'
+import type { ClientRemote } from '@deepseek-ai/dsh-api-remotes/client'
 import type { SnapshotSelectorHook } from '@deepseek-ai/dsh-client-ui-slots'
-import type { WorkspaceListState } from '@deepseek-ai/dsh-client-runtime/client'
+// `WorkspaceListState` (client-runtime, withdrawn) became the workspace
+// controller's `WorkspaceSnapshot`; `ui-workspace` declares the global
+// `useWorkspaces` hook over it. Same `items: readonly WorkspaceView[]` shape.
+import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type {
   AgentProfileSummary,
   AgentRunSnapshot,
   CloudWorkspace,
+  TeamSkillProject,
   WorkspaceChanges,
   WorkspaceCodeSource,
   WorkspaceDirectory,
@@ -18,7 +22,7 @@ import type {
   RunApprovalSnapshot,
   ContextLensSnapshot,
   RunAssetSnapshot,
-} from '@deepseek-ai/dsh-ai-coding-platform/types'
+} from '../../types.ts'
 import { IconFolderOpenOutline16, IconRefreshOutline16, MarkdownText } from '@deepseek-ai/dsh-client-ui-primitives'
 import { WORKSPACE_LAYOUT_LABELS, WORKSPACE_LAYOUT_PRESETS, type WorkspaceLayoutPreset } from './layout-presets.ts'
 import { applyPreviewSecurity, isolatedPreviewSandbox } from './preview-security.ts'
@@ -44,7 +48,7 @@ export interface CloudWorkspacesViewProps {
   /** Typed DSH Remote assembly carrying the Host-owned cloud workspace namespace. */
   readonly remote: ClientRemote
   /** DSH workspace projection used only to select an opaque project id. */
-  readonly useWorkspaces: SnapshotSelectorHook<WorkspaceListState>
+  readonly useWorkspaces: SnapshotSelectorHook<WorkspaceSnapshot>
   /** Opaque selected project identity used for server-side authorization. */
   readonly projectId?: string
   /** Projects the account may explicitly choose for cloud workspaces. */
@@ -85,6 +89,20 @@ interface WorkspaceState {
 }
 
 const READY = <T,>(result: WorkspaceQueryResult<T>): T | undefined => (result.status === 'ready' ? result.value : undefined)
+
+/**
+ * Localized chrome for the Markdown preview.
+ *
+ * The baseline's `MarkdownText` requires `labels`; on the source vintage the
+ * fence/footnote chrome defaulted inside the primitive. The object is
+ * module-level on purpose: `MarkdownText` documents that a new identity
+ * discards its streaming render cache mid-message, so it must stay
+ * reference-stable. The copy matches this surface's Chinese-first wording.
+ */
+const MARKDOWN_LABELS = {
+  code: { copyLabel: '复制', copiedLabel: '已复制' },
+  footnotes: '脚注',
+} as const
 
 /** Client Remote envelope: transport failure is reported before the domain result. */
 type RemoteEnvelope<T> =
@@ -2077,7 +2095,7 @@ export function CloudWorkspacesView({
                 if (viewer === 'markdown') {
                   return (
                     <div className={css.previewText} data-viewer="markdown">
-                      <MarkdownText text={state.preview.content ?? ''} />
+                      <MarkdownText text={state.preview.content ?? ''} labels={MARKDOWN_LABELS} />
                     </div>
                   )
                 }

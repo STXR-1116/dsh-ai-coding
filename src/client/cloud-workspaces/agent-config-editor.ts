@@ -2,7 +2,7 @@
  * Agent 配置编辑流的纯模型（蓝图 §2-6，§11.12）：编辑规划（已发布自动建
  * 草稿）、资产选择器统一行与试运行结果呈现。全部由服务端数据派生，不推断。
  */
-import type { AssetCandidate, ProfileDryRun } from '@deepseek-ai/dsh-ai-coding-platform/types'
+import type { AssetCandidate, ProfileDryRun } from '../../types.ts'
 
 /**
  * 编辑规划：已发布 → 先建草稿再编辑；draft → 直接编辑；archived → 阻断。

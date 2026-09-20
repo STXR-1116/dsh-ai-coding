@@ -1,33 +1,18 @@
 /**
- * Package-owned invariant companion for the AI Coding platform plugin.
+ * The former client-package half of the two-package split. The split is gone:
+ * this repository is ONE package, and the invariants registry reserves
+ * ownership per full package name —
+ * `invariants: package "<name>" is already registered` is thrown by
+ * `InvariantRegistry.register()` for a second registration — so the merged
+ * package can carry exactly one companion. This module therefore re-exports
+ * that single companion instead of registering a second one under the old
+ * `@deepseek-ai/dsh-client-ui-ai-coding-platform` identity, keeping the
+ * `./client-node/invariant` entry of this package's node half pointing at the
+ * one registration the package owns.
+ *
+ * The companion it aliases carries the real checks; this half was a no-op in
+ * the split (`install = () => {}`), so nothing is lost by the merge.
+ *
  * @module dsh-ai-coding/client-node/invariant
  */
-
-/* jscpd:ignore-start */
-import type { Context } from '@deepseek-ai/cordis'
-import type { InvariantInstaller } from '@deepseek-ai/dsh-invariants'
-
-// Registration identity is kept at the original two-package split name; the
-// invariants service keys ownership by this string (ROADMAP: revisit on the
-// first baseline bump against the published invariants contract).
-const PACKAGE_NAME = '@deepseek-ai/dsh-client-ui-ai-coding-platform'
-
-/** Cordis companion plugin name. */
-export const name = 'client-ui-ai-coding-platform-invariant'
-/** Service required before the companion can reserve package ownership. */
-export const inject = ['invariants']
-
-/**
- * No runtime invariant: the demo owns only local browser presentation state;
- * its behavior is asserted by component tests rather than a cross-plugin event.
- */
-const install: InvariantInstaller = () => {}
-
-/**
- * Register this package's invariant companion.
- * @param ctx - Cordis context carrying the invariant service.
- * @returns the installed registration's disposer after setup succeeds.
- */
-export const apply = (ctx: Context): Promise<() => void> =>
-  Promise.resolve(ctx.invariants.register(PACKAGE_NAME, install))
-/* jscpd:ignore-end */
+export { apply, inject, name } from '../invariant.ts'
