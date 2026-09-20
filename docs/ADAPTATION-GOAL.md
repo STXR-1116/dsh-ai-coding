@@ -20,10 +20,14 @@
   harness `test-support` 而未迁，因此本文件无需登记豁免理由与 npm 可得性结论。
   fixture（207）与 admin（276）两个自包含面另行成项目，均全绿。
 - **挂载冒烟**：`build/mount-smoke.mjs` 四个环节（boot → page → roster → bundle），
-  红绿日志归档于 `docs/mount-smoke-log.md`：**绿 4 次、红 1 次**。
+  红绿日志归档于 `docs/mount-smoke-log.md`：**绿 7 次、红 1 次**。
   绿：启动图含 `{"id":"dsh-ai-coding","url":"/plugins/??dsh-ai-coding/client.js&rev=…"}`，
   该 URL 返回 200 且首行为 `window.__ModuleLoader__.load(`。
   红：把 `dsh-ai-coding` 移出 `dsh.profile.bundles` 后，只有 `roster` 一步失败。
+- **干净检出上端到端复验**（`bb4f6ea`）：`git clone` 到临时目录 →
+  `pnpm install` → `pnpm build` → `pnpm test` 全部 exit 0，
+  产物验收三项通过，测试 `Test Files 159 passed (159)` / `Tests 1411 passed (1411)`。
+  这一步抓到了两处本地工作树完全看不出的缺陷，已修复（见下）。
 - **为消除竞态所做的两处运行期改动（需 owner 知悉，均未改产品语义）**：
   1. `vitest.config.ts` 设 `fileParallelism: false` —— 夹具按真实时间推进
      （Run 40ms、Workspace 200ms），文件级并行下 HTTP 往返会输掉窗口；实测三次
@@ -68,12 +72,26 @@
 
 | 门禁 | 状态 | 证据 / 缺口 |
 |------|------|-------------|
-| 1 干净检出 build + 产物 + 纯度闸 | ✅ | 干净 clone 上 install/build 一次通过；产物验收三项 + 纯度闸 RED/GREEN 复现 |
-| 2 `pnpm test` 全绿 skipped=0 | ✅ | 连续三次 159/159 文件、1411/1411 用例、0 skipped；0 豁免 |
+| 1 干净检出 build + 产物 + 纯度闸 | ✅ | 干净 clone 上 `pnpm install` → `pnpm build` 一次通过；产物验收三项 + 纯度闸 RED/GREEN 复现 |
+| 2 `pnpm test` 全绿 skipped=0 | ✅ | 工作树连续三次、干净检出一次：159/159 文件、1411/1411 用例、0 skipped；0 豁免 |
 | 3 单包身份改名完整 | ✅ | 台账 D21；三处改名 + 核对依据 + 刻意不改清单 |
-| 4 挂载冒烟红/绿双日志、≥3 绿 | ✅ | `docs/mount-smoke-log.md`：绿 4 / 红 1，脚本 `build/mount-smoke.mjs` |
+| 4 挂载冒烟红/绿双日志、≥3 绿 | ✅ | `docs/mount-smoke-log.md`：绿 7 / 红 1，脚本 `build/mount-smoke.mjs` |
 | 5 API 漂移台账逐项打勾 | ✅ | `docs/api-drift-ledger.md`，22 项逐条「旧行为 → 新基线行为」 |
 | 6 skipped=0 / 不发布 npm / 不改语义 / git 干净 / 推送 | ✅ | 0 skipped；未发布 npm；产品语义未改（两处为消除测试竞态的改动已登记）；git 干净；已推送 |
+
+### 干净检出抓到并修复的两处缺陷
+
+本地工作树因为文件都在磁盘上，这两处完全看不出来，只有干净克隆会红：
+
+1. **`.gitignore` 的 `lib/` 未锚定**：除本包构建产物外还匹配任何嵌套的 `lib/` 目录，
+   于是 `dev/team-skill-admin/src/lib/` 的 **13 个源文件从未入库**。干净克隆上 admin
+   项目整片 `Failed to resolve import "../src/lib/*.ts"`（25 个文件），
+   全仓用例数从 1411 掉到 1135。改为锚定 `/lib/`，并显式忽略
+   `dev/team-skill-service/lib/`（那是编译产物，源码在 `src/`）。
+2. **生成器用字节比较换行**：`build/generate-remote-face.mjs --check` 比较磁盘内容与
+   生成结果，而本仓在 Windows 上以 `core.autocrlf` 检出（入库 LF、落盘 CRLF、生成器写 LF），
+   于是每个 Windows 检出都被判成 stale，`tests/remote-face.spec.ts` 必红。
+   比较前归一化 `\r\n` → `\n`。
 
 **整体结论：六项门禁均已具备证据。** 遗留两项非门禁的结构性事项已在台账登记，
 供 owner 决定是否另开工作项：D18（`RemoteErrorCode` 封闭词汇表，当前用窄化比较兜住）
