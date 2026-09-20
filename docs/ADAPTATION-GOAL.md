@@ -2,6 +2,58 @@
 
 需求源：本 README 的 ROADMAP。三件事的详细计划如下，文末为可直接派发的 /goal。
 
+---
+
+## 进度（执行者维护）
+
+| 任务 | 状态 | 证据 |
+|------|------|------|
+| 一、tsdown 双半构建调通 | ✅ 完成 | 见下 |
+| 二、测试移植 | 🟡 进行中 | 104 spec 全迁、0 豁免；plugin 项目 925/926；挂载冒烟未做 |
+| 三、API 漂移适配 | ✅ 完成（改名与台账） | `docs/api-drift-ledger.md`，22 项 |
+
+### 任务一 完成记录
+
+- `pnpm build` 通过：`tsc -p tsconfig.json` 产出 `lib/types/**`（JS + 声明），
+  tsdown 从 `lib/types` 打双半 —— host `lib/index.js`（159.76 kB）、
+  浏览器闭包 `lib/client.js`（507.55 kB）。
+- 验收证据：`node -e "import('./lib/index.js')"` 成功，导出
+  `TeamSkillGateway`/`WorkspaceGateway`/`TeamSkillHost`/`WorkspaceHost` 等 19 个符号；
+  `lib/client.js` 首行为 `window.__ModuleLoader__.load({`，第二行
+  `id: "dsh-ai-coding"`，第三行 `factory: (require) => {`。
+- **纯度闸已实测 armed**：故意在 `src/client/index.ts` 引入
+  `import * as purityProbe from '@deepseek-ai/dsh-agent'` 并实际使用 → RED，构建被
+  `[plugin dsh-client-bundle-purity]` 拒绝，报文为
+  `client bundle purity: "@deepseek-ai/dsh-agent" is not in the default client
+  externals or dsh-ai-coding's dsh.client.external, …`；撤销后 GREEN。
+- 三条 lightningcss 管线（`.module.css` / `.css?inline` / 全局 `.css`）随预设保留未改。
+
+**与本文件原计划的一处偏差（需 owner 知悉）**：原计划写「`optionalStringArray` 改从已发布的
+`@deepseek-ai/dsh-client-modules/client` 导入」，但 0.1.5-rc.2 的 `./client` 入口只转发
+`parseBootManifest` / `stripClientSuffix`，该函数已无公开子路径可达。改为在
+`build/tsdown.client.ts` 内联**行为等价**实现（含逐字相同的抛错文案）。详见台账 D19。
+
+### 任务三 完成记录
+
+- `pnpm typecheck`：**416 → 0** 个类型错误。
+- 单包身份改名已完成（门禁 3 点名的三处：`cordis.patch.yml` 两行 name、
+  invariant 注册名、client inject），核对依据与「刻意不改的持久化身份」清单见台账 D21。
+- 台账：`docs/api-drift-ledger.md`，22 项，每项为「0.1.1-rc.2 旧行为 → 0.1.5-rc.2 新基线行为」。
+  其中 D18 为 ⚠️ 保留项、D22 为 ⛔ 结构性未解项。
+
+### 尚未满足的门禁（执行者自评）
+
+| 门禁 | 状态 | 缺口 |
+|------|------|------|
+| 1 干净检出 build + 产物 + 纯度闸 | 🟡 | build/产物/纯度闸均已实测；**尚未在干净检出上复跑** |
+| 2 `pnpm test` 全绿 skipped=0 | ❌ | plugin 1 例未通过；admin 项目 16 个文件待修（缺 `next`/`next-auth`/`lucide-react` 等外部件） |
+| 3 单包身份改名完整 | ✅ | 见台账 D21 |
+| 4 挂载冒烟红/绿双日志、≥3 绿 | ❌ | 未开始 |
+| 5 API 漂移台账逐项打勾 | ✅ | `docs/api-drift-ledger.md` |
+| 6 skipped=0 / 不发布 npm / 不改语义 / git 干净 / 推送 | 🟡 | 不发布 npm ✅、语义未改 ✅、git 干净 ✅、已推送 ✅；skipped=0 随门禁 2 |
+
+**整体结论：未完成**（门禁 1 复验、2、4 未完）。
+
 ## 任务一：tsdown 双半构建调通
 
 **目标**：`pnpm build` 产出 `lib/index.js`（host 半）与 `lib/client.js`（浏览器闭包包络）。
