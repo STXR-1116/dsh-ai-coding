@@ -7,6 +7,30 @@
 
 ## P0-1 · 浏览器侧 remote 服务表为空（挂载缺陷根因）
 
+### P0-1 追加（二期执行时实测，根因收窄）
+
+探针实测（`remoteMethods(Object.create(cls.prototype))`，对照已发布 typert-protocol）：
+**本仓与 monorepo 旧网关编译产物的原型上 remote-methods 描述符计数均为 0**——即
+`remoteMethods()` 一无所获，网关的 claims 集合为空 → 浏览器投影表没有我们的命名空间。
+结合一期笔记（typert-wiring-notes.md）已知：描述符是 `REMOTE_METHOD_DESCRIPTOR`
+own-property、附着在原型上，附着者是 `@Remote` 装饰器；且 0.1.5 网关对浏览器半的
+typed surface 要求 **strict codec（registry 主路径）**，`dsh-api-gateway/lib/client.js`
+无 SRC 发现。**因此 SRC 兜底只覆盖宿主侧请求分发，不覆盖浏览器注册清单——
+「不生成 typert 面」的一期结论（typert-wiring-notes §2.9）对宿主分发成立、对浏览器
+挂载不成立**。二期 §2.8 的 staging 生成配方（stage packages 骗过 analyzer 的三个
+硬假设 + `WorkspaceTypertGenerator` 产四件套）是已知的生成通路，卡在 run#5 的
+TS checker 崩溃（`getSymbolLinks`），需按其 unknowns 段的 staging 方案收尾。
+
+**下一步（按序）**：
+1. 检查我们编译后 `lib/index.js` 里 `@Remote` 装饰器的附着代码形态（本仓 tsconfig
+   未开 `experimentalDecorators`，TS5 标准装饰器语义 vs 协议装饰器的书写签名）；
+   用真实实例（live boot 后从 `ctx.reflect.props` 取）而非 fake 原型重跑探针。
+2. 若附着确实缺失：优先试验 tsconfig 开 `experimentalDecorators`（+ 视情况
+   `emitDecoratorMetadata`）重编译再探针；仍不行则走 §2.8 staging 生成配方，
+   解决 run#5 的 checker 崩溃（单副本 staging：用 compilerOptions.paths 把协议
+   映射到 staged 副本）。
+3. 生成/注册成功判据：`remoteMethods(真实实例)` ≥ 85；真机浏览器 pending 消失。
+
 **证据链**（已实测）：服务器启动 0 报错、宿主两行（`dsh-ai-coding`、`dsh-ai-coding/workspace`）
 已激活；带令牌页面下发的 `__DSH_BOOT__` 图里插件条目的 inject 链正确
 （api-remotes / api-workspace-controller / locale / runtime / ui-layout / ui-sidebar /
