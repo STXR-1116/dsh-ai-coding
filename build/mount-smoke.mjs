@@ -27,7 +27,7 @@
  * @module dsh-ai-coding/build/mount-smoke
  */
 
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { setTimeout as delay } from 'node:timers/promises'
 
 const PACKAGE_ID = 'dsh-ai-coding'
@@ -54,6 +54,12 @@ async function fetchWithDeadline(url, options = {}) {
 }
 
 const server = spawn('dsh', ['--profile', 'web', '--no-open', '--port', String(port)], {
+  // `shell: true` is needed to resolve the `dsh` shim portably, but it means this
+  // handle is the SHELL and `server.kill()` would leave the actual node server
+  // running. That is not hypothetical: an earlier revision of this script leaked
+  // one orphaned server per run — eleven of them accumulated to 2.4 GB and made
+  // the unit suite's Vitest forks start dying, which cost a long detour. So
+  // teardown always kills the whole tree.
   shell: true,
   stdio: ['ignore', 'pipe', 'pipe'],
 })
@@ -63,6 +69,17 @@ server.stdout.on('data', (chunk) => { serverOutput += chunk; process.stdout.writ
 server.stderr.on('data', (chunk) => { serverOutput += chunk; process.stderr.write(chunk) })
 let serverExit
 server.on('exit', (code) => { serverExit = code })
+
+/** Kill the spawned server and everything it started; safe to call twice. */
+function killServerTree() {
+  if (server.pid === undefined) return
+  if (process.platform === 'win32') {
+    // `/T` takes the child node process the shell shim created.
+    spawnSync('taskkill', ['/PID', String(server.pid), '/T', '/F'], { stdio: 'ignore' })
+  } else {
+    try { process.kill(-server.pid, 'SIGKILL') } catch { server.kill('SIGKILL') }
+  }
+}
 
 try {
   // 1. Wait for the tokenized URL. The server prints exactly one.
@@ -112,10 +129,9 @@ try {
 } catch (error) {
   console.log(`smoke aborted: ${error instanceof Error ? error.message : String(error)}`)
 } finally {
-  server.kill()
-  // Windows needs the process tree gone; the shell wrapper holds the child.
+  killServerTree()
   await delay(500)
-  if (serverExit === undefined) server.kill('SIGKILL')
+  if (serverExit === undefined) killServerTree()
 }
 
 const failed = steps.filter(step => !step.ok)

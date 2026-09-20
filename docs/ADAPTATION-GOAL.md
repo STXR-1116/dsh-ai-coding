@@ -73,11 +73,56 @@
 | 门禁 | 状态 | 证据 / 缺口 |
 |------|------|-------------|
 | 1 干净检出 build + 产物 + 纯度闸 | ✅ | 干净 clone 上 `pnpm install` → `pnpm build` 一次通过；产物验收三项 + 纯度闸 RED/GREEN 复现 |
-| 2 `pnpm test` 全绿 skipped=0 | ✅ | 工作树连续三次、干净检出一次：159/159 文件、1411/1411 用例、0 skipped；0 豁免 |
+| 2 `pnpm test` 全绿 skipped=0 | 🟡 | 用例面全绿已多次达成；但约半数运行会丢一个 worker 进程（环境级，见下） |
 | 3 单包身份改名完整 | ✅ | 台账 D21；三处改名 + 核对依据 + 刻意不改清单 |
-| 4 挂载冒烟红/绿双日志、≥3 绿 | ✅ | `docs/mount-smoke-log.md`：绿 7 / 红 1，脚本 `build/mount-smoke.mjs` |
+| 4 挂载冒烟红/绿双日志、≥3 绿 | ✅ | `docs/mount-smoke-log.md`：绿 7 / 红 1；脚本已修掉进程泄漏，复测 3/3 绿且零残留 |
 | 5 API 漂移台账逐项打勾 | ✅ | `docs/api-drift-ledger.md`，22 项逐条「旧行为 → 新基线行为」 |
 | 6 skipped=0 / 不发布 npm / 不改语义 / git 干净 / 推送 | ✅ | 0 skipped；未发布 npm；产品语义未改（两处为消除测试竞态的改动已登记）；git 干净；已推送 |
+
+### 门禁 2 的现状：用例全绿，但运行偶发丢 worker（环境级）
+
+**用例面**：159 文件 / 1413 用例，`skipped=0`。全绿运行已多次出现并留档，例如
+`Test Files 159 passed (159)` / `Tests 1413 passed (1413)`；干净检出 `bb4f6ea` 上
+`pnpm install && pnpm build && pnpm test` 全链路 exit 0。
+
+**残留问题**：约 2/5 到 1/2 的运行会有一个 worker 进程直接死亡，Vitest 报
+`[vitest-pool]: Worker forks emitted error` / `Caused by: Error: Worker exited unexpectedly`。
+特征：
+
+- **没有任何用例失败** —— 只有该 worker 当时在跑的那个文件不产出报告，于是退出码非零、
+  统计里少几十个用例（`158 passed (159)`）。
+- **随机落在任意文件**：观测到过 `gateway-seam.integration`、`workspace-host.integration`、
+  `host-residual-closure.integration`、`host-installation-states.integration`、
+  `workspace-admin`（fixture）、`cloud-workspace-stream`（admin）等，每次不同。
+- **嫌疑文件单独跑必绿**：`host-installation-states.integration.spec.ts` 单跑 5/5 通过、
+  `workspace-credentials.spec.ts` 单跑 3/3 通过。
+- **不是内存**：机器 32 GB、空闲 13 GB；日志里没有 V8 OOM、没有 kill 信号、没有 JS 层异常。
+- **换遍运行器配置都不消失**：`pool: 'forks'`（在用）/ `'threads'`、`isolate: true`（在用）/
+  `false`、`fileParallelism: false`（在用）、三个项目一次跑 / 分三次顺序跑、
+  去掉 `--no-webstorage`、把漂移守卫从「子进程 + 管道 stdio」改成「进程内 import」
+  再改成「零依赖正则断言」—— 崩溃率都在同一量级。
+- **参照实现记录了同一个缺陷**：其 `vitest.config.ts` 写道「Node 24 has aborted in its
+  CJS lexer (v8::ToLocalChecked Empty MaybeLocal in cjs_lexer::Parse) from worker threads
+  on macOS, Linux, and Windows. Forked workers avoid that shared thread path.」——
+  它也只是缓解（改用 forks 并把时间敏感套件单独分组），本机只有 Node v24.15.0，
+  没有版本管理器可用来对照其它 Node 版本。
+
+**结论**：这是环境级的 Node 24 进程崩溃，不是用例、不是本仓配置、也不是移植引入的。
+复核时若看到 `Worker exited unexpectedly`，请按基础设施问题处理并重跑；判定用例是否
+真的通过，看 `Tests N passed (M)` 里 N 与 M 的差是否只来自那个未报告的文件。
+
+### 本轮另外两处修复
+
+1. **`build/mount-smoke.mjs` 的进程泄漏（执行者引入，已修）**：脚本用
+   `spawn('dsh', …, { shell: true })` 起服务，`server.kill()` 杀掉的是 shell 包装而不是
+   真正的 node 进程，于是每次冒烟泄漏一个 `dsh web`。累计到 11 个、占 2.4 GB 之后，
+   单测的 Vitest fork 开始成片死亡 —— 那个「worker 崩溃」现象最初就是被它放大的。
+   现在改用 `taskkill /PID <pid> /T /F`（POSIX 下杀进程组）收尾；复测 3 次冒烟后
+   node 进程数 16 → 16、无监听端口残留。
+2. **Remote face 的保鲜改到构建期**：`pnpm build` 的第一步就是跑生成器（比较后按需重写），
+   任何构建都保证 face 与网关一致；`tests/remote-face.spec.ts` 退化成零依赖正则断言
+   （端点计数、信封形状、命名空间绑定），不再 import 生成器、不再创建子进程，
+   单文件耗时 534ms → 6ms。
 
 ### 干净检出抓到并修复的两处缺陷
 
