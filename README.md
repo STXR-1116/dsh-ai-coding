@@ -50,3 +50,11 @@ dsh --patch cordis.patch.yml web
 Demo backend: `node --import tsx dev/team-skill-service/src/server.ts` (port
 4100) with `DSH_AI_CODING_PLATFORM_API_URL`/`DSH_CLOUD_WORKSPACE_API_URL`
 pointed at `http://127.0.0.1:4100/v1`.
+
+## LLM provider (GOAT / Command Code)
+
+Configured in `~/.dsh/settings.yaml` (works, verified end-to-end): custom
+provider `goat` (`api: openai-completions`, baseURL
+`https://api.commandcode.ai/provider/v1`, `apiKeyEnv: COMMANDCODE_API_KEY`)
+serving `deepseek/deepseek-v4.1-flash`; default model set to it. Do NOT set
+`reasoningEffort` for this model (UNSUPPORTED_REASONING_EFFORT).
