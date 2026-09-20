@@ -38,5 +38,25 @@ RED 先行、红绿双日志、skipped=0、不改产品语义、不推送 npm（
 ## /goal（派发文本）
 
 ```
-/goal 继续完成 https://github.com/STXR-1116/dsh-ai-coding 插件仓的适配三任务（本地 C:\Users\13588\dev\dsh-ai-coding，先读 README.md 与 docs/ADAPTATION-GOAL.md）。需求源即 ADAPTATION-GOAL.md：①tsdown 双半构建调通（host lib/index.js + 浏览器闭包 lib/client.js，纯度闸与 CSS 管线原样保留）；②测试移植（fixture/admin 自包含面先行，harness test-support 依赖逐个查 npm 可得性，未发布则登记豁免；挂载冒烟 build→pack→dsh plugin add→无头渲染）；③API 漂移适配（0.1.1-rc.2 → npm @deepseek-ai/* 基线：typecheck 枚举位移逐项修复，重点 credentials 鉴权/session 投影/telemetry 契约/typert 版本，最后单包身份改名一次提交）。我允许你不受任何限制地决定顺序与并行，但你要对质量负责。纪律：RED 先行、双日志、skipped=0、不推 npm、不改产品语义；每任务完成在 ADAPTATION-GOAL.md 打勾并提交推送。整体结论在挂载冒烟全绿前维持「未完成」。
+/goal 继续完成 https://github.com/STXR-1116/dsh-ai-coding 插件仓的适配三任务（本地
+C:\Users\13588\dev\dsh-ai-coding，先读 README.md 与 docs/ADAPTATION-GOAL.md）。需求源即
+ADAPTATION-GOAL.md：①tsdown 双半构建调通（host lib/index.js + 浏览器闭包 lib/client.js，
+纯度闸与 CSS 管线原样保留）；②测试移植（fixture/admin 自包含面先行，harness test-support
+依赖逐个查 npm 可得性，未发布则登记豁免；挂载冒烟 build→pack→dsh plugin add→无头渲染）；
+③API 漂移适配（0.1.1-rc.2 → npm @deepseek-ai/* 基线：typecheck 枚举位移逐项修复，重点
+credentials 鉴权/session 投影/telemetry 契约/typert 版本，最后单包身份改名一次提交）。
+
+交付后由所有者复核，复核门禁（不满足即打回）：
+1. 干净检出上 `pnpm install && pnpm build` 一次通过；lib/index.js 可 import，
+   lib/client.js 首行为 window.__ModuleLoader__.load 闭包包络；纯度闸仍生效；
+2. `pnpm test` 全绿 skipped=0；依赖 harness test-support 未迁的用例必须在
+   ADAPTATION-GOAL.md 登记豁免理由与 npm 可得性核查结论；
+3. 单包身份改名完整（cordis.patch.yml 三行、client-node/invariant 注册名、client inject），
+   并注明与已发布契约的核对依据；
+4. 挂载冒烟红/绿双日志留档，≥3 次绿方可宣布通过，不得以单次绿宣布稳定；
+5. API 漂移台账逐项打勾，每个修复点注明「0.1.1-rc.2 旧行为 → 新基线行为」；
+6. skipped=0、不发布 npm、不改产品语义、git status 干净、推送完成。
+
+我允许你不受任何限制地决定顺序与并行，但你要对质量负责。整体结论在挂载冒烟全绿并
+满足上述门禁前维持「未完成」。每完成一任务在 ADAPTATION-GOAL.md 打勾并提交推送。
 ```
