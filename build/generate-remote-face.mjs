@@ -185,8 +185,18 @@ const current = (() => {
   }
 })()
 
+/**
+ * Compare content, not checkout line endings.
+ *
+ * This repository is checked out with `core.autocrlf` on Windows, so the
+ * committed LF file lands on disk as CRLF while the generator always writes LF.
+ * A byte comparison would report every Windows checkout as stale; normalising to
+ * LF keeps the guard about substance.
+ */
+const normalize = (text) => text?.replace(/\r\n/g, '\n')
+
 if (process.argv.includes('--check')) {
-  if (current === rendered) {
+  if (normalize(current) === normalize(rendered)) {
     console.log(`remote face is up to date: ${relative(root, outPath)}`)
     process.exit(0)
   }
@@ -194,7 +204,7 @@ if (process.argv.includes('--check')) {
   process.exit(1)
 }
 
-if (current === rendered) {
+if (normalize(current) === normalize(rendered)) {
   console.log(`remote face unchanged: ${relative(root, outPath)}`)
 } else {
   writeFileSync(outPath, rendered)

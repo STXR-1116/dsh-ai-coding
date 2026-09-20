@@ -1,5 +1,8 @@
 node_modules/
-lib/
+# Build output of THIS package. Anchored on purpose: a bare `lib/` also matches
+# any nested directory named `lib`, which silently excluded
+# `dev/team-skill-admin/src/lib/` (13 tracked source files) from the repository.
+/lib/
 dist/
 *.tsbuildinfo
 .next/
@@ -7,3 +10,5 @@ dist/
 *.log
 .pnpm-store/
 *.tgz
+# The demo service's compiled output; its sources live in `src/`.
+dev/team-skill-service/lib/
