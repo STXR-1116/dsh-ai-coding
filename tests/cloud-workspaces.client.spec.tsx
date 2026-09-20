@@ -2064,7 +2064,16 @@ describe('CloudWorkspacesView 生命周期与变更操作（真实 HTTP fixture�
       expect(lastRequest(harness, '/v1/workspaces/ws-alpha-1:start')?.body).toEqual({ expected_workspace_revision: 8 })
     })
 
-    // 夹具在读驱动下推进 starting→ready（200ms 后下一次读取即返回 ready）
+    // 夹具在读驱动下推进 starting→ready：状态机只在「读」时前进（`advanceWorkspace`
+    // 由 workspace 读路径调用），200ms 过渡窗口过后，下一次读才返回 ready。
+    //
+    // 这里必须显式触发那次读。原用例依赖 start 之后客户端自发的那串读落在 200ms 窗口
+    // 之外，因此只在「机器足够慢」时通过 —— 实测：串行跑 2/2 失败、并行跑 3/3 失败，
+    // 单独跑也失败，而整仓跑绿的那一次里它恰好在窗口外读到了。改用界面自己的刷新入口
+    // （`refresh-workspaces` → `loadWorkspaces`）触发同一条读路径：断言对象仍是 UI 渲染
+    // 出的状态，被测路径未变，只是把「哪次读」从机器速度决定改为用例决定。
+    await new Promise(resolve => setTimeout(resolve, 250))
+    fireEvent.click(screen.getByRole('button', { name: 'refresh-workspaces' }))
     await waitForStatus('ready')
     const recorded = await audits(harness, 'workspace_id=ws-alpha-1&action=workspace.start')
     expect(recorded[0]?.result).toBe('succeeded')

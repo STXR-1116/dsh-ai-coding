@@ -67,6 +67,29 @@ const execArgv = process.allowedNodeEnvironmentFlags.has('--webstorage') ? ['--n
 
 export default defineConfig({
   test: {
+    // Run spec files one at a time.
+    //
+    // Two of the ported suites model real elapsed time in the demo backend and
+    // therefore contain wall-clock races that are inherent to the reference
+    // implementation, not to this port: `dev/team-skill-service/src/workspace-fixture.ts`
+    // advances a freshly created Run out of `preparing` after 40 ms and a started
+    // Workspace into `ready` after 200 ms, and the specs assert inside those
+    // windows. Under file-level parallelism the HTTP round trips lose that race
+    // on a loaded machine — measured, three full runs: 2, 2 and 3 failures,
+    // always the same tests (`run-checkpoint.spec.ts` "preparing 不可暂停" and
+    // `cloud-workspaces.client.spec.tsx` "…lets the fixture reach ready"); run
+    // serially the same suites are 3/3 green.
+    //
+    // Both the specs and the fixture are byte-identical to the reference
+    // (verified with a line diff), so the fix belongs in the runner, not in the
+    // tests: changing the fixture's timings would change the demo backend's
+    // behaviour, and loosening the assertions would stop testing the window.
+    // The reference splits its own timing-sensitive suites into a separate
+    // project for the same reason ("timing-sensitive process I/O that worker
+    // threads cannot isolate reliably under aggregate gate contention" —
+    // `vitest.config.ts`) and pins `fileParallelism: false` on its web lane
+    // (`vitest.web.config.ts`).
+    fileParallelism: false,
     projects: [
       {
         plugins: [standardDecoratorPlugin()],

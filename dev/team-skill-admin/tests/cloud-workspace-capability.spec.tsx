@@ -14,7 +14,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import React from 'react'
 import type { AddressInfo } from 'node:net'
-import { createTeamSkillService } from '../../../apps/team-skill-service/src/server.ts'
+import { createTeamSkillService } from '../../team-skill-service/src/server.ts'
 import { AdminDashboard } from '../src/components/admin-dashboard.tsx'
 import { TeamSkillApi } from '../src/lib/team-skill-api.ts'
 

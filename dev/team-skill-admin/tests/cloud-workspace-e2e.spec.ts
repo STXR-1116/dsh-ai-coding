@@ -4,9 +4,9 @@
  * 分类：FIXTURE-ONLY。 */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { AddressInfo } from 'node:net'
-import { createTeamSkillService } from '../../../apps/team-skill-service/src/server.ts'
+import { createTeamSkillService } from '../../team-skill-service/src/server.ts'
 import { TeamSkillApi } from '../src/lib/team-skill-api.ts'
-import { bodyOf } from '../../../apps/team-skill-service/tests/response.ts'
+import { bodyOf } from '../../team-skill-service/tests/response.ts'
 
 const services: ReturnType<typeof createTeamSkillService>[] = []
 afterAll(async () => {

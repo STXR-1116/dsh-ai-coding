@@ -11,7 +11,7 @@
  */
 import type { AddressInfo } from 'node:net'
 import { afterEach, describe, expect, it } from 'vitest'
-import { createTeamSkillService } from '../../../apps/team-skill-service/src/server.ts'
+import { createTeamSkillService } from '../../team-skill-service/src/server.ts'
 import { CloudWorkspaceStream, type CloudStreamStatus, type CloudStreamEvent } from '../src/lib/cloud-workspace-stream.ts'
 
 const services: ReturnType<typeof createTeamSkillService>[] = []
