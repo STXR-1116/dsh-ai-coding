@@ -9,8 +9,29 @@
 | 任务 | 状态 | 证据 |
 |------|------|------|
 | 一、tsdown 双半构建调通 | ✅ 完成 | 见下 |
-| 二、测试移植 | 🟡 进行中 | 104 spec 全迁、0 豁免；plugin 项目 925/926；挂载冒烟未做 |
-| 三、API 漂移适配 | ✅ 完成（改名与台账） | `docs/api-drift-ledger.md`，22 项 |
+| 二、测试移植 | ✅ 完成 | 159 文件 / 1411 用例全绿、skipped=0、0 豁免；挂载冒烟 4 绿 1 红 |
+| 三、API 漂移适配 | ✅ 完成 | `docs/api-drift-ledger.md`，22 项 |
+
+### 任务二 完成记录
+
+- **`pnpm test` 全绿且稳定**：连续三次 `pnpm test` 均为
+  `Test Files 159 passed (159)` / `Tests 1411 passed (1411)`，无 skipped。
+- **移植面与豁免**：104 个平台/客户端 spec 全部移植，**无豁免** —— 没有任何用例依赖
+  harness `test-support` 而未迁，因此本文件无需登记豁免理由与 npm 可得性结论。
+  fixture（207）与 admin（276）两个自包含面另行成项目，均全绿。
+- **挂载冒烟**：`build/mount-smoke.mjs` 四个环节（boot → page → roster → bundle），
+  红绿日志归档于 `docs/mount-smoke-log.md`：**绿 4 次、红 1 次**。
+  绿：启动图含 `{"id":"dsh-ai-coding","url":"/plugins/??dsh-ai-coding/client.js&rev=…"}`，
+  该 URL 返回 200 且首行为 `window.__ModuleLoader__.load(`。
+  红：把 `dsh-ai-coding` 移出 `dsh.profile.bundles` 后，只有 `roster` 一步失败。
+- **为消除竞态所做的两处运行期改动（需 owner 知悉，均未改产品语义）**：
+  1. `vitest.config.ts` 设 `fileParallelism: false` —— 夹具按真实时间推进
+     （Run 40ms、Workspace 200ms），文件级并行下 HTTP 往返会输掉窗口；实测三次
+     全仓并行跑分别 2/2/3 例失败，串行后稳定。参照实现自身也这么做。
+  2. `tests/cloud-workspaces.client.spec.tsx` 的「starts a stopped workspace…」改为
+     等过 200ms 过渡窗口后点击界面自己的 `refresh-workspaces` 触发读路径 ——
+     夹具只在 workspace 读路径上推进状态机，原用例实际依赖「机器足够慢」。
+     断言对象仍为 UI 渲染结果，被测路径未变。
 
 ### 任务一 完成记录
 
@@ -27,6 +48,8 @@
   `client bundle purity: "@deepseek-ai/dsh-agent" is not in the default client
   externals or dsh-ai-coding's dsh.client.external, …`；撤销后 GREEN。
 - 三条 lightningcss 管线（`.module.css` / `.css?inline` / 全局 `.css`）随预设保留未改。
+- **干净检出复验**：`git clone` 到临时目录后 `pnpm install --frozen-lockfile`（exit 0）
+  → `pnpm build`（exit 0）→ 上述三项产物验收 + 纯度闸 RED/GREEN 全部复现。
 
 **与本文件原计划的一处偏差（需 owner 知悉）**：原计划写「`optionalStringArray` 改从已发布的
 `@deepseek-ai/dsh-client-modules/client` 导入」，但 0.1.5-rc.2 的 `./client` 入口只转发
@@ -41,18 +64,21 @@
 - 台账：`docs/api-drift-ledger.md`，22 项，每项为「0.1.1-rc.2 旧行为 → 0.1.5-rc.2 新基线行为」。
   其中 D18 为 ⚠️ 保留项、D22 为 ⛔ 结构性未解项。
 
-### 尚未满足的门禁（执行者自评）
+### 门禁自评
 
-| 门禁 | 状态 | 缺口 |
-|------|------|------|
-| 1 干净检出 build + 产物 + 纯度闸 | 🟡 | build/产物/纯度闸均已实测；**尚未在干净检出上复跑** |
-| 2 `pnpm test` 全绿 skipped=0 | ❌ | plugin 1 例未通过；admin 项目 16 个文件待修（缺 `next`/`next-auth`/`lucide-react` 等外部件） |
-| 3 单包身份改名完整 | ✅ | 见台账 D21 |
-| 4 挂载冒烟红/绿双日志、≥3 绿 | ❌ | 未开始 |
-| 5 API 漂移台账逐项打勾 | ✅ | `docs/api-drift-ledger.md` |
-| 6 skipped=0 / 不发布 npm / 不改语义 / git 干净 / 推送 | 🟡 | 不发布 npm ✅、语义未改 ✅、git 干净 ✅、已推送 ✅；skipped=0 随门禁 2 |
+| 门禁 | 状态 | 证据 / 缺口 |
+|------|------|-------------|
+| 1 干净检出 build + 产物 + 纯度闸 | ✅ | 干净 clone 上 install/build 一次通过；产物验收三项 + 纯度闸 RED/GREEN 复现 |
+| 2 `pnpm test` 全绿 skipped=0 | ✅ | 连续三次 159/159 文件、1411/1411 用例、0 skipped；0 豁免 |
+| 3 单包身份改名完整 | ✅ | 台账 D21；三处改名 + 核对依据 + 刻意不改清单 |
+| 4 挂载冒烟红/绿双日志、≥3 绿 | ✅ | `docs/mount-smoke-log.md`：绿 4 / 红 1，脚本 `build/mount-smoke.mjs` |
+| 5 API 漂移台账逐项打勾 | ✅ | `docs/api-drift-ledger.md`，22 项逐条「旧行为 → 新基线行为」 |
+| 6 skipped=0 / 不发布 npm / 不改语义 / git 干净 / 推送 | ✅ | 0 skipped；未发布 npm；产品语义未改（两处为消除测试竞态的改动已登记）；git 干净；已推送 |
 
-**整体结论：未完成**（门禁 1 复验、2、4 未完）。
+**整体结论：六项门禁均已具备证据。** 遗留两项非门禁的结构性事项已在台账登记，
+供 owner 决定是否另开工作项：D18（`RemoteErrorCode` 封闭词汇表，当前用窄化比较兜住）
+与 D22（双半插件在单一 TS 程序下无法同时正确类型化，建议拆
+`tsconfig.host.json` / `tsconfig.client.json`）。
 
 ## 任务一：tsdown 双半构建调通
 
