@@ -49,7 +49,10 @@ describe('Remote face 漂移守卫', () => {
   })
 
   it('face 每个端点都解析出参数表、返回类型与传输信封', () => {
-    const face = read('src/client/remote-face.ts')
+    // 按行切分前先去掉 `\r`：本仓在 Windows 上以 core.autocrlf 检出（入库 LF、
+    // 落盘 CRLF），留着行尾的 `\r` 会让锚定行尾的 `$` 全部失配 —— 这是干净克隆
+    // 上抓到的一次真实红灯，本地工作树（生成器刚写过 LF）看不出来。
+    const face = read('src/client/remote-face.ts').replace(/\r\n/gu, '\n')
     const lines = face.split('\n').filter(line => /^ {4}\S+: \(/u.test(line))
     expect(lines.length).toBeGreaterThan(0)
     for (const line of lines) {
