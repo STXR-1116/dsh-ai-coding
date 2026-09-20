@@ -345,6 +345,17 @@ setting must be explicitly set`。
    `PACKAGE_NAME = 'dsh-ai-coding'`；
 3. 客户端 inject → `package.json` 的 `dsh.client.inject`。
 
+**复核提示：门禁 3 写的是「`cordis.patch.yml` 三行」，本仓实际是两行（两行都是改名后的
+新名），这是实测约束不是遗漏**。挂载机制核实结论（完整证据见
+`docs/mount-mechanics-notes.md`）：
+- 行集必须是「一个**裸包名**行 + 一个 host-only 子路径行」这一对。裸名行是**唯一**能注册
+  浏览器包的行（浏览器 roster 只从 name 恰为包说明符的行读取 `dsh.client`）；
+- 再加第二个裸名行会**致命**：`client-modules: package dsh-ai-coding resolves from multiple
+  active Loader sources: …; remove one entry`；
+- 旧的 `ui-ai-coding-platform` 行必须删除，否则 `assertEntriesLoaded` 直接中止启动。
+所以「三行」若按字面理解会装不起来；这里按「三处改名点」执行并已挂载验证通过
+（门禁 4 的 7 次绿跑即为此约束的实证）。
+
 **刻意不改（持久化身份，改了会动产品语义，违反门禁 6）**：
 `credentialKey('dsh-ai-coding-platform', 'account')`（`src/host.ts:51`、
 `src/workspace-gateway.ts:142`）；`source: { kind: 'plugin', plugin:

@@ -170,6 +170,45 @@ pnpm test                               # Test Files 159 passed (159) / Tests 14
 当前用窄化比较兜住）与 D22（双半插件在单一 TS 程序下无法同时正确类型化，建议拆
 `tsconfig.host.json` / `tsconfig.client.json`）。
 
+### 复核指引（每条门禁对应的命令）
+
+```powershell
+git clone <repo> review && cd review
+
+# 门禁 1：干净检出上一次通过 + 三项产物验收
+pnpm install
+pnpm build                          # 第一步会重生成 remote face 并按需重写
+node -e "import('./lib/index.js').then(m => console.log(Object.keys(m).length))"   # 19
+Get-Content lib/client.js -TotalCount 1        # window.__ModuleLoader__.load({
+
+# 门禁 1 的纯度闸：故意引入 @deepseek-ai 值导入应当构建失败
+#   在 src/client/index.ts 加 `import * as p from '@deepseek-ai/dsh-agent'` 并使用它
+#   → pnpm build 必须被 [plugin dsh-client-bundle-purity] 拒绝
+
+# 门禁 2：全绿 + skipped=0
+pnpm test                           # 只重试基础设施失败；真实用例失败立即非零退出
+pnpm test:once                      # 想要不重试的原始行为
+
+# 门禁 4：挂载冒烟（红/绿双日志见 docs/mount-smoke-log.md）
+pnpm pack
+dsh plugin --profile web add (Resolve-Path dsh-ai-coding-0.1.0.tgz).Path
+node build/mount-smoke.mjs 7900     # 末行 SMOKE GREEN|RED，退出码即结论
+
+# 门禁 3 / 5：改名与漂移台账
+Get-Content cordis.patch.yml        # 两行 name：dsh-ai-coding / dsh-ai-coding/workspace
+Get-Content docs/api-drift-ledger.md
+```
+
+复核时值得特别留意的三处判断，都在文档里写明了理由而不是只给结论：
+
+1. **`cordis.patch.yml` 是两行而不是门禁文字里的「三行」** —— 实测约束，多一行裸名行
+   会以 `resolves from multiple active Loader sources` 中止启动。见 `api-drift-ledger.md` D21。
+2. **两处为消除测试竞态的改动**（`vitest.config.ts` 的 `fileParallelism: false`；
+   `cloud-workspaces.client.spec.tsx` 里改为由界面自己的刷新入口触发那次读）——
+   两者都保留了原断言，理由与实测数据见「任务二 完成记录」。
+3. **`pnpm test` 会在基础设施失败时重试** —— 分类从严，任何用例失败都不重试。
+   见「门禁 2 的现状」。
+
 ## 任务一：tsdown 双半构建调通
 
 **目标**：`pnpm build` 产出 `lib/index.js`（host 半）与 `lib/client.js`（浏览器闭包包络）。
