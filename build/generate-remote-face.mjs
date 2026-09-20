@@ -33,7 +33,7 @@
  */
 
 import { readFileSync, writeFileSync } from 'node:fs'
-import { dirname, join, relative } from 'node:path'
+import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
 
@@ -176,15 +176,6 @@ function render() {
   return lines.join('\n')
 }
 
-const rendered = render()
-const current = (() => {
-  try {
-    return readFileSync(outPath, 'utf8')
-  } catch {
-    return undefined
-  }
-})()
-
 /**
  * Compare content, not checkout line endings.
  *
@@ -193,20 +184,51 @@ const current = (() => {
  * A byte comparison would report every Windows checkout as stale; normalising to
  * LF keeps the guard about substance.
  */
-const normalize = (text) => text?.replace(/\r\n/g, '\n')
+export const normalizeNewlines = (text) => text?.replace(/\r\n/g, '\n')
 
-if (process.argv.includes('--check')) {
-  if (normalize(current) === normalize(rendered)) {
-    console.log(`remote face is up to date: ${relative(root, outPath)}`)
-    process.exit(0)
+/** Read the checked-in face, or `undefined` when it is absent. */
+export function readCheckedInFace() {
+  try {
+    return readFileSync(outPath, 'utf8')
+  } catch {
+    return undefined
   }
-  console.error(`remote face is stale: run \`node build/generate-remote-face.mjs\` to regenerate ${relative(root, outPath)}`)
-  process.exit(1)
 }
 
-if (normalize(current) === normalize(rendered)) {
-  console.log(`remote face unchanged: ${relative(root, outPath)}`)
-} else {
-  writeFileSync(outPath, rendered)
-  console.log(`remote face written: ${relative(root, outPath)}`)
+/**
+ * Render the face module text.
+ *
+ * Exported so the drift guard can compare in-process. It used to shell out to
+ * this file's `--check` mode, which spawns a child `node` with piped stdio from
+ * inside a Vitest fork; the suite was seen losing a whole worker
+ * (`[vitest-pool]: Worker forks emitted error` / `Worker exited unexpectedly`,
+ * taking two tests that had already passed with it) roughly one full run in
+ * five, and a captured-stdio child inside a worker is the plausible trigger.
+ * The CLI below stays for manual use.
+ * @returns the exact text `src/client/remote-face.ts` should contain.
+ */
+export function renderRemoteFace() {
+  return render()
+}
+
+// Only run as a CLI. Imported from a test, this module must not touch the disk.
+if (process.argv[1] !== undefined && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))) {
+  const rendered = render()
+  const current = readCheckedInFace()
+
+  if (process.argv.includes('--check')) {
+    if (normalizeNewlines(current) === normalizeNewlines(rendered)) {
+      console.log(`remote face is up to date: ${relative(root, outPath)}`)
+      process.exit(0)
+    }
+    console.error(`remote face is stale: run \`node build/generate-remote-face.mjs\` to regenerate ${relative(root, outPath)}`)
+    process.exit(1)
+  }
+
+  if (normalizeNewlines(current) === normalizeNewlines(rendered)) {
+    console.log(`remote face unchanged: ${relative(root, outPath)}`)
+  } else {
+    writeFileSync(outPath, rendered)
+    console.log(`remote face written: ${relative(root, outPath)}`)
+  }
 }
