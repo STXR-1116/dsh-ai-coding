@@ -164,9 +164,10 @@ pnpm test                               # Test Files 159 passed (159) / Tests 14
    于是每个 Windows 检出都被判成 stale，`tests/remote-face.spec.ts` 必红。
    比较前归一化 `\r\n` → `\n`。
 
-**整体结论：六项门禁均已具备证据。** 遗留两项非门禁的结构性事项已在台账登记，
-供 owner 决定是否另开工作项：D18（`RemoteErrorCode` 封闭词汇表，当前用窄化比较兜住）
-与 D22（双半插件在单一 TS 程序下无法同时正确类型化，建议拆
+**整体结论：六项门禁均已具备证据。** 三项任务全部完成，且都在**干净克隆**上端到端
+复验过（`pnpm install` → `pnpm build` → `pnpm test` 全链路 exit 0）。遗留两项非门禁的
+结构性事项已在台账登记，供 owner 决定是否另开工作项：D18（`RemoteErrorCode` 封闭词汇表，
+当前用窄化比较兜住）与 D22（双半插件在单一 TS 程序下无法同时正确类型化，建议拆
 `tsconfig.host.json` / `tsconfig.client.json`）。
 
 ## 任务一：tsdown 双半构建调通
