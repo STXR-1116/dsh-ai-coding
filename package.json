@@ -61,7 +61,8 @@
   "scripts": {
     "build": "node build/generate-remote-face.mjs && tsc -p tsconfig.json && tsdown",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run",
+    "test": "node build/run-tests.mjs",
+    "test:once": "vitest run",
     "test:plugin": "vitest run --project plugin",
     "test:fixture:project": "vitest run --project fixture",
     "test:admin": "vitest run --project admin",

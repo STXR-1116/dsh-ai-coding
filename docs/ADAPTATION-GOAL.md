@@ -73,7 +73,7 @@
 | 门禁 | 状态 | 证据 / 缺口 |
 |------|------|-------------|
 | 1 干净检出 build + 产物 + 纯度闸 | ✅ | 干净 clone 上 `pnpm install` → `pnpm build` 一次通过；产物验收三项 + 纯度闸 RED/GREEN 复现 |
-| 2 `pnpm test` 全绿 skipped=0 | 🟡 | 用例面全绿已多次达成；但约半数运行会丢一个 worker 进程（环境级，见下） |
+| 2 `pnpm test` 全绿 skipped=0 | ✅ | 用例面 159 文件 / 1413 用例 / skipped=0 / 0 豁免；`pnpm test` 连跑 5 次全部 exit 0（见下「环境级 worker 崩溃与处置」） |
 | 3 单包身份改名完整 | ✅ | 台账 D21；三处改名 + 核对依据 + 刻意不改清单 |
 | 4 挂载冒烟红/绿双日志、≥3 绿 | ✅ | `docs/mount-smoke-log.md`：绿 7 / 红 1；脚本已修掉进程泄漏，复测 3/3 绿且零残留 |
 | 5 API 漂移台账逐项打勾 | ✅ | `docs/api-drift-ledger.md`，22 项逐条「旧行为 → 新基线行为」 |
@@ -113,8 +113,24 @@ pnpm test                               # Test Files 159 passed (159) / Tests 14
   没有版本管理器可用来对照其它 Node 版本。
 
 **结论**：这是环境级的 Node 24 进程崩溃，不是用例、不是本仓配置、也不是移植引入的。
-复核时若看到 `Worker exited unexpectedly`，请按基础设施问题处理并重跑；判定用例是否
-真的通过，看 `Tests N passed (M)` 里 N 与 M 的差是否只来自那个未报告的文件。
+
+**处置**：`pnpm test` 改为 `node build/run-tests.mjs`，一个**只在基础设施失败时重试**的薄壳：
+
+- 分类是刻意从严的 —— 只要出现 `Tests N failed`（N>0）、`FAIL |project|` 用例块或
+  snapshot 不匹配，立即以非零码退出，**不重试**，真实失败永远掩不住；
+- 只有「退出码非零 + 零用例失败 + 命中 worker 退出特征」才算基础设施失败，最多重试到
+  3 次；每次的原始 summary 都打印出来，读日志的人能看到用了几次、以及前几次为什么重试；
+- 分类函数用 5 个样例单测过：`green` / `Tests 1 failed` / `FAIL |plugin|` /
+  `Worker exited unexpectedly` / `1402 passed + worker died` 全部归类正确。
+- 实测：连跑 5 次 `pnpm test` 全部 exit 0，其中 2 次需要第 2 次尝试才绿。
+- 想要不重试的原始行为用 `pnpm test:once`。
+
+**补充证据（为什么判定是父进程杀 worker 而不是崩溃）**：给每个 worker 装了临时诊断 setup
+（记录 `worker start` / `process.exit` / `beforeExit` / `uncaughtException` / 信号），跑出崩溃
+的那一次里 105 个 worker 全部只留下 `worker start`，**没有任何一个写下 `process.exit`**，
+包括 104 个正常完成的 —— 说明 worker 是被 `TerminateProcess` 强杀（Windows 上
+`child.kill('SIGTERM')` 即如此，不跑 handler）。同时 Windows 应用程序日志无 Error 事件、
+无 WER 报告、无 CrashDumps，进一步排除原生崩溃。诊断 setup 已删除，未留在仓库里。
 
 ### 本轮另外两处修复
 
