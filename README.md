@@ -56,5 +56,4 @@ pointed at `http://127.0.0.1:4100/v1`.
 Configured in `~/.dsh/settings.yaml` (works, verified end-to-end): custom
 provider `goat` (`api: openai-completions`, baseURL
 `https://api.commandcode.ai/provider/v1`, `apiKeyEnv: COMMANDCODE_API_KEY`)
-serving `deepseek/deepseek-v4.1-flash`; default model set to it. Do NOT set
-`reasoningEffort` for this model (UNSUPPORTED_REASONING_EFFORT).
+serving `deepseek/deepseek-v4.1-flash`; default model set to it. Declare `reasoningEfforts` on the model (off/high/max -> protocol `high`) and set default `reasoningEffort: high` — verified on GOAT.
