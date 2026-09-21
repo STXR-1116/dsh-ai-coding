@@ -5,13 +5,18 @@ governance, knowledge and memory surfaces — packaged as a standalone
 double-half (host + browser) plugin, modeled on the ecosystem blueprint
 ([DSH-better-sidebar](https://github.com/omdsh-dev/DSH-better-sidebar)).
 
-## Status: phase-1 complete, phase-2 (real-browser mount) in progress
+## Status: phase-2 complete (real-browser mount verified)
 
-Build (dual-half tsdown), tests (159 files / 1413 cases green), single-package
-identity, and npm-baseline dependency pins are done and verified. Remaining
-defect: the browser half waits for `remote.teamSkills` / `remote.cloudWorkspaces`
-at real-browser mount — see docs/PHASE2-GOAL.md P0-1 for the narrowed root cause
-and docs/PHASE2-GOAL.md §/goal for the dispatched plan.
+- Host half: Team Skill gateway + cloud workspace gateway over the fixture
+  backend, installer, knowledge/memory loops, telemetry collector.
+- Browser half: self-provided `remote.teamSkills` / `remote.cloudWorkspaces`
+  services (official cordis Service mode) answering the full generated faces —
+  the workbench runs entirely in the browser against the AI Coding backend.
+- Verified on the npm baseline `@deepseek-ai/* 0.1.5-rc.2`:
+  `typecheck` 0 errors, 161 test files / 1435 cases green (`skipped=0`),
+  real-Chromium mount smoke 18/18 three consecutive greens plus an archived
+  red run (docs/mount-smoke/phase2/, docs/mount-smoke-log.md), and owner
+  acceptance screenshots (docs/mount-acceptance/).
 
 Migrated from the harness monorepo snapshot (v0.1.1-rc.2 era). Layout:
 
@@ -19,43 +24,77 @@ Migrated from the harness monorepo snapshot (v0.1.1-rc.2 era). Layout:
   knowledge/memory loops, telemetry) — from `packages/platform/ai-coding-platform`
 - `src/client/` — browser half (React surfaces) — from
   `packages/client/ui-ai-coding-platform/src/client`
+- `src/client/remote/` — the browser-provided remote faces: config resolution,
+  settings persistence, the two Service classes, envelope helpers
 - `src/client-node/` — the client package's node-half pieces (index/invariant)
 - `dev/team-skill-service/` — deterministic fixture backend (self-contained; runtime dep: `fflate` only)
 - `dev/team-skill-admin/` — governance console (standalone Next.js app, zero DSH deps)
-- `build/platform-modules.ts` — module-table baseline, mirrored from the monorepo
+- `build/` — dual-half build preset, mount smoke, acceptance capture
 
-## ROADMAP
+## Install
 
-1. `tsdown.config.ts`: port the dual-half preset (node lib from `lib/types` +
-   closure-factory client bundle with the CSS pipeline) from the monorepo's
-   `packages/client/tsdown.client.ts`; inline `clientBuildEnvironmentDefines`
-   (`scripts/client-build-environment.ts`, 311 lines) or the subset this
-   plugin's bundle actually needs.
-2. Port unit/fixture tests (`tests/`), then the heavier suites (gateway
-   matrix, client lifecycle specs) — several import harness `test-support`
-   packages; check npm availability per import.
-3. Rename the two-package split identity to the single package
-   (`@deepseek-ai/dsh-ai-coding-platform` → this package) across
-   `cordis.patch.yml`, `src/client-node/invariant.ts` registration, and the
-   client inject wiring — verify against the published invariants/registry
-   contracts first.
-4. API-drift port: compile against npm `@deepseek-ai/*` (see `package.json`
-   pins) and fix every surfaced displacement from the 0.1.1-rc.2 snapshot
-   APIs. Mount smoke (build → pack → real mount → headless render) is the
-   acceptance gate.
-5. CI: pinned-baseline mount gate + fixture lane; upstream bump PRs.
-
-## Install (GitHub source channel)
+Build and install through the official channel (the installer applies the
+package's own `cordis.patch.yml`; never restate these rows in the profile
+patch — a duplicate loader entry id aborts the boot):
 
 ```
-git clone https://github.com/STXR-1116/dsh-ai-coding
-dsh plugin --profile web add <link-or-path>
-dsh --patch cordis.patch.yml web
+pnpm install && pnpm run build && pnpm pack
+dsh plugin --profile web add ./dsh-ai-coding-<version>.tgz
+dsh --profile web
+```
+
+`dsh plugin` requires `--profile`; `add` copies the tarball into the profile,
+applies the bundle patch, and adds the bundle row. Removing the plugin means
+removing its row from the profile `package.json` (`dependencies` and
+`dsh.profile.bundles`), deleting `node_modules/dsh-ai-coding`, and running
+`pnpm install` in the profile.
+
+## Configuration
+
+### Host half — environment variables (read at composition via `!!js`)
+
+| Variable | Row | Meaning |
+| --- | --- | --- |
+| `DSH_AI_CODING_PLATFORM_API_URL` | `ai-coding-platform` | AI Coding platform backend base URL including `/v1` |
+| `DSH_AI_CODING_PLATFORM_ACCESS_TOKEN` | `ai-coding-platform` | Optional static platform token |
+| `DSH_CLOUD_WORKSPACE_API_URL` | `cloud-workspaces` | Workspace backend base URL; falls back to the platform URL |
+| `DSH_CLOUD_WORKSPACE_ACCESS_TOKEN` | `cloud-workspaces` | Static workspace token; required when `authMode` is `static-token` |
+| `DSH_CLOUD_WORKSPACE_AUTH_MODE` | `cloud-workspaces` | `account` (default) or `static-token` |
+
+Unset host variables degrade to the gateways' explicit `not-ready` states —
+they never fabricate data.
+
+### Browser half — the workbench settings face
+
+The 0.1.5-rc.2 client runner delivers no mount-row configuration to browser
+fragments (see docs/api-drift-ledger.md D23), so the browser deployment values
+are set once in the workbench's own settings face (persisted in
+`localStorage`, applied live):
+
+- 平台服务地址 `apiBaseUrl` (required) and optional platform access token
+- 云工作空间服务地址 (defaults to the platform URL), identity mode
+  `account` / `static-token`, and the static workspace token
+
+An unconfigured browser opens the workbench straight onto this form — the
+failure is loud and named, never a silent `not-ready` blur (P0-2).
+
+## Development
+
+```
+pnpm install
+pnpm run build          # generate remote face + tsc + dual-half tsdown
+pnpm run typecheck      # 0 errors expected
+pnpm test               # full suite; retries infrastructure losses only
+pnpm run verify:face    # remote-face drift guard against the host gateways
+node build/mount-smoke.mjs [port]   # real-Chromium mount gate (18 steps)
+node build/capture-acceptance.mjs   # owner acceptance screenshots
 ```
 
 Demo backend: `node --import tsx dev/team-skill-service/src/server.ts` (port
-4100) with `DSH_AI_CODING_PLATFORM_API_URL`/`DSH_CLOUD_WORKSPACE_API_URL`
-pointed at `http://127.0.0.1:4100/v1`.
+4100; `TEAM_SKILL_SERVICE_PORT` overrides). Fixture sign-ins:
+`admin@example.com` / `admin-pass`, `manager@example.com` / `manager-pass`,
+`member@example.com` / `member-pass`; static tokens `admin-demo`,
+`manager-demo`, `demo-token` (member identity).
 
 ## LLM provider (GOAT / Command Code)
 

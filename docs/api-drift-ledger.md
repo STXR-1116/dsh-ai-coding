@@ -395,3 +395,67 @@ host / client 两侧的服务声明。
    `Failed to load source map … ENOENT` —— 上游发布物缺文件，非本仓问题，仅噪音。
 2. `pnpm-workspace.yaml` 的 `allowBuilds: { esbuild: true }` 在 vitest 改用 `oxc`
    之后已无必要；保留不影响正确性。
+
+---
+
+## D23 — ⛔ 浏览器 fragment 收不到挂载行配置（0.1.5-rc.2 实证）
+
+**二期计划原先假设**：「cordis.patch.yml 行的 `!!js process.env.*` 在 node 侧组合期
+求值，值随组合下发浏览器 runner」，因此浏览器 fragment 导出 Schemastery Config
+（apiBaseUrl `.required()`）即可在加载期校验部署值（P0-2 的响亮失败点）。
+
+**实测推翻（2026-09-21，探针证据）**：
+1. 探针让入口以 `z.any()` 直通并打印 `apply` 的第二参——运行结果是
+   `apply(ctx, undefined)`；
+2. `__DSH_BOOT__` 清单 54 个条目全部只有 `{id,url,rev,inject,immediately}`，无
+   config 字段；页面 HTML 中也搜不到任何部署值；
+3. 已发布的全部 `@deepseek-ai/dsh-client-*` fragment 无一导出 `Config`；
+4. schemastery `~standard.validate(undefined)` 返回 issues——因此即便导出
+   严格 Config，fragment 会在每次加载时被打红，与部署是否配置无关。
+
+**结论**：挂载行配置是宿主侧专属；「值随组合下发浏览器 runner」在 0.1.5-rc.2
+不成立。浏览器侧也因此永远不该拿到部署令牌（安全上合理）。
+
+**处置（官方机制内）**：
+- 浏览器部署值改由**工作台设置面**（`RemoteSettingsView` → localStorage
+  `dsh-ai-coding/settings/v1`）下发，保存即热应用于两个 remote 服务
+  （`src/client/remote/settings.ts`）；未配置时工作台停在设置面并具名缺失项
+  （响亮、可行动），两个服务对所有读回答各自业务联合里的显式 `not-ready`
+  —— 不是静默假就绪，也不是传输错误。
+- 入口**不导出** loader 面的 `Config`（否则如上第 4 条，fragment 必红）；
+  行 schema 以 `PlatformClientConfigSchema` 名字保留复用，并有测试钉住
+  「不存在 Config 导出」这一事实（tests/plugin-registration.client.spec.ts）。
+- `cordis.patch.yml` 两行保持宿主专属（`!!js` env 注入照旧工作）。
+
+---
+
+## D24 — ⛔ 浏览器 `fetch`/`crypto` 的受体约束（方法式调用即抛）
+
+**旧行为**：宿主（Node）里 `this.fetcher(...)`、`this.fetch(...)`、`randomUUID`
+裸引用都合法。
+
+**新基线行为**：Chromium 的 `fetch` 拒绝非全局受体（`Illegal invocation`）；
+`crypto.randomUUID` 同样不可解绑调用。探针在真机上抓到
+`Failed to execute 'fetch' on 'Window': Illegal invocation`
+（云工作空间第一笔读即抛，`/workspaces` 请求根本没发出）。
+
+**处置**：`WorkspaceHttpClient.request/openStream` 与
+`TeamSkillHttpClient.download` 改为 `this.fetcher.call(undefined, …)` /
+`this.fetch.call(undefined, …)`（Node 语义不变）；`node:crypto` 的
+`randomUUID` 全部换成 `crypto.randomUUID()` 的具名包装（WebCrypto 同源，
+Node ≥19 全局可用）。浏览器 bundle 的纯度门与既有 workspace-http 矩阵测试
+继续看守这些模块。
+
+---
+
+## 附 2：一期遗留两点的收口（2026-09-21）
+
+1. **invariant 注册名（原 P2 项）**：保留 `src/invariant.ts` 的单一注册；
+   `src/client-node/invariant.ts` 是有意为之的转发（见其模块注释）——分拆期
+   的第二个空注册已随合并退役，包内只拥有一个 companion 注册。此为「保留
+   理由」的正式记录，非无记录状态。
+2. **`/plugins/??dsh-ai-coding/client.js` 的 `??`（原 P2 项）**：roster URL
+   模板是 `/plugins/<scope>/<name>/client.js`；本包无 npm scope，scope 段为
+   空即产出 `??`。实测服务端按字面量解析该路径并正确回包（冒烟 bundle 步
+   200，727 KB 真产物），纯形迹问题。**换 scope/发 npm 前必须同步核对**
+   roster 模板与 loader 清单对 scoped 包名的解析，此前 `??` 无害。

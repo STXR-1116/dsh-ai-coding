@@ -242,6 +242,23 @@ RED 先行、红绿双日志、skipped=0、不改产品语义、不推送 npm（
 
 ---
 
+## 一期教训（2026-09-20/21 实测，二期执行者必读）
+
+1. **`--patch` 覆盖层是顶层数组**。`plugins: overrides:` 的对象形状是分拆前
+   草稿，0.1.5 loader 直接拒绝；patch 文件必须是 loader patch 条目的 YAML
+   数组，且 patch 整体替换目标行的整个 `config`（后层要改值就得重述全部键）。
+2. **安装器会自动应用包内 `cordis.patch.yml`**（`package.json` 的
+   `dsh.bundle.patch` 声明）。profile patch / `--patch` 里再重述插件行 =
+   `duplicate loader entry id`，boot 直接中止。profile 侧只允许改「别的行」，
+   插件行的覆盖走换包重装。
+3. **宿主行缺 env 时浏览器半表现为 pending，而不是启动失败**。浏览器
+   fragment 对 `remote.*` 服务键的等待会让整个面板停在
+   `pending (waiting for services: …)`；排错时先看 boot 图里的 inject 链与
+   pending 清单，别在服务端日志里找异常。另外 dsh web 进程启动于 setx 之前
+   时读不到新 setx 的变量——带变量重启才生效。
+
+---
+
 ## /goal（派发文本）
 
 ```

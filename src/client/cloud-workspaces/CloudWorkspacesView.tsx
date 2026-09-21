@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import type { ClientRemote } from '@deepseek-ai/dsh-api-remotes/client'
+import type { PlatformRemote } from '../remote/types.ts'
 import type { SnapshotSelectorHook } from '@deepseek-ai/dsh-client-ui-slots'
 // `WorkspaceListState` (client-runtime, withdrawn) became the workspace
 // controller's `WorkspaceSnapshot`; `ui-workspace` declares the global
@@ -46,7 +46,7 @@ export interface NativeSessionRow {
 
 export interface CloudWorkspacesViewProps {
   /** Typed DSH Remote assembly carrying the Host-owned cloud workspace namespace. */
-  readonly remote: ClientRemote
+  readonly remote: PlatformRemote
   /** DSH workspace projection used only to select an opaque project id. */
   readonly useWorkspaces: SnapshotSelectorHook<WorkspaceSnapshot>
   /** Opaque selected project identity used for server-side authorization. */

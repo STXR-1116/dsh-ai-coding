@@ -44,3 +44,20 @@
 - 官方文档站无浏览器半插件开发文档；如后续发现 `develop/` 之外的新章节（如 web
   客户端指南），需重新对照。
 - 派发 /goal 前在文首追加：以官方 develop/ 教程与随包源码为准绳。
+
+## 增补（2026-09-21，二期实测，「随包源码为准绳」条款的两条落点）
+
+1. **basic/config 的「导出 Config 即获校验」只覆盖宿主 fragment**。真机探针
+   （见台账 D23）：0.1.5-rc.2 的浏览器 runner 不向 fragment 下发挂载行配置，
+   `apply(ctx, config)` 的第二参恒为 `undefined`，boot 清单与页面均无部署值。
+   因此浏览器 fragment 导出 `Config` 会拿 `undefined` 过校验而永久打红；
+   本仓浏览器部署值改走工作台设置面（P0-2 的「settings 面替代配置」选项），
+   `PlatformClientConfigSchema` 以非 `Config` 名字保留。若未来基线开始下发
+   行配置，此决定需重审。
+2. **framework/service 的 Service 模式在浏览器半同样成立且被本仓实际使用**：
+   `super(ctx, 'remote.teamSkills')` / `super(ctx, 'remote.cloudWorkspaces')`
+   经 `ctx.reflect.provide` 注册即 effect，inject 硬依赖语义一致；cordis 在
+   浏览器种子表（PLATFORM_MODULES）中可作值导入。同一键二次注册抛
+   `service "..." has been registered`（cordis `reflect.provide`），故本插件
+   不提供已被 `@deepseek-ai/dsh-api-gateway` 占用的 `remote` 键，只提供两个
+   命名空间键。

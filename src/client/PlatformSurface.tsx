@@ -1,6 +1,7 @@
 /** Full-screen, browser-local demo surface for the first-party platform. */
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ComponentType, type ReactNode } from 'react'
-import type { ClientRemote, SessionId } from '@deepseek-ai/dsh-api-remotes/client'
+import type { SessionId } from '@deepseek-ai/dsh-api-remotes/client'
+import type { PlatformRemote } from './remote/types.ts'
 import type {
   CollectorSnapshot,
   CollectorStatus,
@@ -39,13 +40,21 @@ import {
 import { memoryRecallRows, memoryRecallVerdict, memoryTierLabel } from './memory-recall.ts'
 import { CloudWorkspacesView } from './cloud-workspaces/CloudWorkspacesView.tsx'
 import { AgentConfigView } from './agent-config/AgentConfigView.tsx'
+import { RemoteSettingsView } from './RemoteSettingsView.tsx'
+import { resolveBrowserSettings, subscribeBrowserSettings } from './remote/settings.ts'
 import css from './PlatformSurface.module.css'
 
 /** Full props for the root-scoped overlay slot. */
 export type PlatformSurfaceProps = PropsRuntime<'shell.overlay'> &
   PropsLocale<typeof NS> & {
     controller: PlatformDemoController
-    remote: ClientRemote
+    /**
+     * The two remote namespaces this plugin provides in the browser. The
+     * assembled shell's `ctx.remote` only projects upstream typert namespaces,
+     * so the fragment self-hosts both faces instead of waiting on services
+     * nobody provides.
+     */
+    remote: PlatformRemote
     /** Frame layout face: the docked workbench reserves its own width. */
     layout: ILayout
     /** Select the current native session (the workbench switcher). */
@@ -226,6 +235,14 @@ function PlatformShell({ controller, t, remote, layout, useSessions, useWorkspac
     }
   }, [mobileNavOpen])
   const [gate, setGate] = useState<AccountGate>('loading')
+  // The browser deployment settings gate the whole workbench: without them the
+  // remote faces have nowhere to answer from, and the settings form is the
+  // only screen that can change that.
+  const [settingsReady, setSettingsReady] = useState<boolean>(() => resolveBrowserSettings() !== undefined)
+  useEffect(() => subscribeBrowserSettings(() => {
+    setSettingsReady(resolveBrowserSettings() !== undefined)
+    if (resolveBrowserSettings() !== undefined) setGate('signed-out')
+  }), [])
   const [account, setAccount] = useState<AuthenticatedAccount | undefined>()
   const [organizations, setOrganizations] = useState<readonly TeamSkillOrganization[]>([])
   const [access, setAccess] = useState<TeamSkillAccessSummary | undefined>()
@@ -1103,7 +1120,7 @@ function PlatformShell({ controller, t, remote, layout, useSessions, useWorkspac
           </button>
         </div>
 
-        {gate === 'ready' && (
+        {settingsReady && gate === 'ready' && (
           <nav className={css.nav} aria-label="平台模块">
             {renderNavItem(OVERVIEW_NAV_ITEM, true)}
             {NAV_GROUPS.map(group => (
@@ -1118,7 +1135,7 @@ function PlatformShell({ controller, t, remote, layout, useSessions, useWorkspac
         )}
 
         <div className={css.railBottom}>
-          {gate === 'ready' && (
+          {settingsReady && gate === 'ready' && (
             <div className={css.demoNotice}>
               <span className={css.statusLive} />
               <div>
@@ -1127,7 +1144,7 @@ function PlatformShell({ controller, t, remote, layout, useSessions, useWorkspac
               </div>
             </div>
           )}
-          {gate === 'ready' && account !== undefined && (
+          {settingsReady && gate === 'ready' && account !== undefined && (
             <div role="group" aria-label="账户" className={css.accountGroup}>
               <button
                 type="button"
@@ -1165,7 +1182,7 @@ function PlatformShell({ controller, t, remote, layout, useSessions, useWorkspac
             <IconQueueOutline14 size={18} />
           </button>
           <div className={css.contextBar} role="group" aria-label="当前上下文">
-            {gate === 'ready' && account !== undefined && (
+            {settingsReady && gate === 'ready' && account !== undefined && (
               <>
                 <span className={css.contextItem}>
                   <small>组织</small>
@@ -1316,9 +1333,10 @@ function PlatformShell({ controller, t, remote, layout, useSessions, useWorkspac
           </div>
         </header>
 
-        {gate === 'loading' && <StatePanel state="loading" title="正在验证账号" reason="正在从 Host 读取服务端身份和访问范围。" />}
-        {gate === 'signed-out' && <LoginView busy={busy} error={message} onLogin={login} />}
-        {gate === 'not-ready' && (
+        {!settingsReady && <RemoteSettingsView />}
+        {settingsReady && gate === 'loading' && <StatePanel state="loading" title="正在验证账号" reason="正在从 Host 读取服务端身份和访问范围。" />}
+        {settingsReady && gate === 'signed-out' && <LoginView busy={busy} error={message} onLogin={login} />}
+        {settingsReady && gate === 'not-ready' && (
           <StatePanel
             state="not-ready"
             title="服务未就绪"
@@ -1331,7 +1349,7 @@ function PlatformShell({ controller, t, remote, layout, useSessions, useWorkspac
             }
           />
         )}
-        {gate === 'forbidden' && (
+        {settingsReady && gate === 'forbidden' && (
           <StatePanel
             state="forbidden"
             title="无权访问"
@@ -1350,7 +1368,7 @@ function PlatformShell({ controller, t, remote, layout, useSessions, useWorkspac
             )}
           </StatePanel>
         )}
-        {gate === 'service-error' && (
+        {settingsReady && gate === 'service-error' && (
           <StatePanel
             state="service-error"
             title="服务暂时不可用"
@@ -1363,13 +1381,13 @@ function PlatformShell({ controller, t, remote, layout, useSessions, useWorkspac
             }
           />
         )}
-        {gate === 'change-password' && <ChangePasswordView busy={busy} error={message} onSubmit={changePassword} />}
-        {gate === 'ready' && message !== undefined && (
+        {settingsReady && gate === 'change-password' && <ChangePasswordView busy={busy} error={message} onSubmit={changePassword} />}
+        {settingsReady && gate === 'ready' && message !== undefined && (
           <div className={css.surfaceNotice} role="alert">
             {message}
           </div>
         )}
-        {gate === 'ready' && access !== undefined && (
+        {settingsReady && gate === 'ready' && access !== undefined && (
           <div className={css.content} data-page-content="">
             {/* Page transition: opacity + 6px rise; the key remount matches the
                 existing per-view conditional unmount, so no state survives that
@@ -1824,7 +1842,7 @@ function AssetOverviewView({
 }: {
   project: Project | undefined
   assets: readonly TeamSkillAsset[]
-  remote: ClientRemote
+  remote: PlatformRemote
   onOpenProject: () => void
   onOpenWorkspace: () => void
   onSelectProject: () => void
@@ -2688,7 +2706,7 @@ function MemoryView({
   page: TeamSkillMemoryPage | undefined
   loading: boolean
   error: string | undefined
-  remote: ClientRemote
+  remote: PlatformRemote
   keyword: string | undefined
   onSearch: (keyword: string) => void
   onLoadMore: () => void

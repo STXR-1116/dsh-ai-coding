@@ -1,0 +1,130 @@
+# dsh-ai-coding CI.
+#
+# - push / PR: the repository gate — install, build (dual-half), typecheck,
+#   full test suite (the runner wrapper retries infrastructure losses only),
+#   and the remote-face drift guard.
+# - weekly baseline bump: probe the published `@deepseek-ai/*` baseline, bump
+#   this repository's pins, and open a PR; that PR's pipeline runs the same
+#   gate plus the real-browser mount smoke (build → pack → profile install →
+#   real `dsh web` → headless Chromium assertions), so adaptation work starts
+#   from a green-or-red fact instead of a desk check.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Mondays 03:07 UTC — off the hour to dodge runner contention.
+    - cron: '7 3 * * 1'
+  workflow_dispatch:
+
+env:
+  # The published npm baseline this repository pins and verifies against.
+  DSH_BASELINE: 0.1.5-rc.2
+
+jobs:
+  gate:
+    name: build, typecheck, test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - run: pnpm run typecheck
+      - run: pnpm run test:once
+      - run: pnpm run verify:face
+
+  mount-smoke:
+    name: real-browser mount smoke
+    # Full run on every PR; on pushes limited to docs the gate above suffices.
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - run: pnpm pack
+      - name: Install the pinned dsh CLI
+        run: npm install -g "@deepseek-ai/dsh@${DSH_BASELINE}"
+      - name: Bootstrap the web profile with this build
+        run: |
+          DSH_HOME="$HOME/.dsh"
+          mkdir -p "$DSH_HOME/profiles/web"
+          TARBALL="$(ls "$GITHUB_WORKSPACE"/dsh-ai-coding-*.tgz)"
+          cat > "$DSH_HOME/profiles/web/package.json" <<JSON
+          {
+            "name": "dsh-profile-web",
+            "private": true,
+            "dependencies": { "dsh-ai-coding": "file:$TARBALL" },
+            "dsh": {
+              "profile": {
+                "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "dsh-ai-coding"],
+                "patchReload": "live"
+              }
+            }
+          }
+          JSON
+          pnpm --dir "$DSH_HOME/profiles/web" install
+      - name: Mount smoke (real Chromium)
+        env:
+          DSH_SMOKE_BROWSER: /usr/bin/google-chrome-stable
+          DSH_SMOKE_USER: admin@example.com
+          DSH_SMOKE_PASS: admin-pass
+        run: node build/mount-smoke.mjs 7799
+
+  baseline-bump:
+    name: weekly baseline bump PR
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Probe the newest published baseline
+        id: probe
+        run: |
+          LATEST="$(npm view @deepseek-ai/dsh version)"
+          echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
+          echo "Published @deepseek-ai/dsh latest: $LATEST (pinned: ${DSH_BASELINE})"
+      - name: Bump the pins
+        if: steps.probe.outputs.latest != env.DSH_BASELINE
+        run: |
+          node build/bump-baseline.mjs "${{ steps.probe.outputs.latest }}"
+      - name: Open the baseline bump PR
+        if: steps.probe.outputs.latest != env.DSH_BASELINE
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LATEST: ${{ steps.probe.outputs.latest }}
+        run: |
+          BRANCH="ci/baseline-$LATEST"
+          git config user.name "dsh-ai-coding CI"
+          git config user.email "ci@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git commit -am "ci: bump the @deepseek-ai/* baseline to $LATEST" || exit 0
+          git push --force-with-lease origin "$BRANCH"
+          gh pr create --title "ci: baseline bump to $LATEST" \
+            --body "Automated probe: published \`@deepseek-ai/dsh\` moved to \`$LATEST\`. The PR pipeline runs install + build + typecheck + tests and the real-browser mount smoke against the new baseline; a green run is the adaptation verdict." \
+            --base main --head "$BRANCH"

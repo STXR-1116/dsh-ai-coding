@@ -1,6 +1,5 @@
 /** HTTP client for the AI Coding service Team Skill API. */
 
-import { randomUUID } from 'node:crypto'
 import type { TelemetryBatchRequest, TelemetryBatchResult, TelemetryEventAck, TelemetryEventDto } from './types.ts'
 import type {
   TeamSkillAccessSummary,
@@ -36,6 +35,15 @@ import type {
 } from './types.ts'
 import type { TeamSkillFileDigest } from './installer.ts'
 import type { TeamSkillTrustAudit, TeamSkillTrustCard } from './types.ts'
+
+/**
+ * One write-request idempotency key from the platform WebCrypto, so this module
+ * stays browser-safe (the same call the browser client layer makes). Bound at
+ * the call site because `Crypto.randomUUID` rejects an unbound `this`.
+ */
+function newIdempotencyKey(): string {
+  return crypto.randomUUID()
+}
 
 /** Service failure whose code can be displayed or mapped by the Host. */
 export class TeamSkillHttpError extends Error {
@@ -106,7 +114,7 @@ export class TeamSkillAccountHttpClient {
     return parseAccountSession(
       await this.request('/auth/refresh', {
         method: 'POST',
-        headers: { 'idempotency-key': randomUUID() },
+        headers: { 'idempotency-key': newIdempotencyKey() },
         body: JSON.stringify({ refresh_token: refreshToken }),
       }),
     )
@@ -116,7 +124,7 @@ export class TeamSkillAccountHttpClient {
    * @param accessToken - Current access token retained by the Host.
    */
   async logout(accessToken: string): Promise<void> {
-    await this.request('/auth/logout', { method: 'POST', headers: { 'idempotency-key': randomUUID() } }, accessToken)
+    await this.request('/auth/logout', { method: 'POST', headers: { 'idempotency-key': newIdempotencyKey() } }, accessToken)
   }
 
   /** Change the current password and return the replacement session.
@@ -130,7 +138,7 @@ export class TeamSkillAccountHttpClient {
         '/auth/change-password',
         {
           method: 'POST',
-          headers: { 'idempotency-key': randomUUID() },
+          headers: { 'idempotency-key': newIdempotencyKey() },
           body: JSON.stringify({ current_password: request.currentPassword, new_password: request.newPassword }),
         },
         accessToken,
@@ -509,7 +517,7 @@ export class TeamSkillHttpClient {
     if (items.length === 0) return Object.freeze([])
     const body = await this.request('/team-skills/release-status', {
       method: 'POST',
-      headers: { 'idempotency-key': randomUUID() },
+      headers: { 'idempotency-key': newIdempotencyKey() },
       body: JSON.stringify({ items: items.map(item => ({ skill_id: item.skillId, version: item.version, project_id: item.projectId })) }),
     })
     const record = requireRecord(body, 'release status response')
@@ -537,7 +545,7 @@ export class TeamSkillHttpClient {
   async createInstallation(request: CreateTeamSkillInstallationRequest): Promise<TeamSkillAuthorizedOperation> {
     const body = await this.request('/team-skill-installations', {
       method: 'POST',
-      headers: { 'idempotency-key': randomUUID() },
+      headers: { 'idempotency-key': newIdempotencyKey() },
       body: JSON.stringify({
         skill_id: request.skillId,
         version: request.version,
@@ -560,7 +568,8 @@ export class TeamSkillHttpClient {
    * @returns Exact artifact bytes returned by the service.
    */
   async download(url: string): Promise<Uint8Array> {
-    const response = await this.fetch(url, { headers: this.headers() })
+    // Unbound call: browser `fetch` rejects a non-global `this`.
+    const response = await this.fetch.call(undefined, url, { headers: this.headers() })
     if (!response.ok) throw await errorOf(response)
     return new Uint8Array(await response.arrayBuffer())
   }

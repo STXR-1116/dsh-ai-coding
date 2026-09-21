@@ -12,3 +12,6 @@ dist/
 *.tgz
 # The demo service's compiled output; its sources live in `src/`.
 dev/team-skill-service/lib/
+# Gate evidence logs under docs/ are deliverables (red/green smoke runs, test
+# retry transcripts); everything else stays ignored.
+!docs/**/*.log

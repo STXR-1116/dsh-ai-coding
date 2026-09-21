@@ -25,7 +25,12 @@ import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
 import { en, NS, zh, type PlatformKey } from './locales.ts'
 import { PlatformDemoController } from './controller.ts'
 import { PlatformEntry } from './PlatformEntry.tsx'
-import { PlatformSurface } from './PlatformSurface.tsx'
+import { PlatformSurface, type PlatformSurfaceProps } from './PlatformSurface.tsx'
+import { PlatformClientConfigSchema, resolvePlatformClientConfig } from './remote/config.ts'
+import { resolveBrowserSettings } from './remote/settings.ts'
+import { TeamSkillsRemoteService } from './remote/team-skills.ts'
+import { CloudWorkspacesRemoteService } from './remote/cloud-workspaces.ts'
+import type { PlatformRemote } from './remote/types.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -37,29 +42,41 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 export type { PlatformEntryProps } from './PlatformEntry.tsx'
 export type { PlatformSurfaceProps } from './PlatformSurface.tsx'
 export { PlatformDemoController } from './controller.ts'
-
-/** Services required for the locale and the two DSH extension slots. */
-export const inject = ['locale', 'slots', 'remote', 'remote.teamSkills', 'remote.cloudWorkspaces', 'sessions', 'workspaces', 'layout']
+export { PlatformClientConfigSchema, resolvePlatformClientConfig } from './remote/config.ts'
+export type { PlatformClientConfig, ResolvedPlatformClientConfig } from './remote/config.ts'
+export { readBrowserSettings, writeBrowserSettings, resolveBrowserSettings } from './remote/settings.ts'
+export type { BrowserRemoteSettings } from './remote/settings.ts'
+export { TeamSkillsRemoteService } from './remote/team-skills.ts'
+export { CloudWorkspacesRemoteService } from './remote/cloud-workspaces.ts'
 
 /**
- * The two client-side service faces this entry calls, named explicitly.
+ * Services required for the locale and the two DSH extension slots.
  *
- * `ctx.sessions` and `ctx.workspaces` are each declared twice in this
- * repository's single TypeScript program: the host half's
- * `@deepseek-ai/dsh-session` augments cordis `Context` with `SessionStore`, and
- * `@deepseek-ai/dsh-workspace` with the host `IWorkspaces`; the client half's
- * `@deepseek-ai/dsh-api-session-controller/client` and
- * `@deepseek-ai/dsh-api-workspace-controller/client` augment the same two keys
- * with `ISessions` and the client `IWorkspaces`. Declaration merging keeps one
- * of each pair, and here the host declarations win.
+ * The `remote` / `remote.teamSkills` / `remote.cloudWorkspaces` keys the
+ * generated face names are deliberately ABSENT: the assembled shell's typert
+ * registry only projects upstream namespaces, so waiting on them parked this
+ * fragment in PENDING forever. This fragment now provides the two namespace
+ * services itself, and a provider must not wait for itself.
+ */
+export const inject = ['locale', 'slots', 'sessions', 'workspaces', 'layout']
+
+/**
+ * Read the client-side session face off the shared context.
+ *
+ * `ctx.sessions` is declared twice in this repository's single TypeScript
+ * program: the host half's `@deepseek-ai/dsh-session` augments cordis
+ * `Context` with `SessionStore`, and the client half's
+ * `@deepseek-ai/dsh-api-session-controller/client` augments the same key with
+ * `ISessions`. Declaration merging keeps one of each pair, and here the host
+ * declaration wins.
  *
  * Upstream splits the halves across `tsconfig.host.json` and
  * `tsconfig.client.json` precisely so this cannot happen; this package has one
- * root program. The values in the browser are the client faces — the members
- * named below are read from the published client contracts
+ * root program. The value in the browser is the client face — the members
+ * named below are read from the published client contract
  * (`ISessions.open(id: SessionId): void`, `ISessions.create(opts?)`), not
- * guessed — so the narrowing is asserted here once, at the single boundary that
- * crosses from the shared context type into client behaviour.
+ * guessed — so the narrowing is asserted here once, at the single boundary
+ * that crosses from the shared context type into client behaviour.
  */
 interface ClientSessionFace {
   /** Focus one existing Session. */
@@ -69,16 +86,40 @@ interface ClientSessionFace {
 }
 
 /**
- * Read the client-side service faces off the shared context.
+ * Read the client-side service face off the shared context.
  * @param ctx - client plugin context carrying the assembled services.
- * @returns the session face and the workspace service, client-side typed.
+ * @returns the session face, client-side typed.
  */
 function clientFaces(ctx: ClientContext): { sessions: ClientSessionFace } {
   return { sessions: ctx.sessions as unknown as ClientSessionFace }
 }
 
-/** Register the sidebar entry and frame overlay owned by this plugin. */
+/**
+ * Register the sidebar entry, the frame overlay, and the two browser-provided
+ * remote namespace services owned by this plugin.
+ * @param ctx - client plugin context (the mounting fiber's cordis context).
+ */
 export function apply(ctx: ClientContext): void {
+  // The 0.1.5-rc.2 client runner delivers no mount-row configuration to
+  // browser fragments (see docs/api-drift-ledger.md D23): the deployment
+  // values come from the workbench's settings face instead, applied live.
+  // The row schema is kept as an export for reuse and a future baseline that
+  // does deliver config — but exporting it as `Config` would have the loader
+  // validate `undefined` against it and brick the fragment, so it is not.
+  const readConfig = resolveBrowserSettings
+  // Cordis Service construction registers each face under its key
+  // (`remote.teamSkills` / `remote.cloudWorkspaces`) as an effect of this
+  // fiber, so unloading the row unregisters both.
+  const teamSkills = new TeamSkillsRemoteService(ctx, readConfig)
+  const cloudWorkspaces = new CloudWorkspacesRemoteService(
+    ctx,
+    readConfig,
+    () => teamSkills.currentGrant(),
+    (grant) => { teamSkills.clearSessionIfCurrent(grant) },
+  )
+  // The face this plugin's components consume: the two namespaces self-hosted,
+  // shaped exactly like the assembled `ctx.remote` they stand in for.
+  const remote: PlatformRemote = { teamSkills, cloudWorkspaces }
   const controller = new PlatformDemoController()
   const faces = clientFaces(ctx)
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-ai-coding-platform: dictionaries')
@@ -100,13 +141,13 @@ export function apply(ctx: ClientContext): void {
     locale: NS,
     inject: (): {
       controller: PlatformDemoController
-      remote: typeof ctx.remote
+      remote: PlatformSurfaceProps['remote']
       layout: ILayout
       openSession: (sessionId: SessionId) => void
       startSession: () => void
     } => ({
       controller,
-      remote: ctx.remote,
+      remote,
       layout: ctx.layout,
       openSession: (sessionId) => { faces.sessions.open(sessionId) },
       // 0.1.5 removed `IWorkspaces.startSession()`: starting a Session is a

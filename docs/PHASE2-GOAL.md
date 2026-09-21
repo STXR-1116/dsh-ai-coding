@@ -36,6 +36,34 @@
 5. **验收不变**：真机 chromium 渲染 ws-alpha-1 / k-1；冒烟 3 连绿含浏览器侧
    断言；typecheck 0；测试全绿。
 
+### P0-1 修订的执行结果（2026-09-21，全部落地；两处经实测修正）
+
+- **第 1 条修正（通道）**：实测推翻「值随组合下发浏览器 runner」——0.1.5-rc.2
+  的浏览器 runner 不向 fragment 下发行配置（`apply` 第二参恒 `undefined`，
+  探针与 54 条 boot 清单为证；台账 D23）。schemastery 对 `undefined` 返回
+  issues，导出 loader 面 `Config` 会把 fragment 永久打红。改为 P0-2 原文
+  提供的另一个选项「settings 面替代配置」：工作台设置面
+  （`RemoteSettingsView` → localStorage）下发部署值，保存即热应用；未配置
+  = 具名响亮设置面，服务读回答显式 `not-ready` 联合。行 schema 保留为
+  `PlatformClientConfigSchema`（非 `Config` 名，避免 loader 校验 undefined）。
+- **第 2、3 条照做**：浏览器安全 remote 客户端层落地于 `src/client/remote/`
+  （teamSkills 37 方法 / cloudWorkspaces 48 方法，与生成面逐字对齐——
+  `implements ClientRemote['…']` 编译期钉住；写操作 idempotency-key、
+  createRun 的 if-match 随 WorkspaceHost 保留）；两个服务以官方 Service 模式
+  注册为 `remote.teamSkills` / `remote.cloudWorkspaces`（`remote` 键被
+  api-gateway 占用，cordis 同键双注册会抛错，故不提供也不注入）；
+  inject 移除三键，PENDING 消失。
+- **第 4 条照做**：typert staging 生成器与实验脚本已删除
+  （build/typert-{stage,gen}.mjs、.typert-stage/），api-remotes 组装与
+  `$mount` 未触碰；D18/D22 降级为备忘并新增 D23（配置通道）/D24（浏览器
+  fetch 受体约束——真机抓到 `Illegal invocation`，`this.fetcher(...)` 改
+  无绑定调用）。
+- **验收全过**：真机 chromium（本机 Chrome）打开 dsh web → 侧边栏 AI Coding
+  入口 → 设置面 → 登录 → 工作台渲染 fixture 种子 ws-alpha-1、知识库渲染
+  k-1；mount-smoke 18 步连续 3 绿 + 受控红留档（docs/mount-smoke/phase2/、
+  docs/mount-smoke-log.md）；typecheck 0；161 文件/1435 用例全绿 skipped=0；
+  验收截图 docs/mount-acceptance/（3 张）。
+
 ### P0-1 原始调查（已被上方修订取代，留档）
 
 ### P0-1 追加（二期执行时实测，根因收窄）
@@ -85,50 +113,58 @@ ui-renderer / ui-session / ui-workspace / api-session-controller）；
 4. 验收：真机 chromium 打开 `dsh web`，侧边栏 AI Coding 入口 → 工作台面板渲染
    fixture 种子（ws-alpha-1 / k-1 发布流程）；连续 3 次冒烟全绿；红/绿双日志留档。
 
-## P0-2 · 环境变量契约的 fail-loud 与文档
+## P0-2 · 环境变量契约的 fail-loud 与文档 ✅（2026-09-21）
 
 一期两次误诊都源于「缺 `DSH_*` 变量时宿主半静默降级」。修复：
-1. 宿主半对 `apiBaseUrl === undefined` 时**启动期抛出**带修复指引的错误
-   （配置属部署错误，按仓库惯例 fail loud），或提供 settings 面替代配置
-   （apiKeyEnv 同款机制），二选一并在 README 写明。
-2. README 安装节列出精确 env 集：`DSH_AI_CODING_PLATFORM_API_URL`、
-   `DSH_CLOUD_WORKSPACE_API_URL`、`DSH_CLOUD_WORKSPACE_AUTH_MODE`、
-   `DSH_CLOUD_WORKSPACE_ACCESS_TOKEN`。
-3. `docs/ADAPTATION-GOAL.md` 补三条一期教训：`--patch` 覆盖层是顶层数组；
-   安装器会自动应用包内 `cordis.patch.yml`（profile patch 里重述 = duplicate
-   loader entry id）；宿主行缺 env 时浏览器半表现为 pending 而非启动失败。
+1. ✅ **选了 settings 面**（原文二选一的第二项）：宿主半保持其显式
+   `not-ready` 产品语义（不属静默——各读都回答具名缺失项）；浏览器半由
+   工作台设置面承担部署值（见 P0-1 执行结果的通道修正），未配置 = 具名
+   响亮设置面。README 已写明两侧契约。
+2. ✅ README 安装/配置节列出精确 env 集（含 `DSH_AI_CODING_PLATFORM_ACCESS_TOKEN`
+   与 `DSH_CLOUD_WORKSPACE_*` 三键，表格化）。
+3. ✅ `docs/ADAPTATION-GOAL.md` 已补「一期教训」三条。
 
-## P1-1 · 安装程序化与 README 安装节重写
+## P1-1 · 安装程序化与 README 安装节重写 ✅（2026-09-21）
 
 实测 `dsh plugin --profile web add <本地目录>` 的 CLI 形状未走通（被 pnpm help
 吞掉），已验证的通路是 `pnpm pack` → profile `package.json` 加 `file:` 依赖 +
 `dsh.profile.bundles` 加包名 → `pnpm install`。修复：
-1. 核实 `dsh plugin` 子命令在 0.1.5 的正确用法（`dsh plugin --help` 直查）；
-   若 CLI 可用，README 用 CLI 版；不可用则提供 `scripts/install-to-profile.mjs`
-   （pack → 改 profile package.json → install → 校验 bundles）一键脚本。
-2. README 记录 profile patch 不可重述插件行（duplicate id）。
+1. ✅ `dsh plugin` 复核：子命令存在且强制 `--profile`（缺省报
+   `required option '--profile <name>'`）；一期已实证 `dsh plugin --profile web
+   add <tgz>` 全链路（安装器自动应用包内 patch、自动加 bundles 行）。
+   README 安装节采用 CLI 版并附「无 CLI 时的 file: 依赖等价通路」与卸载步骤。
+2. ✅ README 记录 profile patch 不可重述插件行（duplicate id）。
 
-## P1-2 · CI 钉版门禁（ROADMAP-5，未开工）
+## P1-2 · CI 钉版门禁 ✅（2026-09-21，.github/workflows/ci.yml）
 
-`.github/workflows/ci.yml`：push/PR 跑 install+build+typecheck+test；
-**每周**任务探测 `@deepseek-ai/*` 新版本 → 自动开「基线 bump」PR → PR 上跑
-install+build+挂载冒烟 → 绿则可合并发版。基线段写进 `dsh.plugin.json` engines
-与 peerDependencies。
+push/PR 跑 install+build+typecheck+test:once+verify:face；**每周一**探测
+`@deepseek-ai/dsh` 新版本（build/bump-baseline.mjs 改写 package.json 钉值与
+dsh.plugin.json engines）→ 自动开「基线 bump」PR → PR 管线在同门禁之上加跑
+真实挂载冒烟（装 dsh CLI → 组 profile → 真 Chromium 18 步）。基线段以
+`DSH_BASELINE` 环境变量与 package.json 钉值为单一事实源。
 
-## P2（非阻塞，按序清）
+## P2（非阻塞，按序清）✅（2026-09-21 全部收口）
 
-- **D18**：RemoteErrorCode 封闭词汇表——改为从已发布协议包导入的字面联合类型，
-  替换窄化比较兜底。
-- **D22**：拆 `tsconfig.host.json` / `tsconfig.client.json` 双 face（对齐
-  monorepo 编译面惯例），消除单程序类型化双半的含混。
-- **`/plugins/??dsh-ai-coding/client.js` 的 `??`**：实机可用但形迹可疑（scope 段
-  空替换？）。确认服务端 URL 模板对无 scope 包名的预期形状，并在换 scope/发布
-  npm 前确认不破。
-- **worker 丢失根因**：约半数运行丢 1 个 worker（0 断言失败）。在
-  fileParallelism:false 下采一次堆/事件 tracing 定位；属基础设施，不改产品。
-- **`src/client-node/invariant.ts` 注册名**：保留旧两包名（invariants 服务按
-  字符串注册所有权）——在台账补「保留理由」或改名，二选一，不留无记录状态。
-- **README/ROADMAP 时效**：一期已完成项从 ROADMAP 挪入完成清单，避免误导。
+- **D18**：✅ 按修订版第 4 条降级为备忘（台账原条目保留）——浏览器半已改为
+  自提供服务面，不再经过 typert strict 编解码，`RemoteErrorCode` 封闭词汇表
+  的窄化比较兜底失去消费方；fixture 侧仍有服务端校验。
+- **D22**：✅ 同上降级为备忘。单程序类型化双半的含混已由 `ClientSessionFace`
+  具名窄化 + `Pick<ClientRemote,…>` 的 `PlatformRemote` 类型钉住（跨界点唯一
+  且有注释），拆双 face tsconfig 收益归零，留待上游对齐时再做。
+- **`/plugins/??dsh-ai-coding/client.js` 的 `??`**：✅ 已定性——URL 模板
+  `/plugins/<scope>/<name>/client.js` 在空 scope 下的字面产物，服务端按原样
+  解析并正确回包（冒烟 bundle 步 200/727KB），纯形迹问题；换 scope/发 npm
+  前须同步核对 roster 模板（台账附 2）。
+- **worker 丢失根因**：✅ 维持「基础设施、不改产品」定性并已在
+  build/run-tests.mjs 头注与 ADAPTATION-GOAL 登记诊断（Node 24 worker 不跑
+  exit 处理器，父进程终止所致；pool/隔离/并行度均排查无效）；分级重试只认
+  非断言失败，测试门禁不受影响。二期实测 3/3 次首跑即绿。
+- **`src/client-node/invariant.ts` 注册名**：✅ 已在台账附 2 补「保留理由」：
+  该文件是有意的转发模块（注册所有权按字符串全名，包内唯一的 companion 注册
+  在 `src/invariant.ts`），非无记录状态。
+- **README/ROADMAP 时效**：✅ README 重写：ROADMAP 五项全部完成并折叠进
+  Status（构建/测试/改名/漂移/CI），安装、env 契约、浏览器设置模型、开发
+  命令、验收证据全部更新。
 
 ## 纪律（不变）
 

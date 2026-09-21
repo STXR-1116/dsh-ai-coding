@@ -1,6 +1,5 @@
 /** Host orchestration for cloud workspaces: snapshots first, SSE resync, stable errors. */
 
-import { randomUUID } from 'node:crypto'
 import {
   WorkspaceHttpClient,
   WorkspaceHttpError,
@@ -58,6 +57,15 @@ import type {
   ContextLensSnapshot,
   RunAssetSnapshot,
 } from './workspace-types.ts'
+
+/**
+ * One write-request idempotency key from the platform WebCrypto, so this module
+ * stays browser-safe (the same call the browser client layer makes). Bound at
+ * the call site because `Crypto.randomUUID` rejects an unbound `this`.
+ */
+function newIdempotencyKey(): string {
+  return crypto.randomUUID()
+}
 
 /**
  * The credential a Host call was issued under.
@@ -287,7 +295,7 @@ export class WorkspaceHost {
 
   constructor(private readonly options: WorkspaceHostOptions) {
     this.fetcher = options.fetch ?? globalThis.fetch
-    this.idempotencyKey = options.idempotencyKey ?? randomUUID
+    this.idempotencyKey = options.idempotencyKey ?? newIdempotencyKey
     this.reconnectDelay = options.reconnectDelayMs ?? (attempt => Math.min(250 * attempt, 2000))
     this.previewOrigins = options.previewOrigins ?? []
     this.now = options.now ?? Date.now
@@ -1112,7 +1120,7 @@ export class WorkspaceHost {
    */
   startStream(scope: WorkspaceStreamScope): WorkspaceStreamSubscriptionHandle {
     const subscription: StreamSubscription = {
-      id: randomUUID(),
+      id: newIdempotencyKey(),
       scope,
       abort: new AbortController(),
       generation: 0,

@@ -1,0 +1,294 @@
+$ node build/run-tests.mjs
+
+=== pnpm test — attempt 1/3 ===
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90mC:/Users/13588/dev/dsh-ai-coding[39m
+
+ [32m✓[39m [30m[45m admin [49m[39m dev/team-skill-admin/tests/cloud-agent-config.spec.tsx [2m([22m[2m18 tests[22m[2m)[22m[33m 6997[2mms[22m[39m
+     [33m[2m✓[22m[39m shows enriched profile cards: readiness, creator, timestamps and credential summary [33m 485[2mms[22m[39m
+     [33m[2m✓[22m[39m filters the list server-side by status, type, project, readiness and creator [33m 656[2mms[22m[39m
+     [33m[2m✓[22m[39m confirms publish and archive before writing and skips the request on cancel [33m 460[2mms[22m[39m
+     [33m[2m✓[22m[39m clones a profile into a new draft via the :clone route with an idempotency key [33m 369[2mms[22m[39m
+     [33m[2m✓[22m[39m builds ordered skill bindings, knowledge multi-select and single memory from the draft form [33m 526[2mms[22m[39m
+     [33m[2m✓[22m[39m omits memory from the write body when 未使用记忆库 stays selected [33m 400[2mms[22m[39m
+     [33m[2m✓[22m[39m opens a strictly validated detail view straight from the service [33m 400[2mms[22m[39m
+     [33m[2m✓[22m[39m shows agent type readiness, description, asset counts, memory name and binding count on the card [33m 335[2mms[22m[39m
+     [33m[2m✓[22m[39m passes the updated_after filter to the service [33m 577[2mms[22m[39m
+     [33m[2m✓[22m[39m lets the new-version form edit skill and memory selections explicitly [33m 412[2mms[22m[39m
+     [33m[2m✓[22m[39m shows a revision-conflict banner and re-reads the server draft instead of overwriting silently [33m 373[2mms[22m[39m
+     [33m[2m✓[22m[39m adopts the server version only when the operator asks for it [33m 378[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps the new-version form open with its fields when creating the version fails [33m 441[2mms[22m[39m
+     [33m[2m✓[22m[39m binds a comma-separated project list with a fresh revision per project [33m 380[2mms[22m[39m
+     [33m[2m✓[22m[39m marks ordered skill rows as draggable [33m 342[2mms[22m[39m
+     [33m[2m✓[22m[39m shows the change summary column in the detail snapshot [33m 361[2mms[22m[39m
+[90mstdout[2m | dev/team-skill-admin/tests/cloud-workspace-admin.spec.tsx[2m > [22m[2mcloud workspace admin pages[2m > [22m[2mshows a field-level diff between two agent profile versions
+[22m[39mSECTION_HTML thead><tr><th>字段</th><th>基准</th><th>对比</th></tr></thead><tbody><tr><td>状态</td><td>published</td><td>draft</td></tr><tr><td>提示规则</td><td>medium</td><td>high</td></tr><tr><td>凭据引用</td><td>deepseek-main（ready）</td><td>无</td></tr><tr><td>变更摘要</td><td>首个版本</td><td>提高推理档位</td></tr></tbody></table></div><div class="asset-health"><div class="workbench-card-head"><strong>资产健康表（Skill / 知识库 / 记忆库同一套）</strong></div><table class="admin-table" aria-label="资产健康表"><thead><tr><th>类型</th><th>名称</th><th>版本</th><th>授权</th><th>readiness</th><th>健康</th><th>原因</th></tr></thead><tbody></tbody></table></div></section>
+VD_COUNT [33m1[39m | SEL [33m2[39m
+DIFF_NODE found | SELECTS [33m1[39m [33m1[39m
+
+ [32m✓[39m [30m[45m admin [49m[39m dev/team-skill-admin/tests/cloud-workspace-admin.spec.tsx [2m([22m[2m22 tests[22m[2m)[22m[33m 4123[2mms[22m[39m
+     [33m[2m✓[22m[39m opens the cloud workspace group and lists agent profiles with publish actions [33m 518[2mms[22m[39m
+     [33m[2m✓[22m[39m creates a draft agent profile and a new draft version from the admin page [33m 506[2mms[22m[39m
+     [33m[2m✓[22m[39m edits the latest draft in place and refuses to mutate published profiles [33m 338[2mms[22m[39m
+     [33m[2m✓[22m[39m binds a published version as project default and unbinds it [33m 365[2mms[22m[39m
+     [33m[2m✓[22m[39m shows the service rejection reason when a version cannot be published [33m 353[2mms[22m[39m
+     [33m[2m✓[22m[39m shows a field-level diff between two agent profile versions [33m 458[2mms[22m[39m
+ [32m✓[39m [30m[45m admin [49m[39m dev/team-skill-admin/tests/admin-dashboard.spec.tsx [2m([22m[2m40 tests[22m[2m)[22m[33m 3312[2mms[22m[39m
+ [32m✓[39m [30m[45m admin [49m[39m dev/team-skill-admin/tests/agent-config-chain.e2e.spec.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 2362[2mms[22m[39m
+     [33m[2m✓[22m[39m shares one fixture between admin governance, Host parsing and plugin rendering, then proves archival removal [33m 313[2mms[22m[39m
+     [33m[2m✓[22m[39m governs the profile through CloudProfilesPage controls and proves the same Host/plugin instance sees, then loses, it [33m 2046[2mms[22m[39m
+ [32m✓[39m [30m[45m admin [49m[39m dev/team-skill-admin/tests/cloud-workspace-stream.spec.ts [2m([22m[2m55 tests[22m[2m)[22m[33m 1789[2mms[22m[39m
+ [32m✓[39m [30m[45m admin [49m[39m dev/team-skill-admin/tests/load-page-real-reads.spec.tsx [2m([22m[2m18 tests[22m[2m)[22m[33m 1625[2mms[22m[39m
+     [33m[2m✓[22m[39m cloud-profiles：读取成功（含空数据）时 ready，且真实数据行/治理读取可达 [33m 313[2mms[22m[39m
+ [32m✓[39m [30m[45m admin [49m[39m dev/team-skill-admin/tests/asset-governance.view.spec.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 1257[2mms[22m[39m
+     [33m[2m✓[22m[39m 资产健康表：三类候选归一渲染，不健康行带原因 [33m 471[2mms[22m[39m
+     [33m[2m✓[22m[39m 发布被校验阻断：逐项列出未授权资产，不发起发布 [33m 422[2mms[22m[39m
+     [33m[2m✓[22m[39m 试运行就绪后发布继续；版本差异含工具与权限策略维度 [33m 363[2mms[22m[39m
+ [32m✓[39m [30m[45m admin [49m[39m dev/team-skill-admin/tests/cloud-workspace-capability.spec.tsx [2m([22m[2m13 tests[22m[2m)[22m[33m 890[2mms[22m[39m
+ [32m✓[39m [30m[45m admin [49m[39m dev/team-skill-admin/tests/cloud-workspace-e2e.spec.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 820[2mms[22m[39m
+     [33m[2m✓[22m[39m member: real-HTTP workspace journey (create → ready → tree → preview → run → changes → commit) [33m 530[2mms[22m[39m
+ [32m✓[39m [30m[45m admin [49m[39m dev/team-skill-admin/tests/project-management.spec.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 597[2mms[22m[39m
+ [32m✓[39m [30m[45m admin [49m[39m dev/team-skill-admin/tests/telemetry.spec.tsx [2m([22m[2m9 tests[22m[2m)[22m[33m 552[2mms[22m[39m
+ [32m✓[39m [30m[45m admin [49m[39m dev/team-skill-admin/tests/workbench-page.spec.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 363[2mms[22m[39m
+ [32m✓[39m [30m[45m admin [49m[39m dev/team-skill-admin/tests/command-palette.view.spec.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 303[2mms[22m[39m
+ [32m✓[39m [30m[45m admin [49m[39m dev/team-skill-admin/tests/telemetry-page-scan.spec.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 280[2mms[22m[39m
+[90mstdout[2m | dev/team-skill-admin/tests/team-skill-proxy.spec.ts[2m > [22m[2mteam-skill admin proxy (P1-06)[2m > [22m[2mreturns a stable JSON 503 when the base URL is not configured
+[22m[39mSERVICES_BEFORE [33m0[39m []
+
+[90mstdout[2m | dev/team-skill-admin/tests/team-skill-proxy.spec.ts[2m > [22m[2mteam-skill admin proxy (P1-06)[2m > [22m[2mdoes not fall back to the account service when MemoryService is not configured
+[22m[39mSERVICES_BEFORE [33m0[39m []
+
+[90mstdout[2m | dev/team-skill-admin/tests/team-skill-proxy.spec.ts[2m > [22m[2mteam-skill admin proxy (P1-06)[2m > [22m[2mreturns a stable JSON 503 with request_id when the upstream port is closed
+[22m[39mSERVICES_BEFORE [33m0[39m []
+
+[90mstdout[2m | dev/team-skill-admin/tests/team-skill-proxy.spec.ts[2m > [22m[2mteam-skill admin proxy (P1-06)[2m > [22m[2mreturns a complete auth error envelope when the browser session is absent
+[22m[39mSERVICES_BEFORE [33m0[39m []
+
+[90mstdout[2m | dev/team-skill-admin/tests/team-skill-proxy.spec.ts[2m > [22m[2mteam-skill admin proxy (P1-06)[2m > [22m[2mpasses through upstream status and JSON body for non-2xx governance codes
+[22m[39mSERVICES_BEFORE [33m1[39m [ [32m'object'[39m ]
+
+[90mstdout[2m | dev/team-skill-admin/tests/team-skill-proxy.spec.ts[2m > [22m[2mteam-skill admin proxy (P1-06)[2m > [22m[2mforwards a ` :verb` sub-resource segment to the upstream verbatim
+[22m[39mSERVICES_BEFORE [33m1[39m [ [32m'object'[39m ]
+
+[90mstdout[2m | dev/team-skill-admin/tests/team-skill-proxy.spec.ts[2m > [22m[2mteam-skill admin proxy (P1-06)[2m > [22m[2mcarries an authorized event stream through without a request deadline
+[22m[39mSERVICES_BEFORE [33m1[39m [ [32m'object'[39m ]
+
+ [32m✓[39m [30m[45m admin [49m[39m dev/team-skill-admin/tests/team-skill-proxy.spec.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 66[2mms[22m[39m
+ [32m✓[39m [30m[45m admin [49m[39m dev/team-skill-admin/tests/team-skill-api.spec.ts [2m([22m[2m36 tests[22m[2m)[22m[32m 58[2mms[22m[39m
+ [32m✓[39m [30m[45m admin [49m[39m dev/team-skill-admin/tests/agent-asset-governance.model.spec.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m [30m[45m admin [49m[39m dev/team-skill-admin/tests/run-evidence.model.spec.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m [30m[45m admin [49m[39m dev/team-skill-admin/tests/workbench-groups.spec.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m [30m[45m admin [49m[39m dev/team-skill-admin/tests/project-governance.model.spec.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m [30m[45m admin [49m[39m dev/team-skill-admin/tests/permission-chain.model.spec.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m [30m[45m admin [49m[39m dev/team-skill-admin/tests/observability.model.spec.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m [30m[45m admin [49m[39m dev/team-skill-admin/tests/page.spec.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m [30m[45m admin [49m[39m dev/team-skill-admin/tests/command-palette.model.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m [30m[45m admin [49m[39m dev/team-skill-admin/tests/workspace-ops.model.spec.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m [30m[43m fixture [49m[39m dev/team-skill-service/tests/run-checkpoint.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 843[2mms[22m[39m
+     [33m[2m✓[22m[39m 恢复显式选择 continue | replay；断线重试（同键重放）不产生重复副作用 [33m 330[2mms[22m[39m
+     [33m[2m✓[22m[39m 异常矩阵：preparing 不可暂停、resume 缺检查点 409、校验失败 422 [33m 305[2mms[22m[39m
+ [32m✓[39m [30m[43m fixture [49m[39m dev/team-skill-service/tests/workspace.spec.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 694[2mms[22m[39m
+     [33m[2m✓[22m[39m creates a workspace and observes provisioning-to-ready through SSE [33m 458[2mms[22m[39m
+ [32m✓[39m [30m[43m fixture [49m[39m dev/team-skill-service/tests/skill-release-gate.spec.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 660[2mms[22m[39m
+ [32m✓[39m [30m[43m fixture [49m[39m dev/team-skill-service/tests/access.spec.ts [2m([22m[2m30 tests[22m[2m)[22m[33m 586[2mms[22m[39m
+ [32m✓[39m [30m[43m fixture [49m[39m dev/team-skill-service/tests/agent-config.spec.ts [2m([22m[2m19 tests[22m[2m)[22m[33m 533[2mms[22m[39m
+ [32m✓[39m [30m[43m fixture [49m[39m dev/team-skill-service/tests/skill-auth.spec.ts [2m([22m[2m14 tests[22m[2m)[22m[33m 507[2mms[22m[39m
+ [32m✓[39m [30m[43m fixture [49m[39m dev/team-skill-service/tests/project-memory.spec.ts [2m([22m[2m17 tests[22m[2m)[22m[33m 388[2mms[22m[39m
+ [32m✓[39m [30m[43m fixture [49m[39m dev/team-skill-service/tests/telemetry.spec.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 278[2mms[22m[39m
+ [32m✓[39m [30m[43m fixture [49m[39m dev/team-skill-service/tests/run-approval-takeover.spec.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 289[2mms[22m[39m
+ [32m✓[39m [30m[43m fixture [49m[39m dev/team-skill-service/tests/run-pulse.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 263[2mms[22m[39m
+ [32m✓[39m [30m[43m fixture [49m[39m dev/team-skill-service/tests/workspace-admin.spec.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 249[2mms[22m[39m
+ [32m✓[39m [30m[43m fixture [49m[39m dev/team-skill-service/tests/service.spec.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 256[2mms[22m[39m
+ [32m✓[39m [30m[43m fixture [49m[39m dev/team-skill-service/tests/skill-trust-card.spec.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 240[2mms[22m[39m
+ [32m✓[39m [30m[43m fixture [49m[39m dev/team-skill-service/tests/run-state-machine.spec.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 219[2mms[22m[39m
+ [32m✓[39m [30m[43m fixture [49m[39m dev/team-skill-service/tests/context-lens.spec.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 229[2mms[22m[39m
+ [32m✓[39m [30m[43m fixture [49m[39m dev/team-skill-service/tests/org-lifecycle-auth.spec.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 201[2mms[22m[39m
+ [32m✓[39m [30m[43m fixture [49m[39m dev/team-skill-service/tests/request-validation.spec.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 169[2mms[22m[39m
+ [32m✓[39m [30m[43m fixture [49m[39m dev/team-skill-service/tests/knowledge.spec.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 173[2mms[22m[39m
+ [32m✓[39m [30m[43m fixture [49m[39m dev/team-skill-service/tests/asset-snapshot.spec.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 171[2mms[22m[39m
+[90mstdout[2m | dev/team-skill-service/tests/phase-2-0-contracts.spec.ts[2m > [22m[2m2-0b Agent 草稿编辑（§11.4）[2m > [22m[2m编辑草稿带 If-Match/幂等键；published 后原地修改被拒；新版本缺省继承
+[22m[39mPROBE-PUT {"code":0,"message":"ok","request_id":"7236dc19-57bf-4d56-9bfc-b1bda01d1fae","data":{"agent_profile_id":"ap-226e26be","organization_id":"org-alpha","name":"2-0 审计配置","description":"","agent_type_id":"at-claude-code","status":"draft","agent_type_name":"Claude Code","agent_type_readiness":"ready","skill_count":1,"knowledge_count":0,"memory_name":null,"project_count":0,"readiness":"ready","unavailable_reason":null,"created_by":"平台管理员","created_at":"2026-09-21T06:44:32.581Z","updated_at":"2026-09-21T06:44:32.585Z","revision":2,"versions":[{"agent_profile_version_id":"apv-e24ccfbb","version":"v1","status":"draft","model":"deepseek-chat","reasoning":"high","asset_bindings":{"skills":[{"asset_id":"skill:code-review","asset_version_id":"skill:code-review@1.0.0","required":true,"order":1}],"knowledge_bases":[],"memory":null},"asset_version_ids":["skill:code-review@1.0.0"],"execution_policy":{"permission_mode":"auto","write_mode":"write"},"type_extension_config":{"permission_mode":"approval"},"credential_ref":{"name":"deepseek-main","kind":"api_key","authorized":true,"readiness":"ready"},"change_summary":"初始草稿"}],"project_bindings":[]}} IFM 1
+
+ [32m✓[39m [30m[43m fixture [49m[39m dev/team-skill-service/tests/phase-2-0-contracts.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 159[2mms[22m[39m
+ [32m✓[39m [30m[43m fixture [49m[39m dev/team-skill-service/tests/workspace-plan.spec.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 157[2mms[22m[39m
+ [32m✓[39m [30m[43m fixture [49m[39m dev/team-skill-service/tests/agent-config-editor.spec.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 147[2mms[22m[39m
+ [32m✓[39m [30m[43m fixture [49m[39m dev/team-skill-service/tests/afc03-pagination.spec.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 138[2mms[22m[39m
+ [32m✓[39m [30m[43m fixture [49m[39m dev/team-skill-service/tests/denial-audit.spec.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 142[2mms[22m[39m
+ [32m✓[39m [30m[43m fixture [49m[39m dev/team-skill-service/tests/permission-simulate.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 125[2mms[22m[39m
+ [32m✓[39m [30m[43m fixture [49m[39m dev/team-skill-service/tests/audit-actor-name.spec.ts [2m([22m[2m1 test[22m[2m)[22m[32m 109[2mms[22m[39m
+ [32m✓[39m [30m[43m fixture [49m[39m dev/team-skill-service/tests/permission-check.spec.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 110[2mms[22m[39m
+ [32m✓[39m [30m[43m fixture [49m[39m dev/team-skill-service/tests/error-envelope.spec.ts [2m([22m[2m1 test[22m[2m)[22m[32m 73[2mms[22m[39m
+ [32m✓[39m [30m[43m fixture [49m[39m dev/team-skill-service/tests/afc02-schema.spec.ts [2m([22m[2m1 test[22m[2m)[22m[32m 58[2mms[22m[39m
+[90mstdout[2m | tests/cloud-workspaces.client.spec.tsx[2m > [22m[2mUX-06 向导状态复位（二次核对）[2m > [22m[2mD2: returns the wizard to step 1 after a successful create
+[22m[39mD2_PROBE step3reached= 3. Agent 配置 确认创建数= [33m1[39m
+
+ [32m✓[39m [30m[42m plugin [49m[39m tests/cloud-workspaces.client.spec.tsx [2m([22m[2m48 tests[22m[2m)[22m[33m 13191[2mms[22m[39m
+     [33m[2m✓[22m[39m consumes the Host SSE event channel instead of only reading the stream state [33m 349[2mms[22m[39m
+     [33m[2m✓[22m[39m establishes exactly one scoped subscription and releases it on unmount [33m 371[2mms[22m[39m
+     [33m[2m✓[22m[39m releases the old subscription and opens exactly one for the switched workspace [33m 794[2mms[22m[39m
+     [33m[2m✓[22m[39m drives provisioning-to-ready purely from fixture SSE state [33m 924[2mms[22m[39m
+     [33m[2m✓[22m[39m shows the disconnected state and recovers to live after reconnects [33m 2514[2mms[22m[39m
+     [33m[2m✓[22m[39m resyncs on the fixture resync_required signal and re-reads the snapshot [33m 2506[2mms[22m[39m
+     [33m[2m✓[22m[39m never moves the UI backwards on a duplicated historical replay [33m 474[2mms[22m[39m
+     [33m[2m✓[22m[39m starts a stopped workspace and lets the fixture reach ready [33m 468[2mms[22m[39m
+[90mstdout[2m | tests/telemetry-gateway.integration.spec.ts[2m > [22m[2mtelemetry account semantics through the real Gateway/Reporter/Queue/fixture chain[2m > [22m[2mR14 真实 Cordis 生命周期：wrapper 插件 fiber.dispose 触发构造期 effect（顺序：Reporter stop→最后 drain→Queue 只关一次）→ 重开可恢复、重复 dispose 幂等、关闭后入队显式 storage failure
+[22m[39mR14SEQ ["reporter.shutdown","reporter.stop","reporter.shutdown","reporter.stop","queue.close"] post-idem ["reporter.shutdown","reporter.stop","reporter.shutdown","reporter.stop","queue.close"]
+
+ [32m✓[39m [30m[42m plugin [49m[39m tests/telemetry-gateway.integration.spec.ts [2m([22m[2m16 tests[22m[2m)[22m[33m 6213[2mms[22m[39m
+     [33m[2m✓[22m[39m S1 凭据读取抛错 → not-ready：零发送、队列保留、静态分区不兜底、Token 不泄漏 [33m 673[2mms[22m[39m
+     [33m[2m✓[22m[39m R11 认证挂起窗口：login/refresh/logout 未完成时采集立即隔离（不写旧账号、不预写新账号），Authorization/分区/队列逐项断言 [33m 1652[2mms[22m[39m
+     [33m[2m✓[22m[39m R14 真实 Cordis 生命周期：wrapper 插件 fiber.dispose 触发构造期 effect（顺序：Reporter stop→最后 drain→Queue 只关一次）→ 重开可恢复、重复 dispose 幂等、关闭后入队显式 storage failure [33m 466[2mms[22m[39m
+     [33m[2m✓[22m[39m R14 补充：effect disposer 关闭队列后，真实 turn 入队失败返回明确 storage failure（mode=storage-error） [33m 555[2mms[22m[39m
+     [33m[2m✓[22m[39m S2/R8 刷新失败（真实 /auth/refresh 401）→ signed-out：双分区行都保留、稳定窗口零批次请求（无静态 Token 部署，接管语义另见 S2b） [33m 551[2mms[22m[39m
+     [33m[2m✓[22m[39m S4 明确登出 + 静态 Token → 静态兜底接管（Authorization 切换），旧分区行保留 [33m 816[2mms[22m[39m
+     [33m[2m✓[22m[39m S6/R8 无登录态且无静态 Token → signed-out：零批次请求、队列保留 [33m 434[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/gateway-install-wiring.integration.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 5301[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps polling while DSH has not confirmed discovery, then fails explicitly [33m 5126[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/platform.client.spec.tsx [2m([22m[2m23 tests[22m[2m)[22m[33m 3117[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps non-Skill demo modules available while Skill uses the Host Remote [33m 528[2mms[22m[39m
+   [33m[2m✓[22m[39m loads project memories from the service and updates them with the server revision [33m 324[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/ux-platform.client.spec.tsx [2m([22m[2m17 tests[22m[2m)[22m[33m 2392[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/workspace-pagination.spec.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 2515[2mms[22m[39m
+     [33m[2m✓[22m[39m fails explicitly past the implementation limit instead of returning a partial list [33m 2173[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/ux12-a11y.client.spec.tsx [2m([22m[2m10 tests[22m[2m)[22m[33m 1587[2mms[22m[39m
+     [33m[2m✓[22m[39m Escape closes only the innermost confirmation layer and leaves the surface open [33m 388[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/cloud-workspaces-isolation.spec.tsx [2m([22m[2m14 tests[22m[2m)[22m[33m 1636[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/agent-config.client.spec.tsx [2m([22m[2m8 tests[22m[2m)[22m[33m 624[2mms[22m[39m
+     [33m[2m✓[22m[39m closes the read-only detail with the Escape key [33m 315[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/workspace-host.integration.spec.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 623[2mms[22m[39m
+     [33m[2m✓[22m[39m creates a workspace with an idempotency key and observes ready through the SSE stream [33m 440[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/workspace-gateway-lifecycle.integration.spec.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 589[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/run-approval-drawer.client.spec.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 569[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/telemetry-loop.integration.spec.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 609[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/host-residual-closure.integration.spec.ts [2m([22m[2m18 tests[22m[2m)[22m[33m 531[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/telemetry-sensitive-scan.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 494[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/collector.client.spec.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 499[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/team-skills-stages.client.spec.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 445[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/cloud-workspaces-plan.client.spec.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 442[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/workspace-host-residual.integration.spec.ts [2m([22m[2m15 tests[22m[2m)[22m[33m 437[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/run-pulse.client.spec.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 431[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/team-skills.client.spec.tsx [2m([22m[2m12 tests[22m[2m)[22m[33m 442[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/context-lens.client.spec.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 359[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/cloud-workspaces-checkpoint.client.spec.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 318[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/host-installation-states.integration.spec.ts [2m([22m[2m15 tests[22m[2m)[22m[33m 409[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/cloud-workspaces-code-source.spec.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 342[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/gateway-seam.integration.spec.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 344[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/gateway-live-session.integration.spec.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 325[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/workspace-tree-preview.client.spec.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 346[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/host-service.integration.spec.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 334[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/agent-config-editor.client.spec.tsx [2m([22m[2m9 tests[22m[2m)[22m[32m 265[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/recovery-center.client.spec.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 305[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/gateway-matrix.spec.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 301[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/team-skills-trust-card.client.spec.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 298[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/workspace-stream.spec.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 261[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/gateway-seam-remaining.integration.spec.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 261[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/cloud-workspaces-layout.client.spec.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 278[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/telemetry-reporter.spec.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 254[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/run-asset-snapshot.client.spec.tsx [2m([22m[2m1 test[22m[2m)[22m[32m 212[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/workspace-gateway-seam.integration.spec.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 198[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/host.spec.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 179[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/team-skills-installed-state.client.spec.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 161[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/workspace-base-url.spec.ts [2m([22m[2m27 tests[22m[2m)[22m[32m 159[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/telemetry-backend.spec.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 133[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/host-unreachable-matrix.integration.spec.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 123[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/workspace-gateway-seam2.integration.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 117[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/installation-store.spec.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 123[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/installer-matrix.spec.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 119[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/telemetry-queue.spec.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 122[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/workspace-credentials.spec.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 102[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/workspace-stream-events.spec.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 99[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/workspace-strict-parsing.spec.ts [2m([22m[2m40 tests[22m[2m)[22m[32m 96[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/platform-entry.client.spec.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 89[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/workspace-provenance.spec.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 87[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/context-lens-parse.spec.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 72[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/installer.spec.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 62[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/knowledge-loop.spec.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 69[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/memory-loop.spec.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 54[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/run-asset-snapshot.spec.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 53[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/workspace-gateway.spec.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 43[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/http-parser-vocabulary.spec.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 40[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/workspace-http-matrix.spec.ts [2m([22m[2m52 tests[22m[2m)[22m[32m 34[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/context-ledger.spec.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/workspace-http-sse-decoding.spec.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/http-client-options.spec.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/workspace-http-vocabulary.spec.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 29[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/trust-card-parse.spec.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/remote-client.cloud-workspaces.spec.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/workspace-plan.spec.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/remote-client.team-skills.spec.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/install-failure-request-id.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/knowledge-search-parse.spec.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/run-checkpoint.spec.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/knowledge.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/project-memory.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/invariant.spec.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/run-pulse.model.client.spec.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/agent-profile-parse.spec.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/gateway.spec.ts [2m([22m[2m1 test[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/telemetry-projection.spec.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/workspace-http-residual.spec.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/workspace-http-gaps2.spec.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/knowledge-search-state.client.spec.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/plugin-registration.client.spec.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/install-stages.spec.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/remote-face.spec.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/blueprint-tables.spec.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/trust-card.model.client.spec.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/context-lens.model.client.spec.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/appearance.model.client.spec.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/preview-security.model.client.spec.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/agent-config-editor.model.client.spec.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/workspace-http-gaps.spec.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/memory-recall.client.spec.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/recovery-center.model.client.spec.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/operation-evidence.client.spec.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/run-asset-snapshot.model.client.spec.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/layout-presets.model.client.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/workspace-markers.model.client.spec.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/telemetry-settings.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/run-asset-snapshot-model.client.spec.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/recovery-center-model.client.spec.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/locales.client.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/controller.client.spec.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/telemetry-sanitize.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/workspace-markers.client.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/host-entry.client.spec.ts [2m([22m[2m1 test[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m [30m[42m plugin [49m[39m tests/loop-utils.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m161 passed[39m[22m[90m (161)[39m
+[2m      Tests [22m [1m[32m1435 passed[39m[22m[90m (1435)[39m
+[2m   Start at [22m 14:43:22
+[2m   Duration [22m 193.38s[2m (transform 4.97s, setup 0ms, import 36.49s, tests 84.38s, environment 43.18s)[22m
+
+[2m14:43:43[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m Failed to load source map for C:/Users/13588/dev/dsh-ai-coding/node_modules/.pnpm/@deepseek-ai+dsh-client-ui-_7f90ca305b6f81e4a6e307e74592a88c/node_modules/@deepseek-ai/dsh-client-ui-primitives/lib/index.js.
+Error: An error occurred while trying to read the map file at index.js.map
+Error: ENOENT: no such file or directory, open 'C:\Users\13588\dev\dsh-ai-coding\node_modules\.pnpm\@deepseek-ai+dsh-client-ui-_7f90ca305b6f81e4a6e307e74592a88c\node_modules\@deepseek-ai\dsh-client-ui-primitives\lib\index.js.map'
+    at Object.readFileSync (node:fs:441:20)
+    at file:///C:/Users/13588/dev/dsh-ai-coding/node_modules/.pnpm/vite@8.3.0_@types+node@22.2_bc091c8f9897d8ac4b902d8247725f33/node_modules/vite/dist/node/chunks/node.js:17142:13
+    at readFromFileMap (file:///C:/Users/13588/dev/dsh-ai-coding/node_modules/.pnpm/vite@8.3.0_@types+node@22.2_bc091c8f9897d8ac4b902d8247725f33/node_modules/vite/dist/node/chunks/node.js:16841:13)
+    at Object.exports.fromMapFileComment (file:///C:/Users/13588/dev/dsh-ai-coding/node_modules/.pnpm/vite@8.3.0_@types+node@22.2_bc091c8f9897d8ac4b902d8247725f33/node_modules/vite/dist/node/chunks/node.js:16936:12)
+    at Object.exports.fromMapFileSource (file:///C:/Users/13588/dev/dsh-ai-coding/node_modules/.pnpm/vite@8.3.0_@types+node@22.2_bc091c8f9897d8ac4b902d8247725f33/node_modules/vite/dist/node/chunks/node.js:16947:22)
+    at extractSourcemapFromFile (file:///C:/Users/13588/dev/dsh-ai-coding/node_modules/.pnpm/vite@8.3.0_@types+node@22.2_bc091c8f9897d8ac4b902d8247725f33/node_modules/vite/dist/node/chunks/node.js:17128:87)
+    at loadAndTransform (file:///C:/Users/13588/dev/dsh-ai-coding/node_modules/.pnpm/vite@8.3.0_@types+node@22.2_bc091c8f9897d8ac4b902d8247725f33/node_modules/vite/dist/node/chunks/node.js:19600:22)
+[2m14:44:37[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m Failed to load source map for C:/Users/13588/dev/dsh-ai-coding/node_modules/.pnpm/@deepseek-ai+dsh-client-ui-_7f90ca305b6f81e4a6e307e74592a88c/node_modules/@deepseek-ai/dsh-client-ui-primitives/lib/index.js.
+Error: An error occurred while trying to read the map file at index.js.map
+Error: ENOENT: no such file or directory, open 'C:\Users\13588\dev\dsh-ai-coding\node_modules\.pnpm\@deepseek-ai+dsh-client-ui-_7f90ca305b6f81e4a6e307e74592a88c\node_modules\@deepseek-ai\dsh-client-ui-primitives\lib\index.js.map'
+    at Object.readFileSync (node:fs:441:20)
+    at file:///C:/Users/13588/dev/dsh-ai-coding/node_modules/.pnpm/vite@8.3.0_@types+node@22.2_bc091c8f9897d8ac4b902d8247725f33/node_modules/vite/dist/node/chunks/node.js:17142:13
+    at readFromFileMap (file:///C:/Users/13588/dev/dsh-ai-coding/node_modules/.pnpm/vite@8.3.0_@types+node@22.2_bc091c8f9897d8ac4b902d8247725f33/node_modules/vite/dist/node/chunks/node.js:16841:13)
+    at Object.exports.fromMapFileComment (file:///C:/Users/13588/dev/dsh-ai-coding/node_modules/.pnpm/vite@8.3.0_@types+node@22.2_bc091c8f9897d8ac4b902d8247725f33/node_modules/vite/dist/node/chunks/node.js:16936:12)
+    at Object.exports.fromMapFileSource (file:///C:/Users/13588/dev/dsh-ai-coding/node_modules/.pnpm/vite@8.3.0_@types+node@22.2_bc091c8f9897d8ac4b902d8247725f33/node_modules/vite/dist/node/chunks/node.js:16947:22)
+    at extractSourcemapFromFile (file:///C:/Users/13588/dev/dsh-ai-coding/node_modules/.pnpm/vite@8.3.0_@types+node@22.2_bc091c8f9897d8ac4b902d8247725f33/node_modules/vite/dist/node/chunks/node.js:17128:87)
+    at loadAndTransform (file:///C:/Users/13588/dev/dsh-ai-coding/node_modules/.pnpm/vite@8.3.0_@types+node@22.2_bc091c8f9897d8ac4b902d8247725f33/node_modules/vite/dist/node/chunks/node.js:19600:22)
+[2m14:46:28[22m [33m[1m[vite][22m[39m [33m[2m(ssr)[22m[39m Failed to load source map for C:/Users/13588/dev/dsh-ai-coding/node_modules/.pnpm/@deepseek-ai+dsh-client-ui-_7f90ca305b6f81e4a6e307e74592a88c/node_modules/@deepseek-ai/dsh-client-ui-primitives/lib/index.js.
+Error: An error occurred while trying to read the map file at index.js.map
+Error: ENOENT: no such file or directory, open 'C:\Users\13588\dev\dsh-ai-coding\node_modules\.pnpm\@deepseek-ai+dsh-client-ui-_7f90ca305b6f81e4a6e307e74592a88c\node_modules\@deepseek-ai\dsh-client-ui-primitives\lib\index.js.map'
+    at Object.readFileSync (node:fs:441:20)
+    at file:///C:/Users/13588/dev/dsh-ai-coding/node_modules/.pnpm/vite@8.3.0_@types+node@22.2_bc091c8f9897d8ac4b902d8247725f33/node_modules/vite/dist/node/chunks/node.js:17142:13
+    at readFromFileMap (file:///C:/Users/13588/dev/dsh-ai-coding/node_modules/.pnpm/vite@8.3.0_@types+node@22.2_bc091c8f9897d8ac4b902d8247725f33/node_modules/vite/dist/node/chunks/node.js:16841:13)
+    at Object.exports.fromMapFileComment (file:///C:/Users/13588/dev/dsh-ai-coding/node_modules/.pnpm/vite@8.3.0_@types+node@22.2_bc091c8f9897d8ac4b902d8247725f33/node_modules/vite/dist/node/chunks/node.js:16936:12)
+    at Object.exports.fromMapFileSource (file:///C:/Users/13588/dev/dsh-ai-coding/node_modules/.pnpm/vite@8.3.0_@types+node@22.2_bc091c8f9897d8ac4b902d8247725f33/node_modules/vite/dist/node/chunks/node.js:16947:22)
+    at extractSourcemapFromFile (file:///C:/Users/13588/dev/dsh-ai-coding/node_modules/.pnpm/vite@8.3.0_@types+node@22.2_bc091c8f9897d8ac4b902d8247725f33/node_modules/vite/dist/node/chunks/node.js:17128:87)
+    at loadAndTransform (file:///C:/Users/13588/dev/dsh-ai-coding/node_modules/.pnpm/vite@8.3.0_@types+node@22.2_bc091c8f9897d8ac4b902d8247725f33/node_modules/vite/dist/node/chunks/node.js:19600:22)
+
+TEST RESULT: green on attempt 1/3

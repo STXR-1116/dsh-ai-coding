@@ -12,12 +12,17 @@
 #
 # `!!js` is the only expression dialect the config schema allows, and
 # `dshHomePath` is provided by the boot context for exactly this purpose.
+#
+# Both rows are host-only deployment wiring: the 0.1.5-rc.2 client runner
+# delivers no row configuration to browser fragments (docs/api-drift-ledger.md
+# D23), so the browser half takes its deployment values from the workbench's
+# settings face (see README) instead of this patch.
 
 - insert:
-    # Host gateway AND the single browser roster entry. This row must keep the
-    # BARE package name: the browser roster only reads `dsh.client` from rows
-    # whose name is an exact package specifier, and the client bundle is
-    # discovered from this package's `exports["./client"]`.
+    # Host Team Skill gateway AND the single browser roster entry. This row
+    # must keep the BARE package name: the browser roster only reads
+    # `dsh.client` from rows whose name is an exact package specifier, and the
+    # client bundle is discovered from this package's `exports["./client"]`.
     - id: ai-coding-platform
       name: 'dsh-ai-coding'
       config:

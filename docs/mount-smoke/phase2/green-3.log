@@ -1,0 +1,23 @@
+(node:3540) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Team Skill service listening on http://127.0.0.1:51799
+PASS  fixture: service started — port 51799
+dsh web: http://127.0.0.1:7799/?token=w8nOk6v5NxZyV3LzX0HIxl0PMjvjixJEwHxn0h3CqYI
+PASS  boot: server prints its tokenized URL — port 7799
+PASS  page: server redirects to set its auth cookie — status 303, location /
+PASS  page: shell renders with the auth cookie — 28677 bytes
+PASS  roster: boot graph registers this package as a client module — /plugins/??dsh-ai-coding/client.js&rev=f71941c71e8b4fba-51
+PASS  bundle: served — HTTP 200, 727521 bytes
+PASS  bundle: is this package's closure-factory artifact — first line "window.__ModuleLoader__.load({"
+PASS  bundle: carries the package id
+PASS  browser: shell mounts and the sidebar entry appears — sidebar entry selector found
+PASS  browser: no pending banner and no boot failure banner — page carries no pending / waiting-for-services / web boot text
+PASS  browser: unconfigured workbench opens the settings face — settings form visible
+PASS  browser: saving settings reaches the account sign-in — login form visible
+PASS  browser: account gate turns ready after panel sign-in — project picker visible
+PASS  browser: workbench renders fixture seed workspace ws-alpha-1 — ws-alpha-1 visible in the cloud workspaces view
+PASS  browser: knowledge view renders fixture seed k-1 — k-1 visible in the knowledge view
+PASS  fail-loud: bare server prints its tokenized URL — port 62201
+PASS  fail-loud: the plugin still loads (settings face is the config channel) — sidebar entry present
+PASS  fail-loud: unconfigured workbench names the missing settings loudly — settings form: true, heading names the required value: true
+SMOKE GREEN (18/18 steps)

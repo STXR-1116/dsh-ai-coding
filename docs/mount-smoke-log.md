@@ -141,3 +141,51 @@ SMOKE RED (3/4 steps)
 - 红绿差异只出现在 `roster` 一步：卸载后启动图里没有本包的客户端记录，其余三步照常通过 ——
   说明该断言盯的是「本插件是否被装载」，而不是任何通用健康检查。
 - 复现脚本入库：`build/mount-smoke.mjs`。
+
+---
+
+# 二期：真机 Chromium 断言（2026-09-21）
+
+脚本从 7 步扩到 18 步：原 4 步（boot/page/roster/bundle）保留，新增 9 步真机
+Chromium 断言（shell 挂载、无 pending 横幅、设置面出现、保存后到达登录、
+登录到 ready、工作台渲染 `ws-alpha-1`、知识库渲染 `k-1`）与 fail-loud 相位
+（未配置浏览器必须停在具名的设置面）。Chromium 用本机真 Chrome
+（`DSH_SMOKE_BROWSER` 可覆盖），登录用 fixture 种子账号。
+
+## 绿：连续 3 次（docs/mount-smoke/phase2/green-{1,2,3}.log）
+
+三次全部 `SMOKE GREEN (18/18 steps)`，exit 0。关键步摘录：
+
+```text
+PASS  browser: shell mounts and the sidebar entry appears
+PASS  browser: no pending banner and no boot failure banner
+PASS  browser: unconfigured workbench opens the settings face
+PASS  browser: saving settings reaches the account sign-in
+PASS  browser: account gate turns ready after panel sign-in
+PASS  browser: workbench renders fixture seed workspace ws-alpha-1
+PASS  browser: knowledge view renders fixture seed k-1
+PASS  fail-loud: the plugin still loads (settings face is the config channel)
+PASS  fail-loud: unconfigured workbench names the missing settings loudly
+SMOKE GREEN (18/18 steps)
+```
+
+## 红：1 次（受控注入，docs/mount-smoke/phase2/red-login-failure.log）
+
+`DSH_SMOKE_PASS=wrong-password`：登录 401，账号门到不了 ready，种子断言链
+按预期中断。
+
+```text
+FAIL  browser: account gate turns ready after panel sign-in — … 401 (Unauthorized)
+SMOKE RED (12/13 steps)
+```
+
+调试期还出现过两次真实红灯（留此为证，完整转录未逐字存档，失败摘录如下）：
+一次 16/18——云工作空间首笔读抛 `Illegal invocation`（浏览器 fetch 受体约束，
+台账 D24）；修复后一次 16/18——导航点击按全等匹配失败（rail 按钮含提示文字，
+改为包含匹配）。两次都以 `SMOKE RED` 结束且未被任何重试掩盖。
+
+## 结论
+
+- 二期验收满足：真机 Chromium 打开 dsh web → 侧边栏入口 → 设置面 → 登录 →
+  工作台渲染 `ws-alpha-1`、知识库渲染 `k-1`；连续 3 绿 + 受控红留档。
+- 所有者复核截图：docs/mount-acceptance/（设置面、ws-alpha-1 工作台、k-1 知识库）。

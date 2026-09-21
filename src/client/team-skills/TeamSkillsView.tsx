@@ -8,7 +8,7 @@ import type {
   TeamSkillTrustCard,
 } from '../../types.ts'
 import { installStageRows, installedStateLabel, trustCardSections } from './trust-card.ts'
-import type { ClientRemote } from '@deepseek-ai/dsh-api-remotes/client'
+import type { PlatformRemote } from '../remote/types.ts'
 // 0.1.1-rc.2 exposed the workspace registry projection as `WorkspaceListState`
 // from the withdrawn client-runtime package. On the 0.1.5-rc.2 baseline the
 // workspace controller owns it as `WorkspaceSnapshot`, and `ui-workspace`
@@ -28,7 +28,7 @@ import css from './TeamSkillsView.module.css'
 
 export interface TeamSkillsViewProps {
   /** Typed DSH Remote assembly carrying the Host-owned Team Skill namespace. */
-  readonly remote: ClientRemote
+  readonly remote: PlatformRemote
   /** DSH workspace projection used only to select an opaque project id. */
   readonly useWorkspaces: SnapshotSelectorHook<WorkspaceSnapshot>
   /** Opaque selected project identity used for server-side authorization. */

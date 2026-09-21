@@ -1,6 +1,6 @@
 {
   "name": "dsh-ai-coding",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "AI Coding platform plugin for DSH: cloud workspace workbench, team skill governance, knowledge and memory surfaces",
   "engines": {
     "dsh": ">=0.1.2-rc.1"

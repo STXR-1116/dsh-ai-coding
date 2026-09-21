@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react'
-import type { ClientRemote } from '@deepseek-ai/dsh-api-remotes/client'
+import type { PlatformRemote } from '../remote/types.ts'
 import type {
   AgentAssetBinding,
   AgentExecutionPolicy,
@@ -23,7 +23,7 @@ const READINESS_LABEL: Record<string, string> = {
 
 export interface AgentConfigViewProps {
   /** Typed DSH Remote assembly carrying the Host-owned cloud workspace namespace. */
-  readonly remote: ClientRemote
+  readonly remote: PlatformRemote
   /** Opaque selected project identity; the page reads only this project's published versions. */
   readonly projectId?: string
   /** Projects the account may explicitly choose. */
@@ -445,7 +445,7 @@ function DetailPane({ detail, schemaState, onClose, remote, profileId }: {
   readonly detail: DetailState
   readonly schemaState: SchemaState | undefined
   readonly onClose: () => void
-  readonly remote: ClientRemote
+  readonly remote: PlatformRemote
   readonly profileId: string
 }): ReactElement | null {
   const panelRef = useRef<HTMLDivElement | null>(null)

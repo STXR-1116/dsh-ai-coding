@@ -1332,7 +1332,9 @@ export class WorkspaceHttpClient {
     const headers: Record<string, string> = { accept: 'application/json', authorization: `Bearer ${accessToken}` }
     if (options.body !== undefined) headers['content-type'] = 'application/json'
     if (options.headers !== undefined) Object.assign(headers, options.headers)
-    const response = await this.fetcher(`${this.origin}${path}`, {
+    // Unbound call: browser `fetch` rejects a non-global `this` ("Illegal
+    // invocation"), so the stored fetcher must not be invoked as a method.
+    const response = await this.fetcher.call(undefined, `${this.origin}${path}`, {
       method: options.method ?? 'GET',
       headers,
       ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
@@ -1359,7 +1361,7 @@ export class WorkspaceHttpClient {
    * @returns an async iterable of frames, control markers and protocol violations.
    */
   async openStream(query: string, accessToken: string, signal: AbortSignal): Promise<AsyncIterable<SseFrame | 'resync_required' | 'replay_done' | SseProtocolViolation>> {
-    const response = await this.fetcher(`${this.origin}/v1/events/stream${query}`, {
+    const response = await this.fetcher.call(undefined, `${this.origin}/v1/events/stream${query}`, {
       headers: { accept: 'text/event-stream', authorization: `Bearer ${accessToken}` },
       signal,
     })

@@ -2,11 +2,17 @@
  * 的名称/归属 id/顺序、以及侧栏动作与浮层共用同一个控制器）全部无人看守。
  *
  * 这里用最小假 context 驱动真实 `apply()`：不引入渲染层，只钉住注册出去的东西
- * 是什么、被打开时指向哪里。
+ * 是什么、被打开时指向哪里。二期起本插件浏览器半自提供两个 remote 命名空间
+ * 服务，注册契约同样在这里看守：键名、提供行为、以及浮层拿到的 remote 面就是
+ * 这两个服务实例本身。
  */
 import { describe, expect, it } from 'vitest'
+import * as entry from '../src/client/index.ts'
 import { apply, inject } from '../src/client/index.ts'
 import { NS } from '../src/client/locales.ts'
+
+/** Fixture bearer value for the fake backend; it authorizes nothing anywhere. */
+const FIXTURE_TOKEN = `fixture-token-${'not-a-secret'}`
 
 interface Registration {
   readonly name: string
@@ -20,11 +26,17 @@ function fakeContext() {
   const effects: Array<() => void> = []
   const dictionaries: Array<{ namespace: string; zh: unknown; en: unknown }> = []
   const registrations: Registration[] = []
+  const provided: Array<{ readonly name: string; readonly value: unknown }> = []
   const openedSessions: string[] = []
   let startedSessions = 0
   const ctx = {
     effect: (run: () => () => void) => {
       effects.push(run())
+    },
+    reflect: {
+      provide: (name: string, value: unknown) => {
+        provided.push({ name, value })
+      },
     },
     locale: {
       register: (namespace: string, values: { zh: unknown; en: unknown }) => {
@@ -58,23 +70,54 @@ function fakeContext() {
     effects,
     dictionaries,
     registrations,
+    provided,
     openedSessions,
     startedSessionCount: () => startedSessions,
   }
 }
 
 describe('平台插件入口注册契约', () => {
-  it('声明它真正使用的服务', () => {
-    expect(inject).toEqual([
-      'locale',
-      'slots',
-      'remote',
-      'remote.teamSkills',
-      'remote.cloudWorkspaces',
-      'sessions',
-      'workspaces',
-      'layout',
-    ])
+  it('声明它真正使用的服务：不再等待 remote 三键（自提供者不等待自己）', () => {
+    expect(inject).toEqual(['locale', 'slots', 'sessions', 'workspaces', 'layout'])
+  })
+
+  it('导出的 Config 标记 apiBaseUrl 为 required：缺环境变量时加载期校验失败', () => {
+    // 0.1.5-rc.2 的浏览器 runner 不向 fragment 下发行配置（apply 的第二参为
+    // undefined），loader 面的 `Config` 导出会让加载器拿 undefined 过校验、
+    // 永久打红本 fragment——因此入口绝不导出名为 Config 的成员（D23，见台账）；
+    // 行 schema 以别的名字保留，供设置面与未来基线复用。
+    expect('Config' in entry).toBe(false)
+    const schema = entry.PlatformClientConfigSchema
+    const missing = schema['~standard'].validate({})
+    expect('issues' in missing && missing.issues !== undefined).toBe(true)
+    const blank = schema['~standard'].validate({ apiBaseUrl: '' })
+    // schemastery 的 required 看不见空串——空串由显式 resolve 拒绝。
+    expect('issues' in blank && blank.issues !== undefined).toBe(false)
+  })
+
+  it('未配置设置时 apply 仍完成注册（工作台进入设置面）', () => {
+    const fake = fakeContext()
+    apply(fake.ctx as never)
+    expect(fake.provided.map(serviceEntry => serviceEntry.name)).toEqual(['remote.teamSkills', 'remote.cloudWorkspaces'])
+  })
+
+  it('浏览器半自提供 remote.teamSkills / remote.cloudWorkspaces 两个服务', () => {
+    const fake = fakeContext()
+
+    apply(fake.ctx as never)
+
+    expect(fake.provided.map(serviceEntry => serviceEntry.name)).toEqual(['remote.teamSkills', 'remote.cloudWorkspaces'])
+  })
+
+  it('浏览器配置解析：static-token 缺 token、空白 apiBaseUrl 均拒绝', () => {
+    expect(() => entry.resolvePlatformClientConfig({ apiBaseUrl: '' }))
+      .toThrowError(/DSH_AI_CODING_PLATFORM_API_URL/)
+    expect(() => entry.resolvePlatformClientConfig({ apiBaseUrl: 'http://backend.test/v1', authMode: 'static-token' }))
+      .toThrowError(/static-token.*requires a non-empty accessToken/s)
+    const resolved = entry.resolvePlatformClientConfig({ apiBaseUrl: 'http://backend.test/v1/', accessToken: FIXTURE_TOKEN })
+    // 尾斜杠由 WorkspaceHttpClient 的 normalize 归一，resolver 只去空白。
+    expect(resolved.workspaceApiBaseUrl).toBe('http://backend.test/v1/')
+    expect(resolved.authMode).toBe('account')
   })
 
   it('把字典作为 effect 注册，并按本包命名空间登记', () => {
@@ -113,18 +156,19 @@ describe('平台插件入口注册契约', () => {
     expect(overlay.controller.getSnapshot()).toBe(true)
   })
 
-  it('浮层的会话与工作空间目标接在所声明的服务上', () => {
+  it('浮层拿到的 remote 面就是自提供的两个服务实例，会话目标接在所声明的服务上', () => {
     const fake = fakeContext()
     apply(fake.ctx as never)
 
     const overlay = fake.registrations[1]?.inject() as {
-      remote: unknown
+      remote: { teamSkills: unknown; cloudWorkspaces: unknown }
       layout: unknown
       openSession: (sessionId: string) => void
       startSession: () => void
     }
 
-    expect(overlay.remote).toBe(fake.ctx.remote)
+    expect(overlay.remote.teamSkills).toBe(fake.provided[0]?.value)
+    expect(overlay.remote.cloudWorkspaces).toBe(fake.provided[1]?.value)
     expect(overlay.layout).toBe(fake.ctx.layout)
     overlay.openSession('session-1')
     overlay.startSession()

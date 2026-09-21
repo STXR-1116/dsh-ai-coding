@@ -1,15 +1,21 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { ClientRemote } from '@deepseek-ai/dsh-api-remotes/client'
 import type { WorkspaceListState } from './helpers/client-runtime-types.ts'
 import type { PlatformSurfaceProps } from '../src/client/PlatformSurface.tsx'
 import { PlatformSurface } from '../src/client/PlatformSurface.tsx'
 import { PlatformDemoController } from '../src/client/controller.ts'
+import { seedBrowserSettings } from './helpers/browser-settings.ts'
 
 afterEach(() => {
   cleanup()
   window.localStorage.clear()
+})
+
+// 工作台整体被设置面门控：渲染型用例先种入 fixture 部署设置。
+beforeEach(() => {
+  seedBrowserSettings()
 })
 
 const copy = {

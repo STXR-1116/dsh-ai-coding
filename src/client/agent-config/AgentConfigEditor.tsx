@@ -5,13 +5,13 @@
  * 发布前「配置试运行」只执行准备与上下文装配，无外部副作用。
  */
 import { useCallback, useEffect, useState, type ReactElement } from 'react'
-import type { ClientRemote } from '@deepseek-ai/dsh-api-remotes/client'
+import type { PlatformRemote } from '../remote/types.ts'
 import type { AssetCandidate, ProfileDryRun, ProfileEditContext, WorkspaceQueryResult } from '../../types.ts'
 import { buildAssetSelectorRows, dryRunChecksView, planProfileEdit } from '../cloud-workspaces/agent-config-editor.ts'
 import css from './AgentConfigEditor.module.css'
 
 export interface AgentConfigEditorProps {
-  readonly remote: ClientRemote
+  readonly remote: PlatformRemote
   /** 编辑目标的配置 id。 */
   readonly profileId: string
   /** 编辑流结束（发布成功或放弃）后的回调。 */
