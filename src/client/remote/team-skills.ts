@@ -5,7 +5,6 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { ClientRemote } from '@deepseek-ai/dsh-api-remotes/client'
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
 import { TeamSkillAccountHttpClient, TeamSkillHttpClient, type TeamSkillAccountSessionResponse } from '../../http.ts'
-import { buildInstallStages, type TeamSkillInstallStage } from '../../install-stages.ts'
 import type {
   TeamSkillAccountState,
   TeamSkillCatalogResult,
@@ -20,6 +19,8 @@ import type {
   TeamSkillUninstallRequest,
 } from '../../types.ts'
 import { failResult, failureOf, okResult } from './errors.ts'
+import { callHostBridge } from './host-call.ts'
+import { HOST_BRIDGE_ENDPOINTS } from '../../bridge-contract.ts'
 import type { ResolvedPlatformClientConfig } from './config.ts'
 import { subscribeBrowserSettings } from './settings.ts'
 
@@ -319,12 +320,21 @@ export class TeamSkillsRemoteService extends Service implements TeamSkillsFace {
     return okResult(collectorNotReady())
   }
 
-  async installations(_projectId: string): FaceReturn<TeamSkillsFace, 'installations'> {
-    return okResult(Object.freeze([]))
+  /**
+   * Host-local installation records, read through the host bridge.
+   *
+   * These four operations are the ones a browser genuinely cannot answer: they
+   * read or write the host's own Skill roots and installation records. The
+   * bridge forwards them to the same `TeamSkillHost` the Typert gateway uses, so
+   * the browser and a native client observe one identical local state.
+   */
+  async installations(projectId: string): FaceReturn<TeamSkillsFace, 'installations'> {
+    return callHostBridge(this.ctx, HOST_BRIDGE_ENDPOINTS.installations, projectId)
   }
 
-  async syncReleaseStatus(_projectId: string): FaceReturn<TeamSkillsFace, 'syncReleaseStatus'> {
-    return okResult(Object.freeze([]))
+  /** Reconcile host-local copies against server release state through the bridge. */
+  async syncReleaseStatus(projectId: string): FaceReturn<TeamSkillsFace, 'syncReleaseStatus'> {
+    return callHostBridge(this.ctx, HOST_BRIDGE_ENDPOINTS.syncReleaseStatus, projectId)
   }
 
   async trustCard(request: {
@@ -336,20 +346,18 @@ export class TeamSkillsRemoteService extends Service implements TeamSkillsFace {
   }
 
   /**
-   * Answers with the explicit stage-evidenced failure: installing writes the
-   * host's local skill directories, which a browser client does not have.
+   * Download, verify and install one release through the host bridge.
+   *
+   * Installing writes the host's local Skill root, so the host performs it and
+   * returns the same stage-evidenced result a native client sees.
    */
-  async installSkill(_request: TeamSkillInstallRequest): FaceReturn<TeamSkillsFace, 'installSkill'> {
-    return okResult(hostOnlyInstallFailure('authorization', '安装需要宿主本地技能目录，浏览器端不执行安装。'))
+  async installSkill(request: TeamSkillInstallRequest): FaceReturn<TeamSkillsFace, 'installSkill'> {
+    return callHostBridge(this.ctx, HOST_BRIDGE_ENDPOINTS.install, request)
   }
 
-  /** Answers with the explicit failure: uninstall removes host-local files. */
-  async uninstallSkill(_request: TeamSkillUninstallRequest): FaceReturn<TeamSkillsFace, 'uninstallSkill'> {
-    return okResult({
-      status: 'failed',
-      code: 'HOST_INSTALL_UNAVAILABLE',
-      message: '卸载需要宿主本地文件系统，浏览器端不执行卸载。',
-    })
+  /** Remove one host-managed local copy through the host bridge. */
+  async uninstallSkill(request: TeamSkillUninstallRequest): FaceReturn<TeamSkillsFace, 'uninstallSkill'> {
+    return callHostBridge(this.ctx, HOST_BRIDGE_ENDPOINTS.uninstall, request)
   }
 
   /**
@@ -484,30 +492,6 @@ export class TeamSkillsRemoteService extends Service implements TeamSkillsFace {
     if (this.session?.accessToken === expected.accessToken && this.session.refreshToken === expected.refreshToken) {
       this.session = undefined
     }
-  }
-}
-
-/**
- * One host-only install failure with the full seven-stage evidence the face
- * promises; the authorization stage is where the browser stops.
- * @param failedStage - The stage the browser face stops at.
- * @param detail - The operator-facing explanation.
- * @returns the install failure value.
- */
-function hostOnlyInstallFailure(failedStage: TeamSkillInstallStage, detail: string): TeamSkillInstallResult {
-  return {
-    status: 'failed',
-    code: 'HOST_INSTALL_UNAVAILABLE',
-    message: detail,
-    stages: buildInstallStages({
-      succeeded: new Map(),
-      failedStage,
-      failedDetail: detail,
-      rollback: 'skipped',
-      rollbackDetail: '未开始写入，无需回滚。',
-    }),
-    failedStage,
-    retryable: { retryable: false, how: '请在宿主端（DSH 客户端）执行安装。' },
   }
 }
 

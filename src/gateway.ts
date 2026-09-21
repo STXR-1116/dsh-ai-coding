@@ -46,6 +46,7 @@ import type { CollectorSnapshot } from './types.ts'
 import { TelemetryQueue, TelemetryStorageError } from './telemetry/queue.ts'
 import { TelemetryReporter } from './telemetry/reporter.ts'
 import { resolveTelemetrySettings } from './telemetry/settings.ts'
+import { installHostBridge } from './host-bridge.ts'
 import type { CollectorResult, TelemetryQueueSettings } from './types.ts'
 
 /** Bounded window for confirming that the runtime catalog reflects a just-written copy. */
@@ -153,6 +154,10 @@ export class TeamSkillGateway extends TypertRemoteService {
     this.collector = this.buildCollector(ctx, config)
     this.collectorBackend?.setAccount({ status: 'signed-out' })
     this.refreshCollectorAccount()
+    // The browser half reaches the host-local operations of this row over the
+    // harness's own Connection RPC channel; see `host-bridge.ts` for why four
+    // Team Skill operations cannot be answered from a browser at all.
+    installHostBridge(ctx, this.host)
     this.knowledgeLoop = new TeamSkillKnowledgeLoop(ctx, {
       resolveSelection: agent => this.knowledgeSelections.get(agent),
       search: (request, signal) =>

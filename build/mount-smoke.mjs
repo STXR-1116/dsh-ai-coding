@@ -55,6 +55,9 @@ import { createServer } from 'node:net'
 import { setTimeout as delay } from 'node:timers/promises'
 
 const PACKAGE_ID = 'dsh-ai-coding'
+/** Kept in step with src/host-bridge.ts; the smoke asserts the registered channel by name. */
+const HOST_BRIDGE_CHANNEL = '/dsh-ai-coding'
+const HOST_BRIDGE_UNKNOWN_ENDPOINT = 'ai-coding/unknown-endpoint'
 const BANNER = 'window.__ModuleLoader__.load('
 const BOOT_TIMEOUT_MS = 90_000
 const HTTP_TIMEOUT_MS = 30_000
@@ -66,6 +69,12 @@ const port = Number(process.argv[2] ?? 7799)
 const base = `http://127.0.0.1:${port}`
 const fixturePort = await freePort()
 const fixtureBase = `http://127.0.0.1:${fixturePort}`
+
+/** Set when the run throws mid-way; an aborted run is never green. */
+let aborted = false
+
+/** Minimum step count a green run must have reached, so a short-circuit cannot pass. */
+const STEP_FLOOR = 21
 
 /** One checked step; every failure is reported with the same shape. */
 const steps = []
@@ -203,6 +212,31 @@ try {
     `first line ${JSON.stringify(source.split('\n')[0] ?? '')}`)
   check('bundle: carries the package id', source.includes(`id: "${PACKAGE_ID}"`))
 
+  // 4b. The host bridge. Four Team Skill operations (install / uninstall /
+  // installations / syncReleaseStatus) act on the HOST's filesystem and cannot
+  // be answered from a browser, so the browser half forwards them over
+  // Connection's RPC channel. Before this existed the install button could only
+  // ever fail (`安装失败：安装需要宿主本地技能目录，浏览器端不执行安装。`), which is
+  // what acceptance testing caught. An endpoint the bridge does not own must come
+  // back as THIS plugin's named failure: that proves the channel is registered,
+  // the request cleared Connection's trust fence and browser authentication, and
+  // our dispatcher ran. It asserts plumbing, not a service result, so it stays
+  // deterministic without touching the operator's real Skill root.
+  const bridgeRpcId = '00000000-0000-4000-8000-000000000000'
+  const bridgeEndpoint = 'teamSkills/__smoke_absent__'
+  const bridge = await fetchWithDeadline(new URL(`/${HOST_BRIDGE_CHANNEL.slice(1)}/${bridgeEndpoint}`, base), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', cookie },
+    body: JSON.stringify({ type: 'client-request', rpcId: bridgeRpcId, method: bridgeEndpoint, payload: null }),
+  })
+  const bridgeBody = bridge.status === 200 ? await bridge.json() : undefined
+  check('host bridge: the browser channel is registered and authenticated',
+    bridge.status === 200 && bridgeBody?.rpcId === bridgeRpcId,
+    `HTTP ${bridge.status}, rpcId ${String(bridgeBody?.rpcId)}`)
+  check('host bridge: the request reaches this plugin\'s dispatcher',
+    bridgeBody?.result?.error?.code === HOST_BRIDGE_UNKNOWN_ENDPOINT,
+    `result ${JSON.stringify(bridgeBody?.result)}`)
+
   // 5-7. The real-browser phase.
   await browserPhase(token)
 
@@ -210,6 +244,7 @@ try {
   // its failure instead of waiting silently.
   await failLoudPhase()
 } catch (error) {
+  aborted = true
   console.log(`smoke aborted: ${error instanceof Error ? error.message : String(error)}`)
 } finally {
   killServerTree(server)
@@ -262,19 +297,33 @@ async function browserPhase(token) {
     await page.click(entrySelector)
     const settingsInput = await page.waitForSelector('input[name="dsh-ai-coding-api-base-url"]', { timeout: BROWSER_TIMEOUT_MS }).catch(() => false)
     if (!check('browser: unconfigured workbench opens the settings face', settingsInput !== false,
-      settingsInput === false ? summarizeConsole(consoleLines) : 'settings form visible')) {
+      settingsInput === false ? await summarizePage(page) : 'settings form visible')) {
       throw new Error('settings face did not appear')
     }
-    await page.type('input[name="dsh-ai-coding-api-base-url"]', `${fixtureBase}/v1`)
-    await page.type('input[name="dsh-ai-coding-workspace-api-base-url"]', `${fixtureBase}/v1`)
-    await page.type('input[name="dsh-ai-coding-access-token"]', 'demo-token')
-    await page.evaluate(() => {
-      const select = document.querySelector('select[name="dsh-ai-coding-workspace-auth-mode"]')
-      const setter = Object.getOwnPropertyDescriptor(globalThis.HTMLSelectElement.prototype, 'value')?.set
-      setter?.call(select, 'static-token')
-      select?.dispatchEvent(new Event('change', { bubbles: true }))
-    })
-    await page.type('input[name="dsh-ai-coding-workspace-access-token"]', 'demo-token')
+    // `fill` sets the value and fires one input event, which is what a React
+    // controlled input needs; the previous per-keystroke `type` calls left three
+    // of these four fields empty (measured: only the first held its value), so the
+    // form saved an empty workspace token and was rejected three steps later.
+    await setInputValue(page, 'input[name="dsh-ai-coding-api-base-url"]', `${fixtureBase}/v1`)
+    await setInputValue(page, 'input[name="dsh-ai-coding-workspace-api-base-url"]', `${fixtureBase}/v1`)
+    await setInputValue(page, 'input[name="dsh-ai-coding-access-token"]', 'demo-token')
+    await page.select('select[name="dsh-ai-coding-workspace-auth-mode"]', 'static-token')
+    // The fixed-token field only exists once the mode select says `static-token`,
+    // and React swaps it in on the next commit.
+    await page.waitForSelector('input[name="dsh-ai-coding-workspace-access-token"]', { timeout: BROWSER_TIMEOUT_MS })
+    await setInputValue(page, 'input[name="dsh-ai-coding-workspace-access-token"]', 'demo-token')
+    // Read the values back: a smoke that types into an absent field and then
+    // blames a later step costs far more than this check does.
+    const typed = await page.evaluate(() => Object.fromEntries(
+      [...document.querySelectorAll('input[name^="dsh-ai-coding-"]')]
+        .map(input => [input.getAttribute('name'), input.value]),
+    ))
+    check('browser: the settings form actually holds what the smoke typed',
+      typed['dsh-ai-coding-api-base-url'] === `${fixtureBase}/v1`
+      && typed['dsh-ai-coding-access-token'] === 'demo-token'
+      && typed['dsh-ai-coding-workspace-api-base-url'] === `${fixtureBase}/v1`
+      && typed['dsh-ai-coding-workspace-access-token'] === 'demo-token',
+      JSON.stringify(typed))
     await page.evaluate(() => {
       const submit = [...document.querySelectorAll('button')].find(button => button.textContent?.trim() === '保存并继续')
       submit?.click()
@@ -283,13 +332,13 @@ async function browserPhase(token) {
     // The account gate turns `ready`: sign in and reach the project picker.
     const loginInput = await page.waitForSelector('input[autocomplete="username"]', { timeout: BROWSER_TIMEOUT_MS }).catch(() => false)
     if (!check('browser: saving settings reaches the account sign-in', loginInput !== false,
-      loginInput === false ? summarizeConsole(consoleLines) : 'login form visible')) {
+      loginInput === false ? await summarizePage(page) : 'login form visible')) {
       throw new Error('login form did not appear')
     }
     const username = process.env.DSH_SMOKE_USER ?? 'admin@example.com'
     const password = process.env.DSH_SMOKE_PASS ?? 'admin-pass'
-    await page.type('input[autocomplete="username"]', username)
-    await page.type('input[autocomplete="current-password"]', password)
+    await setInputValue(page, 'input[autocomplete="username"]', username)
+    await setInputValue(page, 'input[autocomplete="current-password"]', password)
     await page.evaluate(() => {
       const submit = [...document.querySelectorAll('button')].find(button => button.textContent?.trim() === '登录')
       submit?.click()
@@ -393,12 +442,47 @@ async function clickNav(page, label) {
   await delay(800)
 }
 
+/**
+ * Set one React controlled input's value.
+ *
+ * React tracks the last value it wrote on the DOM node, so assigning `value`
+ * directly is ignored on the next render. Going through the prototype setter and
+ * dispatching `input` is the supported way to make React observe a programmatic
+ * change. (This runtime is puppeteer-core, which has `type`/`select` but no
+ * Playwright-style `fill`.)
+ * @param page - the live page.
+ * @param selector - CSS selector of the input.
+ * @param value - the value to set.
+ */
+async function setInputValue(page, selector, value) {
+  await page.$eval(selector, (element, next) => {
+    const setter = Object.getOwnPropertyDescriptor(globalThis.HTMLInputElement.prototype, 'value')?.set
+    setter?.call(element, next)
+    element.dispatchEvent(new Event('input', { bubbles: true }))
+  }, value)
+}
 /** A bounded console tail so failure details land in the smoke log. */
 function summarizeConsole(consoleLines) {
   const tail = consoleLines.slice(-6).map(line => line.slice(0, 200))
   return tail.length > 0 ? `console tail: ${tail.join(' | ')}` : 'console empty'
 }
 
+/**
+ * What the page is showing right now, so a browser-step failure says where it
+ * stopped instead of only that a selector was absent.
+ * @param page - the live page.
+ * @returns a bounded single-line excerpt of the visible text.
+ */
+async function summarizePage(page) {
+  try {
+    const text = await page.evaluate(() => (document.body?.innerText ?? '').replace(/\s+/gu, ' ').trim())
+    return `visible text: ${text.slice(0, 400) || '(empty)'}`
+  } catch (error) {
+    return `visible text unavailable: ${error instanceof Error ? error.message : String(error)}`
+  }
+}
+
 const failed = steps.filter(step => !step.ok)
-console.log(`SMOKE ${failed.length === 0 && steps.length >= 12 ? 'GREEN' : 'RED'} (${steps.length - failed.length}/${steps.length} steps)`)
-process.exit(failed.length === 0 && steps.length >= 12 ? 0 : 1)
+if (aborted) console.log('the run aborted early: the missing steps are not passes')
+console.log(`SMOKE ${failed.length === 0 && !aborted && steps.length >= STEP_FLOOR ? 'GREEN' : 'RED'} (${steps.length - failed.length}/${steps.length} steps)`)
+process.exit(failed.length === 0 && !aborted && steps.length >= STEP_FLOOR ? 0 : 1)

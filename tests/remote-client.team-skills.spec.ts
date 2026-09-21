@@ -33,8 +33,12 @@ function config(overrides: Partial<ResolvedPlatformClientConfig> = {}): Resolved
   })
 }
 
-function fakeContext(): Context {
-  return { reflect: { provide: () => () => undefined }, effect: () => () => undefined } as unknown as Context
+function fakeContext(connection?: { readonly rpc: { call: (...args: never[]) => Promise<unknown> } }): Context {
+  return {
+    reflect: { provide: () => () => undefined },
+    effect: () => () => undefined,
+    get: (key: string) => (key === 'connection' ? connection : undefined),
+  } as unknown as Context
 }
 
 const envelope = (data: unknown) => ({
@@ -179,23 +183,63 @@ describe('浏览器 remote.teamSkills 服务', () => {
     expect(snapshot).toEqual({ ok: true, value: { status: 'not-ready', missing: ['host telemetry collector'] } })
   })
 
-  it('安装/卸载是宿主本地操作：显式业务失败而非假成功', async () => {
+  it('安装/卸载经宿主桥通道下发，不再由浏览器假装成功或硬失败', async () => {
     scriptFetch([])
-    const service = new TeamSkillsRemoteService(fakeContext(), () => config())
-
-    const install = await service.installSkill({ skillId: 's-1', version: '1.0.0', projectId: 'project-1', scope: 'global', environment: { dshVersion: '0', availableTools: [], availableMcpServers: [], presentEnvironmentVariableNames: [] } })
-    expect(install.ok).toBe(true)
-    if (install.ok && install.value.status === 'failed') {
-      expect(install.value.code).toBe('HOST_INSTALL_UNAVAILABLE')
-      expect(install.value.stages).toHaveLength(7)
-      expect(install.value.retryable.retryable).toBe(false)
-    } else {
-      expect.unreachable('installSkill must answer the failure union')
+    const calls: { channel: string; endpoint: string; payload: unknown }[] = []
+    const hostAnswers: Record<string, unknown> = {
+      'teamSkills/install': { status: 'ready', installation: { localInstallationId: 'local-1' }, stages: [] },
+      'teamSkills/uninstall': { status: 'ready', installation: { localInstallationId: 'local-1', state: 'uninstalled' } },
+      'teamSkills/installations': [{ localInstallationId: 'local-1' }],
+      'teamSkills/syncReleaseStatus': [],
     }
+    const connection = {
+      rpc: {
+        call: async (channel: string, endpoint: string, payload: unknown) => {
+          calls.push({ channel, endpoint, payload })
+          return { ok: true, value: hostAnswers[endpoint] }
+        },
+      },
+    }
+    const service = new TeamSkillsRemoteService(fakeContext(connection), () => config())
+
+    const request = { skillId: 's-1', version: '1.0.0', projectId: 'project-1', scope: 'global' as const, environment: { dshVersion: '0', availableTools: [], availableMcpServers: [], presentEnvironmentVariableNames: [] } }
+    const install = await service.installSkill(request)
+    expect(install).toEqual({ ok: true, value: hostAnswers['teamSkills/install'] })
+    expect(calls[0]).toEqual({ channel: '/dsh-ai-coding', endpoint: 'teamSkills/install', payload: request })
 
     const uninstall = await service.uninstallSkill({ localInstallationId: 'local-1' })
-    expect(uninstall.ok).toBe(true)
-    expect(uninstall.ok && uninstall.value.status === 'failed' && uninstall.value.code).toBe('HOST_INSTALL_UNAVAILABLE')
+    expect(uninstall).toEqual({ ok: true, value: hostAnswers['teamSkills/uninstall'] })
+    expect(calls[1]?.endpoint).toBe('teamSkills/uninstall')
+
+    // 宿主本地状态同样走桥：浏览器没有这些记录，返回空数组就是撒谎。
+    expect(await service.installations('project-1')).toEqual({ ok: true, value: hostAnswers['teamSkills/installations'] })
+    expect(await service.syncReleaseStatus('project-1')).toEqual({ ok: true, value: hostAnswers['teamSkills/syncReleaseStatus'] })
+    expect(calls.map(call => call.endpoint)).toEqual([
+      'teamSkills/install',
+      'teamSkills/uninstall',
+      'teamSkills/installations',
+      'teamSkills/syncReleaseStatus',
+    ])
+  })
+
+  it('宿主桥失败时按业务失败透传，桥不可用时给具名失败', async () => {
+    scriptFetch([])
+    const failing = {
+      rpc: {
+        call: async () => ({ ok: false, error: { code: 'HOST_INSTALL_UNAVAILABLE', message: '宿主拒绝', details: {} } }),
+      },
+    }
+    const withBridge = new TeamSkillsRemoteService(fakeContext(failing), () => config())
+    const failed = await withBridge.uninstallSkill({ localInstallationId: 'local-1' })
+    expect(failed.ok).toBe(false)
+    expect(!failed.ok && failed.error.code).toBe('HOST_INSTALL_UNAVAILABLE')
+    expect(!failed.ok && failed.error.message).toBe('宿主拒绝')
+
+    // 没有 Connection 载体的部署：显式具名失败，而不是静默成功。
+    const withoutBridge = new TeamSkillsRemoteService(fakeContext(), () => config())
+    const unavailable = await withoutBridge.installSkill({ skillId: 's-1', version: '1.0.0', projectId: 'project-1', scope: 'global', environment: { dshVersion: '0', availableTools: [], availableMcpServers: [], presentEnvironmentVariableNames: [] } })
+    expect(unavailable.ok).toBe(false)
+    expect(!unavailable.ok && unavailable.error.code).toBe('ai-coding/host-bridge-unavailable')
   })
 
   it('会话级知识选择与记忆绑定记录在内存并可清除', async () => {
