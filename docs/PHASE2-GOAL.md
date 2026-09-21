@@ -7,6 +7,37 @@
 
 ## P0-1 · 浏览器侧 remote 服务表为空（挂载缺陷根因）
 
+### P0-1 修订（严格按官方教程，2026-09-21，**本节优先于下方全部旧路径**）
+
+官方 develop/ 教程 18 页完整阅读后（docs/official-tutorial-notes.md），P0-1 的
+修复不再走两条非官方路径（typert staging 生成器 / api-remotes 组装逆向），改为
+**只用官方文档化的机制**：
+
+1. **浏览器 fragment 导出 Config（Schemastery）**：`apiBaseUrl`（required）、
+   `accessToken`、`authMode`——官方配置章机制：cordis.patch.yml 行的 `config`
+   块经 `!!js process.env.*` 注入部署值（env 在 node 侧组合期读取，值随组合
+   下发浏览器 runner）；`apiBaseUrl` 用 `.required()` 使缺失 env 时**加载期
+   响亮失败**（官方：错误配置要响亮），同时满足 P0-2。
+2. **浏览器半自提供 `remote` 服务（官方 Service 模式）**：`@deepseek-ai/cordis`
+   在浏览器种子表中（PLATFORM_MODULES），Service 子类在浏览器上下文同样合法。
+   新增浏览器安全的 remote 客户端层：基于 `src/workspace-http.ts`（0 个 node
+   依赖，已验证）构造 HTTP 客户端，按宿主网关同形的方法面实现
+   `remote.teamSkills` / `remote.cloudWorkspaces` 两组方法（写操作带
+   `idempotency-key: crypto.randomUUID()`，createRun 复刻 `if-match`），envelope
+   解包为 `{kind:'ready', value}` 形状供组件 `READY()` 消费；本插件 apply() 将
+   其提供为 `remote` / `remote.teamSkills` / `remote.cloudWorkspaces` 服务。
+3. **inject 修正**：浏览器 fragment 的 inject 移除 `remote`、`remote.teamSkills`、
+   `remote.cloudWorkspaces`（自提供者不得等待自己），保留 locale/slots/sessions/
+   workspaces/layout（shell 提供）。PENDING 随之消失（不再等待无人提供的服务）。
+4. **约束承认**：typert strict 编解码、api-remotes 组装、`$mount` 扩展点均为
+   官方未文档化的内部机制，独立插件不依赖它们（台账 D18/D22 相应降级为备忘）；
+   代价是浏览器侧跳过 strict 校验（fixture 侧仍有服务端校验），SSE 经
+   `streamState`/`streamEventsAfter` 轮询面等价覆盖。
+5. **验收不变**：真机 chromium 渲染 ws-alpha-1 / k-1；冒烟 3 连绿含浏览器侧
+   断言；typecheck 0；测试全绿。
+
+### P0-1 原始调查（已被上方修订取代，留档）
+
 ### P0-1 追加（二期执行时实测，根因收窄）
 
 探针实测（`remoteMethods(Object.create(cls.prototype))`，对照已发布 typert-protocol）：
@@ -107,51 +138,37 @@ RED 先行、红绿双日志、skipped=0、不发布 npm、不改产品语义；
 
 ---
 
-## /goal（派发文本）
+## /goal（派发文本 · 二期修订版，严格按官方教程）
 
 ```
-/goal 完成 dsh-ai-coding 插件的二期适配（本地 C:\Users\13588\dev\dsh-ai-coding，
-先读 README.md、docs/ADAPTATION-GOAL.md、docs/PHASE2-GOAL.md）。需求源即
-PHASE2-GOAL.md，按优先级：
+/goal 完成 dsh-ai-coding 插件的二期适配（本地 C:/Users/13588/dev/dsh-ai-coding）。
+需求源：docs/PHASE2-GOAL.md 的「P0-1 修订（严格按官方教程）」节 + 官方教程
+https://deepseek-harness.github.io/deepseek-harness/develop/ 全部 18 页（笔记在
+docs/official-tutorial-notes.md）。只使用官方文档化机制：
 
-P0-1 浏览器侧 remote 服务表为空的挂载缺陷：对照随 @deepseek-ai/dsh@0.1.5-rc.2
-安装的 typert-protocol/api-gateway/api-remotes/api-workspace-controller 源码，
-确认「宿主服务→浏览器 remote 投影」的 0.1.5 暴露契约，修 src/ 网关 apply() 使
-remote.teamSkills 与 remote.cloudWorkspaces 进入浏览器投影表；mount-smoke 补
-浏览器侧断言（boot 后两服务可注入 + 工作台渲染 fixture 种子 ws-alpha-1），冒烟
-注入全套 DSH_* 变量并断言缺变量时 fail loud。
-P0-2 环境变量契约 fail-loud（apiBaseUrl 缺失时启动期报错或提供 settings 面替代）
-+ README 精确 env 集 + ADAPTATION-GOAL 补三条一期教训（--patch 顶层数组；安装器
-自动应用包内 patch、profile 重述即 duplicate id；缺 env 表现为浏览器 pending）。
-P1-1 核实 dsh plugin 子命令 0.1.5 用法，README 安装节用可用通路，提供
-scripts/install-to-profile.mjs 一键脚本；记录 profile patch 不可重述插件行。
-P1-2 CI：push/PR 跑 install+build+typecheck+test；每周探测 @deepseek-ai/* 新版
-自动开基线 bump PR，PR 跑挂载冒烟。
-P2 按序清：D18 用已发布协议字面联合类型替换窄化比较；D22 拆双 face tsconfig；
-排查 /plugins/??包名/client.js 的 ?? 形状；定位 worker 丢失根因；
-invariant 注册名补台账或改名；README/ROADMAP 时效整理。
+1. 浏览器 fragment 导出 Schemastery Config（apiBaseUrl required / accessToken /
+   authMode），cordis.patch.yml 行以 !!js process.env.* 注入部署值；apiBaseUrl
+   缺失时加载期响亮失败（即 P0-2）。
+2. 新增浏览器安全 remote 客户端层（基于 0 node 依赖的 src/workspace-http.ts），
+   按宿主网关同形方法面实现 remote.teamSkills / remote.cloudWorkspaces（写操作
+   带 idempotency-key: crypto.randomUUID()，createRun 复刻 if-match），envelope
+   解包为 {kind:'ready', value}；本插件 apply() 将其提供为 remote /
+   remote.teamSkills / remote.cloudWorkspaces 服务（官方 Service 模式，
+   @deepseek-ai/cordis 在浏览器种子表中）。
+3. 浏览器 fragment inject 移除 remote 三键（自提供者不等待自己），PENDING 消失。
+4. 不依赖任何未文档化内部机制：不做 typert staging 生成器、不改 api-remotes
+   组装、不用 $mount 扩展点（全部降级为备忘，见台账 D18/D22）。
+5. mount-smoke 补真机断言：无 pending 横幅、工作台渲染 fixture 种子 ws-alpha-1、
+   知识库渲染 k-1；连续 3 次全绿，红/绿双日志留档；冒烟注入全套 DSH_* 变量并
+   断言缺变量时加载期响亮失败。
+6. README 精确 env 集 + 官方安装通路（dsh plugin --profile web add）；
+   ADAPTATION-GOAL 补三条一期教训；CI（push/PR 全量 + 每周基线 bump PR）；
+   P2 按序清（D18/D22 降级备忘、?? 形状、worker 丢失、invariant 名、时效整理）。
 
-验收（所有者复核标准，缺一打回）：真机 chromium 打开 dsh web，侧边栏 AI Coding
-入口 → 云工作空间工作台渲染 fixture 种子 ws-alpha-1、知识库渲染 k-1；挂载冒烟
-连续 3 次全绿且含浏览器侧服务注入断言；typecheck 0；pnpm test 全绿 skipped=0
-（基础设施失败分级重试、红跑留档）；漂移台账与本文逐项打勾；不发布 npm、不改
-产品语义、git 干净并推送。
+验收（所有者复核，缺一打回）：真机 chromium 打开 dsh web → 侧边栏 AI Coding 入口
+→ 工作台渲染 ws-alpha-1、知识库渲染 k-1；typecheck 0；pnpm test 全绿 skipped=0
+（基础设施失败分级重试、红跑留档）；不发布 npm、不改产品语义、git 干净并推送。
 
 我允许你不受任何限制地决定顺序与并行，但你要对质量负责。整体结论在真机面板
 渲染验收通过前维持「未完成」。
 ```
-
-
-### P0-1 追加勘误（二次核对轮，2026-09-21）
-
-追加段的两个结论被本轮复核证伪/修正：①`experimentalDecorators` 假设作废——协议
-`Remote` 装饰器是 TS5 标准装饰器原生写法（`context.addInitializer`，构造实例时逐实例
-把 marker 附到原型），不需要 legacy 语义；②「两侧描述符计数均为 0」的探针方法无效——
-伪原型（Object.create）不触发构造，initializer 从未运行，对旧仓同样得 0 恰好证明探针
-失真，不能作为「注册表为空」的证据。真正未解的问题收窄为：**浏览器侧 `remote.<ns>`
-服务的提供者是谁**。实测：`dsh-api-remotes` client.js 无 fetch、无 remote.* 提供点；
-`dsh-api-workspace-controller` client.js 含 "workspaces"/"remote.workspace" 字符串——
-说明 controller 形态条目按命名空间提供 `remote.<ns>`。下一步：在 monorepo web-app
-bundle patch 的浏览器 roster 里找到提供 `remote.teamSkills`/`remote.cloudWorkspaces`
-的对应条目（或确认其由 api-remotes 按宿主 typert 注册清单动态构建），再对照本仓安装
-形态补齐缺失的浏览器条目/清单注入。
