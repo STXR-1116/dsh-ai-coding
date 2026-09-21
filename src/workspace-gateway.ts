@@ -191,7 +191,18 @@ function accountSessionProvider(
 
 /** Host service that exposes cloud workspace operations through the typed Remote gateway. */
 export class WorkspaceGateway extends TypertRemoteService {
-  static inject = ['credentials']
+  /**
+   * No required services: the credential store is genuinely optional here.
+   *
+   * This row supports a `static-token` deployment precisely for hosts with no
+   * login, so it reads the store with `ctx.get('credentials')` and every path
+   * below tolerates `undefined` (`accountSessionProvider` takes
+   * `CredentialProvider | undefined` and answers "signed out" without one).
+   * Declaring it in `inject` would contradict that: it would make a hard
+   * dependency out of an optional one, keep the row PENDING on a credential-less
+   * host, and turn the signed-out branch into dead code.
+   */
+  static inject: string[] = []
 
   static Config: Schema<WorkspaceGatewayConfig> = z.object({
     apiBaseUrl: z.string(),

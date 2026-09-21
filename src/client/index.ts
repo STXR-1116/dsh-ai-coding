@@ -1,4 +1,22 @@
-/** Browser entry for the single first-party AI Coding platform demo. */
+/**
+ * Browser entry for the single first-party AI Coding platform demo.
+ *
+ * ## Coverage: this file is outside the official development manual
+ *
+ * The official manual (`develop/`, 18 pages) documents **Node-side plugin
+ * development only**. It says nothing about the browser half: the `dsh.client`
+ * declaration, `lib/client.js`, the boot graph, `remote.<ns>` services, the
+ * api-remotes assembly, or how a plugin reaches the host from a served page.
+ * Everything in `src/client/**` and the client rows of `package.json` therefore
+ * rests on the **shipped source plus measurement**, not on documented contract —
+ * the same standing recorded in `docs/official-tutorial-notes.md` and
+ * `docs/api-drift-ledger.md` (D1/D2/D8/D22/D23).
+ *
+ * The rule this repository holds itself to for that territory: conflict with
+ * nothing the manual *does* document, keep the mechanism as close to what the
+ * shipped first-party packages do as possible, and mark the basis in the code
+ * rather than presenting it as an official convention.
+ */
 // 0.1.1-rc.2 re-exported the client root context and SessionId from the
 // withdrawn `@deepseek-ai/dsh-client-runtime/client` package. On the 0.1.5-rc.2
 // baseline a client plugin's root context IS the cordis `Context` (every
@@ -50,15 +68,27 @@ export { TeamSkillsRemoteService } from './remote/team-skills.ts'
 export { CloudWorkspacesRemoteService } from './remote/cloud-workspaces.ts'
 
 /**
- * Services required for the locale and the two DSH extension slots.
+ * Services required for the locale, the two DSH extension slots and the
+ * session-navigation actions the overlay hands to the workbench.
  *
  * The `remote` / `remote.teamSkills` / `remote.cloudWorkspaces` keys the
  * generated face names are deliberately ABSENT: the assembled shell's typert
  * registry only projects upstream namespaces, so waiting on them parked this
  * fragment in PENDING forever. This fragment now provides the two namespace
  * services itself, and a provider must not wait for itself.
+ *
+ * `workspaces` is absent for the same reason it is absent from the host row's
+ * list — nothing here reads `ctx.workspaces`. Session creation moved to the
+ * session face (`ISessions.create`), so the workspace registry is no longer a
+ * dependency of this fragment at all. The workspace UI is still declared, but at
+ * package level in `dsh.client.inject`, which is what supplies the
+ * `useWorkspaces` slot prop.
+ *
+ * `inject` is a continuous hard dependency: every entry that has no provider
+ * parks this fragment in PENDING, so the list carries exactly what the code
+ * below reads.
  */
-export const inject = ['locale', 'slots', 'sessions', 'workspaces', 'layout']
+export const inject = ['locale', 'slots', 'sessions', 'layout']
 
 /**
  * Read the client-side session face off the shared context.

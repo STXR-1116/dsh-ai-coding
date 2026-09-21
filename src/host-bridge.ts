@@ -21,6 +21,16 @@
  * in acceptance testing as
  * `安装失败：安装需要宿主本地技能目录，浏览器端不执行安装。`.
  *
+ * ## Coverage: outside the official development manual
+ *
+ * The official manual (`develop/`, 18 pages) documents Node-side plugin work
+ * only; the host⇄browser business channel is not in it. This module's contract
+ * therefore rests on the **shipped source plus measurement**, not on documented
+ * convention: `@deepseek-ai/dsh-client-connection` is a first-party service whose
+ * own types describe `requestRejection` as the way to authenticate "another Web
+ * route", and it exports the request/response envelope schemas for exactly this
+ * use. The same standing is recorded in `docs/official-tutorial-notes.md`.
+ *
  * ## Why a hand-registered route rather than `connection.rpc.handle()`
  *
  * `HostConnectionRpc.handle()` looks like the shorter path, but it registers the

@@ -77,8 +77,13 @@ function fakeContext() {
 }
 
 describe('平台插件入口注册契约', () => {
-  it('声明它真正使用的服务：不再等待 remote 三键（自提供者不等待自己）', () => {
-    expect(inject).toEqual(['locale', 'slots', 'sessions', 'workspaces', 'layout'])
+  it('声明它真正使用的服务：不含 remote 三键，也不含无人读取的 workspaces', () => {
+    // inject 是**持续硬依赖**（手册：并非一次性的启动检查）：没有提供方的条目会让
+    // fragment 永久 PENDING，提供方每次抖动都会卸载重载本 fragment。所以这里必须是
+    // 与代码实际读取集合相等的**最小集**——`ctx.workspaces` 在本 fragment 已无读取点
+    // （会话创建移到 ISessions.create），留着它只会在没有 workspace registry 的部署上
+    // 白等；remote 三键则由本 fragment 自己提供，提供者不等待自己。
+    expect(inject).toEqual(['locale', 'slots', 'sessions', 'layout'])
   })
 
   it('导出的 Config 标记 apiBaseUrl 为 required：缺环境变量时加载期校验失败', () => {

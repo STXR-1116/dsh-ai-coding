@@ -122,7 +122,17 @@ declare module '@deepseek-ai/cordis' {
 
 /** Host service that exposes Team Skill operations through the typed Remote gateway. */
 export class TeamSkillGateway extends TypertRemoteService {
-  static inject = ['skills', 'workspaceRegistry', 'agents', 'sessions']
+  /**
+   * The services this row's constructor actually reaches.
+   *
+   * Deliberately minimal. `inject` is a **continuous hard dependency**, not a
+   * one-time startup check: a declared service that has no provider keeps this
+   * row PENDING forever, and every provider churn disposes and reloads it. An
+   * unused entry therefore buys nothing and risks a silent PENDING, so the list
+   * holds exactly what the code below reads and nothing else. `credentials` is
+   * absent on purpose too — it is optional here and read with `ctx.get()`.
+   */
+  static inject = ['skills', 'workspaceRegistry', 'agents']
 
   static Config: Schema<Config> = z.object({
     apiBaseUrl: z.string(),

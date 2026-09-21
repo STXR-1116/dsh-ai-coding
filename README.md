@@ -49,6 +49,23 @@ removing its row from the profile `package.json` (`dependencies` and
 `dsh.profile.bundles`), deleting `node_modules/dsh-ai-coding`, and running
 `pnpm install` in the profile.
 
+### Two delivery traps this path avoids
+
+**Do not install this package from git** (`dsh plugin --profile web add
+github:…`). A git install pulls *source*, and nothing runs a build step, so the
+package arrives without `lib/` and the row fails to load. Making it work would
+require a self-contained `prepare` script plus the user granting pnpm permission
+to run that package's install-time code (`allowBuilds` in the profile's
+`pnpm-workspace.yaml`) — i.e. allowing this repository's code to execute on their
+machine outside any sandbox. The tarball above needs neither, which is why it is
+the only supported channel.
+
+**Bump the version on every rebuild.** `dsh plugin add` resolves a `file:`
+tarball through the profile lockfile's recorded integrity, so re-packing over an
+unchanged version silently restores the *previous* contents from the pnpm store.
+Either raise `version`, or delete `node_modules/dsh-ai-coding` and the profile's
+`pnpm-lock.yaml` before re-adding.
+
 ## Configuration
 
 ### Host half — environment variables (read at composition via `!!js`)
