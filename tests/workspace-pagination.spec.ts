@@ -155,6 +155,19 @@ describe('AFC-12 host pagination walk', () => {
     expect(cursors).toHaveLength(1000)
   }, 60_000)
 
+  // 上限是部署可调参数（手册：换部署该改的值必须是配置字段），这条证明它真的被用上，
+  // 而不是只写进了 schema。用 3 页代替 1000 页，也把这条守卫的耗时从分钟级压到毫秒级。
+  it('honours the deployment page-walk guard instead of the built-in default', async () => {
+    const { baseUrl, cursors } = await serveWalk(cursor => `cursor-${String(cursor === undefined ? 1 : Number(cursor.replace('cursor-', '')) + 1)}`)
+    const result = await new WorkspaceHost({ apiBaseUrl: baseUrl, session: session(), pageWalkLimit: 3 }).agentProfiles('project-1')
+    expect(result.status).toBe('failed')
+    if (result.status !== 'failed') return
+    expect(result.code).toBe('PAGINATION_LIMIT')
+    // 报错要带上生效的那个上限，否则运维无法判断是哪个值拦下的。
+    expect(result.message).toContain('3')
+    expect(cursors).toHaveLength(3)
+  })
+
   it('keeps the opaque cursor alongside the caller filter', async () => {
     const urls: string[] = []
     const server = createServer((request, response) => {

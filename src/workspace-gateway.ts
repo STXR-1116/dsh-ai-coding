@@ -8,7 +8,7 @@ import { credentialKey, type CredentialProvider, type CredentialRecord } from '@
 import { TypertRemoteService, Remote } from '@deepseek-ai/dsh-typert-protocol'
 import { ACCOUNT_CREDENTIAL_KEY } from './host.ts'
 import { WorkspaceHttpError, normalizePreviewOrigin } from './workspace-http.ts'
-import { WorkspaceHost } from './workspace-host.ts'
+import { DEFAULT_EVENT_BUFFER_LIMIT, DEFAULT_PAGE_WALK_LIMIT, WorkspaceHost } from './workspace-host.ts'
 import type { WorkspaceSessionHandle, WorkspaceSessionProvider, WorkspaceStreamScope } from './workspace-host.ts'
 import type {
   AgentProfileSummary,
@@ -62,6 +62,17 @@ export interface WorkspaceGatewayConfig {
    * opening an arbitrary origin.
    */
   readonly previewOrigins?: string[]
+  /**
+   * How many consumed events one subscription keeps replayable for its consumer.
+   * Defaults to {@link DEFAULT_EVENT_BUFFER_LIMIT}.
+   */
+  readonly eventBufferLimit?: number
+  /**
+   * Loss-of-control guard for the Host's paged walks. Defaults to
+   * {@link DEFAULT_PAGE_WALK_LIMIT}; a service returning many short pages needs
+   * a larger guard, since reaching it fails the walk rather than truncating it.
+   */
+  readonly pageWalkLimit?: number
 }
 
 /**
@@ -187,6 +198,8 @@ export class WorkspaceGateway extends TypertRemoteService {
     accessToken: z.string(),
     authMode: z.union(['account', 'static-token']),
     previewOrigins: z.array(z.string()).default([]),
+    eventBufferLimit: z.number().default(DEFAULT_EVENT_BUFFER_LIMIT),
+    pageWalkLimit: z.number().default(DEFAULT_PAGE_WALK_LIMIT),
   })
 
   private readonly host: WorkspaceHost
@@ -198,6 +211,8 @@ export class WorkspaceGateway extends TypertRemoteService {
     this.host = new WorkspaceHost({
       ...(resolved.apiBaseUrl === undefined ? {} : { apiBaseUrl: resolved.apiBaseUrl }),
       ...(resolved.previewOrigins === undefined ? {} : { previewOrigins: resolved.previewOrigins }),
+      eventBufferLimit: config.eventBufferLimit ?? DEFAULT_EVENT_BUFFER_LIMIT,
+      pageWalkLimit: config.pageWalkLimit ?? DEFAULT_PAGE_WALK_LIMIT,
       session: accountSessionProvider(credentials, resolved.authMode, resolved.accessToken),
     })
     // Unloading this row must release every live SSE connection, backoff timer

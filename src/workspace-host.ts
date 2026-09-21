@@ -122,6 +122,16 @@ export interface WorkspaceHostOptions {
   readonly now?: () => number
   /** How many consumed events one subscription keeps replayable for its consumer. */
   readonly eventBufferLimit?: number
+  /**
+   * Loss-of-control guard for the paged walks this Host performs.
+   *
+   * Not a product limit: a walk that reaches it fails with `PAGINATION_LIMIT`
+   * because "there may be another page" must never be reported as "the list is
+   * complete". Deployment-owned because a service that legitimately returns very
+   * many short pages needs a larger guard than a local fixture does. Defaults to
+   * {@link DEFAULT_PAGE_WALK_LIMIT}.
+   */
+  readonly pageWalkLimit?: number
 }
 
 /** Scope of one SSE subscription plus the resync handoff. */
@@ -242,24 +252,40 @@ function errorToFailure(error: unknown): WorkspaceFailure {
 const PAGE_WALK_LIMIT = 1000
 
 /**
+ * Default loss-of-control guard for the paged walks above.
+ *
+ * Exported so the mount row's schema and this runtime agree on one number; the
+ * effective value is deployment-owned through `pageWalkLimit`.
+ */
+export const DEFAULT_PAGE_WALK_LIMIT = PAGE_WALK_LIMIT
+
+/** Default number of retained stream events per subscription. */
+export const DEFAULT_EVENT_BUFFER_LIMIT = EVENT_BUFFER_LIMIT
+
+/**
  * 按不透明游标游走分页，直到服务端声明耗尽（`nextCursor` 为 null）。
  *
  * 两种无法收敛的情形都必须显式失败，不允许返回部分列表冒充完整结果：
  * 服务端重复给出已消费过的游标（循环）→ `SERVICE_PROTOCOL_ERROR`；
- * 页数达到 `PAGE_WALK_LIMIT`（1000）→ `PAGINATION_LIMIT`。
+ * 页数达到 `limit` → `PAGINATION_LIMIT`。
  *
  * 该上限只是**失控保护，不是产品限制**：正常规模不会触达；一旦触达就意味着
- * 「不知道服务端还有没有下一页」，因此只能失败，不能当成读完。
+ * 「不知道服务端还有没有下一页」，因此只能失败，不能当成读完。取值由部署通过
+ * `pageWalkLimit` 提供，默认 {@link DEFAULT_PAGE_WALK_LIMIT}。
+ * @param fetchPage - 取一页的实现，接收上次返回的游标。
+ * @param limit - 本次游走允许的最大页数。
+ * @returns 收敛后的完整条目列表。
  */
 async function walkPages<T>(
   fetchPage: (cursor: string | undefined) => Promise<{ readonly items: readonly T[]; readonly nextCursor: string | null }>,
+  limit: number,
 ): Promise<readonly T[]> {
   const all: T[] = []
   const seen = new Set<string>()
   let cursor: string | undefined
   for (let page = 0; ; page += 1) {
-    if (page >= PAGE_WALK_LIMIT) {
-      throw new WorkspaceHttpError('PAGINATION_LIMIT', `分页超过实现上限 ${String(PAGE_WALK_LIMIT)} 页，结果不完整`)
+    if (page >= limit) {
+      throw new WorkspaceHttpError('PAGINATION_LIMIT', `分页超过实现上限 ${String(limit)} 页，结果不完整`)
     }
     const pageResult = await fetchPage(cursor)
     all.push(...pageResult.items)
@@ -286,6 +312,7 @@ export class WorkspaceHost {
   private readonly previewOrigins: readonly string[]
   private readonly now: () => number
   private readonly eventBufferLimit: number
+  private readonly pageWalkLimit: number
   private client: WorkspaceHttpClient | undefined
   private disposed = false
   /** Every live subscription, keyed by its opaque owner handle. */
@@ -300,6 +327,7 @@ export class WorkspaceHost {
     this.previewOrigins = options.previewOrigins ?? []
     this.now = options.now ?? Date.now
     this.eventBufferLimit = options.eventBufferLimit ?? EVENT_BUFFER_LIMIT
+    this.pageWalkLimit = options.pageWalkLimit ?? PAGE_WALK_LIMIT
   }
 
   /** Deployment allowlist a preview grant is validated against; empty means default-deny. */
@@ -416,6 +444,7 @@ export class WorkspaceHost {
           parseAgentType,
           'agent types',
         ),
+        this.pageWalkLimit,
       ),
     )
   }
@@ -438,6 +467,7 @@ export class WorkspaceHost {
           parseAgentProfile,
           'agent profiles',
         ),
+        this.pageWalkLimit,
       ),
     )
   }

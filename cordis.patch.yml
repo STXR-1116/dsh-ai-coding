@@ -17,6 +17,26 @@
 # delivers no row configuration to browser fragments (docs/api-drift-ledger.md
 # D23), so the browser half takes its deployment values from the workbench's
 # settings face (see README) instead of this patch.
+#
+# Deployment-tunable keys these rows accept WITHOUT being set here (defaults live
+# in each row's Schemastery schema, so the loader fills them and a deployment only
+# states what it changes). A later layer that overrides one of these rows must
+# restate every key it needs, because a patch replaces the row's whole `config`:
+#
+#   dsh-ai-coding:            telemetry.maxEvents | maxBytes | batchMaxEvents |
+#                             batchMaxBytes | flushIntervalMs | httpTimeoutMs |
+#                             maxAttempts | retentionMs | claimTimeoutMs
+#                             discovery.confirmTimeoutMs (5000) |
+#                             discovery.confirmIntervalMs (100)
+#                             hostBridgeMaxBodyBytes (1048576)
+#   dsh-ai-coding/workspace:  previewOrigins ([])
+#                             eventBufferLimit (256)
+#                             pageWalkLimit (1000)
+#
+# The two `discovery` bounds are the ones a deployment is most likely to need:
+# confirming a write is a handshake with an asynchronously updated on-disk Skill
+# catalog, so a network Skill root or a busy host wants a longer window than the
+# local default.
 
 - insert:
     # Host Team Skill gateway AND the single browser roster entry. This row

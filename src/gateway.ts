@@ -46,14 +46,34 @@ import type { CollectorSnapshot } from './types.ts'
 import { TelemetryQueue, TelemetryStorageError } from './telemetry/queue.ts'
 import { TelemetryReporter } from './telemetry/reporter.ts'
 import { resolveTelemetrySettings } from './telemetry/settings.ts'
-import { installHostBridge } from './host-bridge.ts'
+import { HOST_BRIDGE_MAX_BODY_BYTES, installHostBridge } from './host-bridge.ts'
 import type { CollectorResult, TelemetryQueueSettings } from './types.ts'
 
-/** Bounded window for confirming that the runtime catalog reflects a just-written copy. */
-const SKILL_DISCOVERY_CONFIRM_TIMEOUT_MS = 5_000
+/**
+ * Default bound for confirming that native DSH discovery observed a written copy.
+ *
+ * Defaults live here so the schema and the runtime agree on one number; both
+ * remain overridable per deployment through `Config.discovery`.
+ */
+export const SKILL_DISCOVERY_CONFIRM_TIMEOUT_MS = 5_000
 
-/** Poll interval inside the discovery confirmation window. */
-const SKILL_DISCOVERY_CONFIRM_INTERVAL_MS = 100
+/** Default delay between the catalog re-reads inside that window. */
+export const SKILL_DISCOVERY_CONFIRM_INTERVAL_MS = 100
+
+/**
+ * Deployment-owned bounds for the discovery handshake after a write.
+ *
+ * Confirming discovery is a handshake with an asynchronously updated on-disk
+ * catalog, so how long to keep re-reading is a property of the deployment (a
+ * network Skill root or a busy host needs a longer window than a local one), not
+ * of this code. Both values are optional and default to the constants above.
+ */
+export interface SkillDiscoveryConfig {
+  /** How long to keep re-reading the catalog before reporting the write undiscovered. */
+  readonly confirmTimeoutMs?: number
+  /** Delay between those re-reads. */
+  readonly confirmIntervalMs?: number
+}
 
 /** Deployment-owned collector queue settings for the AI Coding profile. */
 export interface TelemetryCollectorConfig {
@@ -80,6 +100,17 @@ export interface Config {
   readonly globalSkillRoot: string
   /** Collector queue settings; every omitted field uses the validated default. */
   readonly telemetry?: TelemetryCollectorConfig
+  /** Discovery-confirmation bounds; omitted fields use the validated default. */
+  readonly discovery?: SkillDiscoveryConfig
+  /**
+   * Largest body the host bridge accepts on its own route.
+   *
+   * The bridge only ever carries small JSON requests — the release artifact is
+   * downloaded by the host, never uploaded by the browser — so this is a safety
+   * bound rather than a transport budget, but a deployment that fronts the route
+   * with its own proxy may still want it to match.
+   */
+  readonly hostBridgeMaxBodyBytes?: number
 }
 
 declare module '@deepseek-ai/cordis' {
@@ -109,6 +140,11 @@ export class TeamSkillGateway extends TypertRemoteService {
       retentionMs: z.number(),
       claimTimeoutMs: z.number(),
     }),
+    discovery: z.object({
+      confirmTimeoutMs: z.number().default(SKILL_DISCOVERY_CONFIRM_TIMEOUT_MS),
+      confirmIntervalMs: z.number().default(SKILL_DISCOVERY_CONFIRM_INTERVAL_MS),
+    }),
+    hostBridgeMaxBodyBytes: z.number().default(HOST_BRIDGE_MAX_BODY_BYTES),
   })
 
   private readonly host: TeamSkillHost
@@ -124,6 +160,12 @@ export class TeamSkillGateway extends TypertRemoteService {
   constructor(ctx: Context, config: Config) {
     super(ctx, 'teamSkills')
     const credentials = ctx.get('credentials')
+    // Resolve every tunable once, at load: the schema already filled the fields
+    // the deployment provided, and these fallbacks cover an omitted `discovery`
+    // block. Nothing below reads a module constant at a call site.
+    const confirmTimeoutMs = config.discovery?.confirmTimeoutMs ?? SKILL_DISCOVERY_CONFIRM_TIMEOUT_MS
+    const confirmIntervalMs = config.discovery?.confirmIntervalMs ?? SKILL_DISCOVERY_CONFIRM_INTERVAL_MS
+    const hostBridgeMaxBodyBytes = config.hostBridgeMaxBodyBytes ?? HOST_BRIDGE_MAX_BODY_BYTES
     this.host = new TeamSkillHost({
       ...(config.apiBaseUrl === undefined ? {} : { apiBaseUrl: config.apiBaseUrl }),
       ...(config.accessToken === undefined ? {} : { accessToken: config.accessToken }),
@@ -138,14 +180,14 @@ export class TeamSkillGateway extends TypertRemoteService {
       // window instead of reading once; a root that never reports the expected
       // presence still fails.
       refreshSkillCatalog: async (_scope, workspacePath, runtimeName, expectedPresent = true) => {
-        const deadline = Date.now() + SKILL_DISCOVERY_CONFIRM_TIMEOUT_MS
+        const deadline = Date.now() + confirmTimeoutMs
         for (;;) {
           const names = (
             await ctx.skills.list(...(workspacePath === undefined ? [] : [{ cwd: workspacePath }]))
           ).map(skill => skill.name)
           if (names.includes(runtimeName) === expectedPresent) return true
           if (Date.now() >= deadline) return false
-          await new Promise(resolve => setTimeout(resolve, SKILL_DISCOVERY_CONFIRM_INTERVAL_MS))
+          await new Promise(resolve => setTimeout(resolve, confirmIntervalMs))
         }
       },
     })
@@ -157,7 +199,7 @@ export class TeamSkillGateway extends TypertRemoteService {
     // The browser half reaches the host-local operations of this row over the
     // harness's own Connection RPC channel; see `host-bridge.ts` for why four
     // Team Skill operations cannot be answered from a browser at all.
-    installHostBridge(ctx, this.host)
+    installHostBridge(ctx, this.host, { maxBodyBytes: hostBridgeMaxBodyBytes })
     this.knowledgeLoop = new TeamSkillKnowledgeLoop(ctx, {
       resolveSelection: agent => this.knowledgeSelections.get(agent),
       search: (request, signal) =>

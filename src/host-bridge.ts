@@ -67,22 +67,29 @@ export {
 export type { HostBridgeEndpoint } from './bridge-contract.ts'
 
 /**
- * Largest request body this bridge accepts.
+ * Default largest request body this bridge accepts.
  *
  * Every payload here is a small JSON request — the release artifact itself is
  * downloaded by the host, never uploaded by the browser — so a tight cap keeps
- * the route from being a memory amplifier.
+ * the route from being a memory amplifier. Deployments that front the route with
+ * their own proxy can raise it through the mount row's `hostBridgeMaxBodyBytes`.
  */
-const MAX_BODY_BYTES = 1024 * 1024
+export const HOST_BRIDGE_MAX_BODY_BYTES = 1024 * 1024
 
-/** Read the whole request body, refusing anything above {@link MAX_BODY_BYTES}. */
-async function readBody(request: IncomingMessage): Promise<string | undefined> {
+/** Deployment-owned options for the host half of the bridge. */
+export interface HostBridgeOptions {
+  /** Largest accepted request body; defaults to {@link HOST_BRIDGE_MAX_BODY_BYTES}. */
+  readonly maxBodyBytes?: number
+}
+
+/** Read the whole request body, refusing anything above `limit`. */
+async function readBody(request: IncomingMessage, limit: number): Promise<string | undefined> {
   const chunks: Buffer[] = []
   let size = 0
   for await (const chunk of request) {
     const buffer = chunk as Buffer
     size += buffer.length
-    if (size > MAX_BODY_BYTES) return undefined
+    if (size > limit) return undefined
     chunks.push(buffer)
   }
   return Buffer.concat(chunks).toString('utf8')
@@ -158,7 +165,8 @@ function sendJson(response: ServerResponse, status: number, body: unknown): void
  * @param ctx - host plugin context of the row that owns the host operations.
  * @param host - the operation owner to dispatch into.
  */
-export function installHostBridge(ctx: Context, host: TeamSkillHost): void {
+export function installHostBridge(ctx: Context, host: TeamSkillHost, options: HostBridgeOptions = {}): void {
+  const maxBodyBytes = options.maxBodyBytes ?? HOST_BRIDGE_MAX_BODY_BYTES
   ctx.inject(['connection', 'webServer'], (bridgeCtx) => {
     bridgeCtx.effect(() => bridgeCtx.webServer.register({
       kind: 'prefix',
@@ -186,7 +194,7 @@ export function installHostBridge(ctx: Context, host: TeamSkillHost): void {
             sendJson(response, 404, { error: 'not found' })
             return
           }
-          const raw = await readBody(request)
+          const raw = await readBody(request, maxBodyBytes)
           if (raw === undefined) {
             sendJson(response, 413, { error: 'request body too large' })
             return
