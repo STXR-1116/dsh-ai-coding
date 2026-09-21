@@ -5,7 +5,13 @@ governance, knowledge and memory surfaces — packaged as a standalone
 double-half (host + browser) plugin, modeled on the ecosystem blueprint
 ([DSH-better-sidebar](https://github.com/omdsh-dev/DSH-better-sidebar)).
 
-## Status: skeleton (sources migrated, build wiring pending)
+## Status: phase-1 complete, phase-2 (real-browser mount) in progress
+
+Build (dual-half tsdown), tests (159 files / 1413 cases green), single-package
+identity, and npm-baseline dependency pins are done and verified. Remaining
+defect: the browser half waits for `remote.teamSkills` / `remote.cloudWorkspaces`
+at real-browser mount — see docs/PHASE2-GOAL.md P0-1 for the narrowed root cause
+and docs/PHASE2-GOAL.md §/goal for the dispatched plan.
 
 Migrated from the harness monorepo snapshot (v0.1.1-rc.2 era). Layout:
 
