@@ -81,19 +81,40 @@ Either raise `version`, or delete `node_modules/dsh-ai-coding` and the profile's
 Unset host variables degrade to the gateways' explicit `not-ready` states —
 they never fabricate data.
 
-### Browser half — the workbench settings face
+### Browser half — deployment values come from the deployment
 
 The 0.1.5-rc.2 client runner delivers no mount-row configuration to browser
-fragments (see docs/api-drift-ledger.md D23), so the browser deployment values
-are set once in the workbench's own settings face (persisted in
-`localStorage`, applied live):
+fragments: `apply(ctx, config)` receives `undefined` and the boot manifest
+carries no config keys (re-measured — the served page contains the module roster
+record but none of `apiBaseUrl` / `accessToken` / `stateDirectory`; see
+`docs/api-drift-ledger.md` D23).
 
-- 平台服务地址 `apiBaseUrl` (required) and optional platform access token
-- 云工作空间服务地址 (defaults to the platform URL), identity mode
-  `account` / `static-token`, and the static workspace token
+So each mount row **declares its own slice into the served index** through the
+webserver's structured injection table (`{ kind: 'global' }`, rendered as
+`globalThis["<name>"] = <json>` in the head, ahead of every module script). This
+is the mechanism `@deepseek-ai/dsh-client-ui-theme` uses to publish the boot
+theme, and it is why opening the workbench now goes **straight to sign-in** —
+nobody types a service address.
 
-An unconfigured browser opens the workbench straight onto this form — the
-failure is loud and named, never a silent `not-ready` blur (P0-2).
+| Value | Declared? |
+| --- | --- |
+| platform / workspace endpoint | always |
+| platform access token | when the row config sets one (that key means "static token for a no-login deployment") |
+| workspace access token | only with `authMode: 'static-token'` |
+
+An `account` deployment therefore hands the page no secret: users sign in and the
+browser uses that session. Pages are served behind the browser-session index
+authorization, so only an authenticated page receives a declaration at all.
+
+The workbench's **settings face** remains as the config channel for a deployment
+that declared nothing (a bare mount with no endpoint configured) — that is when
+it opens, and it persists to `localStorage`. It deliberately does **not** override
+a declared deployment: a stale browser value shadowing the deployment would
+strand an operator on the wrong endpoint with no way back to the form, since the
+form only shows when nothing is configured.
+
+An unconfigured browser opens the workbench straight onto that form — the failure
+is loud and named, never a silent `not-ready` blur (P0-2).
 
 ## Development
 
@@ -103,7 +124,7 @@ pnpm run build          # generate remote face + tsc + dual-half tsdown
 pnpm run typecheck      # 0 errors expected
 pnpm test               # full suite; retries infrastructure losses only
 pnpm run verify:face    # remote-face drift guard against the host gateways
-node build/mount-smoke.mjs [port]   # real-Chromium mount gate (18 steps)
+node build/mount-smoke.mjs [port]   # real-Chromium mount gate (21 steps)
 node build/capture-acceptance.mjs   # owner acceptance screenshots
 ```
 

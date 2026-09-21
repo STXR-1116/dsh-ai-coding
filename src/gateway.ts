@@ -47,6 +47,7 @@ import { TelemetryQueue, TelemetryStorageError } from './telemetry/queue.ts'
 import { TelemetryReporter } from './telemetry/reporter.ts'
 import { resolveTelemetrySettings } from './telemetry/settings.ts'
 import { HOST_BRIDGE_MAX_BODY_BYTES, installHostBridge } from './host-bridge.ts'
+import { platformDeploymentInjection } from './deployment-contract.ts'
 import type { CollectorResult, TelemetryQueueSettings } from './types.ts'
 
 /**
@@ -210,6 +211,19 @@ export class TeamSkillGateway extends TypertRemoteService {
     // harness's own Connection RPC channel; see `host-bridge.ts` for why four
     // Team Skill operations cannot be answered from a browser at all.
     installHostBridge(ctx, this.host, { maxBodyBytes: hostBridgeMaxBodyBytes })
+    // Declare this row's deployment values into the served page, so the browser
+    // half never has to be told them by hand. `ctx.on` is fiber-managed, and the
+    // event is simply never emitted in a deployment with no web server — the
+    // page then stays unconfigured and the settings form remains the channel.
+    ctx.on('webserver/index-inject', (table) => {
+      const row = platformDeploymentInjection(config.apiBaseUrl === undefined || config.apiBaseUrl.length === 0
+        ? undefined
+        : {
+          apiBaseUrl: config.apiBaseUrl,
+          ...(config.accessToken === undefined || config.accessToken.length === 0 ? {} : { accessToken: config.accessToken }),
+        })
+      if (row !== undefined) table.push(row)
+    })
     this.knowledgeLoop = new TeamSkillKnowledgeLoop(ctx, {
       resolveSelection: agent => this.knowledgeSelections.get(agent),
       search: (request, signal) =>

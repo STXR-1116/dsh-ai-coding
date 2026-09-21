@@ -9,6 +9,7 @@ import { TypertRemoteService, Remote } from '@deepseek-ai/dsh-typert-protocol'
 import { ACCOUNT_CREDENTIAL_KEY } from './host.ts'
 import { WorkspaceHttpError, normalizePreviewOrigin } from './workspace-http.ts'
 import { DEFAULT_EVENT_BUFFER_LIMIT, DEFAULT_PAGE_WALK_LIMIT, WorkspaceHost } from './workspace-host.ts'
+import { workspaceDeploymentInjection } from './deployment-contract.ts'
 import type { WorkspaceSessionHandle, WorkspaceSessionProvider, WorkspaceStreamScope } from './workspace-host.ts'
 import type {
   AgentProfileSummary,
@@ -232,6 +233,19 @@ export class WorkspaceGateway extends TypertRemoteService {
     ctx.effect(() => () => {
       this.host.dispose()
     }, 'cloudWorkspaces.host')
+    // Declare this row's deployment values into the served page: the workbench
+    // otherwise has no way to learn a workspace endpoint the operator did not
+    // type into the browser form. The fixed token crosses only for a
+    // `static-token` deployment — an `account` one authenticates per user and
+    // has no business handing the page a host token.
+    ctx.on('webserver/index-inject', (table) => {
+      const row = workspaceDeploymentInjection({
+        ...(resolved.apiBaseUrl === undefined ? {} : { apiBaseUrl: resolved.apiBaseUrl }),
+        ...(config.accessToken === undefined ? {} : { accessToken: config.accessToken }),
+        authMode: resolved.authMode,
+      })
+      if (row !== undefined) table.push(row)
+    })
   }
 
   /**

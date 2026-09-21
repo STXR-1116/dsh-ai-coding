@@ -1,16 +1,29 @@
 /**
  * Browser-side deployment settings for the remote client layer.
  *
- * The 0.1.5-rc.2 client runner delivers no mount-row configuration to browser
- * fragments (`apply(ctx, config)` receives `undefined`; the boot manifest
- * carries no config; no shipped client fragment exports `Config`) — the row
- * config the `!!js` patch expressions produce exists on the host side only.
- * The browser half therefore takes its deployment values from this settings
- * face: the workbench's own configuration form, persisted in `localStorage`
- * and applied live. An unconfigured browser answers every remote read with
- * the face's explicit `not-ready` union — never a silent fake-ready.
+ * Two sources, in this order:
+ *
+ * 1. **The deployment declaration** the host rows inject into the served page
+ *    (`src/deployment-contract.ts`). The 0.1.5-rc.2 client runner delivers no
+ *    mount-row configuration to browser fragments, so the rows publish their own
+ *    slice through the webserver's structured injection table instead. This is
+ *    the normal case: the operator configures the row once and every browser
+ *    picks it up.
+ * 2. **This settings face**, persisted in `localStorage`, used when the
+ *    deployment declared nothing (a bare mount with no endpoint configured).
+ *    That is the case the form exists for, and the workbench then opens on it
+ *    rather than pretending to be configured.
+ *
+ * The declaration deliberately wins: it is the deployment's own statement, and
+ * letting a value typed in a browser shadow it would strand an operator on a
+ * stale endpoint with no way back to the form (the form only shows when nothing
+ * is configured).
+ *
+ * An unconfigured browser answers every remote read with the face's explicit
+ * `not-ready` union — never a silent fake-ready.
  */
 
+import { readDeploymentDeclaration } from '../../deployment-contract.ts'
 import { resolvePlatformClientConfig } from './config.ts'
 import type { PlatformClientConfig, ResolvedPlatformClientConfig } from './config.ts'
 
@@ -19,6 +32,16 @@ const STORAGE_KEY = 'dsh-ai-coding/settings/v1'
 
 /** The deployment values the browser face needs; same shape as the row config. */
 export type BrowserRemoteSettings = PlatformClientConfig
+
+/**
+ * Read the deployment declaration the host injected into this page.
+ * @returns the declared settings, or `undefined` when the page carries none.
+ */
+export function readDeploymentSettings(): BrowserRemoteSettings | undefined {
+  const declaration = readDeploymentDeclaration()
+  if (declaration === undefined) return undefined
+  return declaration
+}
 
 /**
  * Read the persisted settings.
@@ -76,10 +99,15 @@ export function subscribeBrowserSettings(listener: () => void): () => void {
 
 /**
  * Resolve the current settings into the decided config the services build on.
+ *
+ * The deployment declaration wins over anything stored in this browser; see the
+ * module header for why. Both sources are shaped like the row config, so the
+ * same resolver validates them and applies the "workspace endpoint follows the
+ * platform endpoint unless declared" rule.
  * @returns the resolved configuration, or `undefined` while unconfigured.
  */
 export function resolveBrowserSettings(): ResolvedPlatformClientConfig | undefined {
-  const settings = readBrowserSettings()
+  const settings = readDeploymentSettings() ?? readBrowserSettings()
   if (settings === undefined) return undefined
   return resolvePlatformClientConfig(settings)
 }

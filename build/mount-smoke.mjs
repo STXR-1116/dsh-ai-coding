@@ -58,6 +58,8 @@ const PACKAGE_ID = 'dsh-ai-coding'
 /** Kept in step with src/host-bridge.ts; the smoke asserts the registered channel by name. */
 const HOST_BRIDGE_CHANNEL = '/dsh-ai-coding'
 const HOST_BRIDGE_UNKNOWN_ENDPOINT = 'ai-coding/unknown-endpoint'
+/** Kept in step with src/deployment-contract.ts: the global the rows publish into the page. */
+const PLATFORM_DEPLOYMENT_GLOBAL = '__DSH_AI_CODING_PLATFORM_DEPLOYMENT__'
 const BANNER = 'window.__ModuleLoader__.load('
 const BOOT_TIMEOUT_MS = 90_000
 const HTTP_TIMEOUT_MS = 30_000
@@ -212,6 +214,14 @@ try {
     `first line ${JSON.stringify(source.split('\n')[0] ?? '')}`)
   check('bundle: carries the package id', source.includes(`id: "${PACKAGE_ID}"`))
 
+  // 4c. The deployment declaration. Each row publishes its slice into the served
+  // index ({kind:'global'} renders as `globalThis["<name>"] = <json>` in the head),
+  // which is why the workbench no longer opens on a manual settings form. Unlike the
+  // browser steps below this needs no page execution, so it fails first and plainly.
+  check('deployment: the served page carries the platform endpoint declaration',
+    html.includes(PLATFORM_DEPLOYMENT_GLOBAL) && html.includes(fixtureBase),
+    html.includes(PLATFORM_DEPLOYMENT_GLOBAL) ? 'global present' : 'global absent from the index')
+
   // 4b. The host bridge. Four Team Skill operations (install / uninstall /
   // installations / syncReleaseStatus) act on the HOST's filesystem and cannot
   // be answered from a browser, so the browser half forwards them over
@@ -292,46 +302,19 @@ async function browserPhase(token) {
       !bodyText.includes('pending') && !bodyText.includes('web boot') && !bodyText.includes('waiting for services'),
       'page carries no pending / waiting-for-services / web boot text')
 
-    // Open the panel; a fresh browser profile is unconfigured, so the workbench
-    // must open straight onto its settings face (loud, named, actionable).
+    // Open the panel. The deployment declared its values (the rows inject them
+    // into the served index), so the workbench must go STRAIGHT to sign-in —
+    // the operator never types a service address. A short probe window is enough:
+    // if the settings face were going to appear it appears immediately.
     await page.click(entrySelector)
-    const settingsInput = await page.waitForSelector('input[name="dsh-ai-coding-api-base-url"]', { timeout: BROWSER_TIMEOUT_MS }).catch(() => false)
-    if (!check('browser: unconfigured workbench opens the settings face', settingsInput !== false,
-      settingsInput === false ? await summarizePage(page) : 'settings form visible')) {
-      throw new Error('settings face did not appear')
-    }
-    // `fill` sets the value and fires one input event, which is what a React
-    // controlled input needs; the previous per-keystroke `type` calls left three
-    // of these four fields empty (measured: only the first held its value), so the
-    // form saved an empty workspace token and was rejected three steps later.
-    await setInputValue(page, 'input[name="dsh-ai-coding-api-base-url"]', `${fixtureBase}/v1`)
-    await setInputValue(page, 'input[name="dsh-ai-coding-workspace-api-base-url"]', `${fixtureBase}/v1`)
-    await setInputValue(page, 'input[name="dsh-ai-coding-access-token"]', 'demo-token')
-    await page.select('select[name="dsh-ai-coding-workspace-auth-mode"]', 'static-token')
-    // The fixed-token field only exists once the mode select says `static-token`,
-    // and React swaps it in on the next commit.
-    await page.waitForSelector('input[name="dsh-ai-coding-workspace-access-token"]', { timeout: BROWSER_TIMEOUT_MS })
-    await setInputValue(page, 'input[name="dsh-ai-coding-workspace-access-token"]', 'demo-token')
-    // Read the values back: a smoke that types into an absent field and then
-    // blames a later step costs far more than this check does.
-    const typed = await page.evaluate(() => Object.fromEntries(
-      [...document.querySelectorAll('input[name^="dsh-ai-coding-"]')]
-        .map(input => [input.getAttribute('name'), input.value]),
-    ))
-    check('browser: the settings form actually holds what the smoke typed',
-      typed['dsh-ai-coding-api-base-url'] === `${fixtureBase}/v1`
-      && typed['dsh-ai-coding-access-token'] === 'demo-token'
-      && typed['dsh-ai-coding-workspace-api-base-url'] === `${fixtureBase}/v1`
-      && typed['dsh-ai-coding-workspace-access-token'] === 'demo-token',
-      JSON.stringify(typed))
-    await page.evaluate(() => {
-      const submit = [...document.querySelectorAll('button')].find(button => button.textContent?.trim() === '保存并继续')
-      submit?.click()
-    })
+    const settingsInput = await page.waitForSelector('input[name="dsh-ai-coding-api-base-url"]', { timeout: 2_000 }).catch(() => false)
+    check('browser: the deployment declaration removes the manual settings step',
+      settingsInput === false,
+      settingsInput === false ? 'no settings form' : 'settings form appeared despite a configured deployment')
 
     // The account gate turns `ready`: sign in and reach the project picker.
     const loginInput = await page.waitForSelector('input[autocomplete="username"]', { timeout: BROWSER_TIMEOUT_MS }).catch(() => false)
-    if (!check('browser: saving settings reaches the account sign-in', loginInput !== false,
+    if (!check('browser: the workbench opens at the account sign-in', loginInput !== false,
       loginInput === false ? await summarizePage(page) : 'login form visible')) {
       throw new Error('login form did not appear')
     }
