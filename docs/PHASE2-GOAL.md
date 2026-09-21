@@ -140,3 +140,18 @@ invariant 注册名补台账或改名；README/ROADMAP 时效整理。
 我允许你不受任何限制地决定顺序与并行，但你要对质量负责。整体结论在真机面板
 渲染验收通过前维持「未完成」。
 ```
+
+
+### P0-1 追加勘误（二次核对轮，2026-09-21）
+
+追加段的两个结论被本轮复核证伪/修正：①`experimentalDecorators` 假设作废——协议
+`Remote` 装饰器是 TS5 标准装饰器原生写法（`context.addInitializer`，构造实例时逐实例
+把 marker 附到原型），不需要 legacy 语义；②「两侧描述符计数均为 0」的探针方法无效——
+伪原型（Object.create）不触发构造，initializer 从未运行，对旧仓同样得 0 恰好证明探针
+失真，不能作为「注册表为空」的证据。真正未解的问题收窄为：**浏览器侧 `remote.<ns>`
+服务的提供者是谁**。实测：`dsh-api-remotes` client.js 无 fetch、无 remote.* 提供点；
+`dsh-api-workspace-controller` client.js 含 "workspaces"/"remote.workspace" 字符串——
+说明 controller 形态条目按命名空间提供 `remote.<ns>`。下一步：在 monorepo web-app
+bundle patch 的浏览器 roster 里找到提供 `remote.teamSkills`/`remote.cloudWorkspaces`
+的对应条目（或确认其由 api-remotes 按宿主 typert 注册清单动态构建），再对照本仓安装
+形态补齐缺失的浏览器条目/清单注入。
