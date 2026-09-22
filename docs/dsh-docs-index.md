@@ -92,6 +92,21 @@ git 安装需 `prepare` + `allowBuilds`、优先交付 tarball）。
 **不要手抄清单**（手册明确禁止维护静态清单）：`site/reference__subsystems__*.txt` 是生成物，
 以它和随包 `.d.ts` 为准。
 
+### I. TypeSafe / Jev（**不在本镜像里，必须联网**）
+
+本镜像只覆盖 DSH 自身。TypeSafe 文档在[官网](https://docs.typesafe.ai/llms.txt)：先读索引，
+再按需取页（Mintlify 支持在路径后加 `.md` 取 Markdown 原文）。
+
+| 问题 | 读 |
+|---|---|
+| 本仓的召回闸门设计、阈值依据、实测值 | `docs/typesafe-recall-gate.md`（**动 `src/knowledge-loop.ts` 前必须完整读**） |
+| 官方同名场景：四个 Noul + `route()` 顺序 + 两段式注入 | [classifying_rag_passages](https://docs.typesafe.ai/cookbooks/classifying_rag_passages.md) |
+| 失败模式（literal reading / context rot / 对抗性内容 / score 校准弱） | [model-jaggedness/jev-1.13](https://docs.typesafe.ai/model-jaggedness/jev-1.13.md) |
+| 三种原语怎么选 | [primitives](https://docs.typesafe.ai/primitives.md)、[noul](https://docs.typesafe.ai/primitives/noul.md)、[score](https://docs.typesafe.ai/primitives/score.md)、[advanced](https://docs.typesafe.ai/primitives/advanced.md) |
+| 置信度语义与三段路由 | [confidence](https://docs.typesafe.ai/confidence.md) |
+| 定价、上下限、语言支持、版本固定 | [models](https://docs.typesafe.ai/models.md) |
+| 请求体与响应字段 | [api](https://docs.typesafe.ai/api.md)、[state](https://docs.typesafe.ai/concepts/state.md) |
+
 ## 站点之外、但具权威性的文档（最容易漏的一类）
 
 这些**不在文档站上**，却决定了本仓最难的两个问题：
