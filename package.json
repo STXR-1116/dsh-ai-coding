@@ -1,7 +1,7 @@
 {
   "name": "dsh-ai-coding",
   "description": "AI Coding platform plugin for DSH: cloud workspace workbench, team skill governance, knowledge and memory surfaces (host + browser double-half plugin)",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -60,7 +60,7 @@
     }
   },
   "scripts": {
-    "build": "node build/generate-remote-face.mjs && tsc -p tsconfig.json && tsdown",
+    "build": "pnpm run clean && node build/generate-remote-face.mjs && tsc -p tsconfig.json && tsdown",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node build/run-tests.mjs",
     "test:once": "vitest run",
@@ -68,7 +68,8 @@
     "test:fixture:project": "vitest run --project fixture",
     "test:admin": "vitest run --project admin",
     "verify:face": "node build/generate-remote-face.mjs --check",
-    "test:fixture": "vitest run --config dev/team-skill-service/vitest.config.ts"
+    "test:fixture": "vitest run --config dev/team-skill-service/vitest.config.ts",
+    "clean": "node build/clean-lib.mjs"
   },
   "dependencies": {
     "@deepseek-ai/dsh-atomic-write": "0.1.5-rc.2",
