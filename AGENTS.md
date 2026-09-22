@@ -67,7 +67,8 @@ $p = "$env:USERPROFILE\.dsh\profiles\web\node_modules\dsh-ai-coding"
 集成时**必须遵守**的约定：
 
 - **密钥**：用 `ctx.credentials.resolve(String('TYPESAFE_API_KEY'))` 获取。
-  **不要**裸读 `process.env`（见全局 `~/.dsh/AGENTS.md`，DSH 子进程不继承 host 环境，裸读会静默失败）。
+  **不要**裸读 `process.env` —— DSH 子进程环境是受管清理过的（官方术语 `scrubbedParentEnv`），
+  裸读会静默拿到 `undefined`。完整机制与官方文档位置见全局 `~/.dsh/AGENTS.md` 的凭证章节。
 - **模型**：固定 `jev-1.13.0`，**不要**用 `jev-latest` 别名 —— 阈值是针对该版本调的，别名会漂移。
 - **常量位置**：`QUESTIONS`（四个问题的措辞与结构化 criteria）、`THRESHOLDS`（四个阈值）、`route()`（判定顺序）
   集中放在**一个文件**里。官方明确要求问题和阈值便于人工 review，不要散落。
