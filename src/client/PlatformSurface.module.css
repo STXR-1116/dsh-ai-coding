@@ -3096,3 +3096,18 @@
 }
 
 input[type='checkbox'], input[type='radio'] { accent-color: var(--dsh-accent-brand); }
+
+/* Workbench render-failure panel (see PlatformSurfaceEntry.tsx). Kept outside
+   the `.surface` tree on purpose: it must render even when the surface itself
+   is what failed, so it depends on no token that a broken surface would leave
+   undefined. */
+.surfaceError {
+  margin: auto;
+  max-width: 34rem;
+  padding: 1.5rem;
+  line-height: 1.6;
+  text-align: center;
+  color: inherit;
+  font: inherit;
+}
+

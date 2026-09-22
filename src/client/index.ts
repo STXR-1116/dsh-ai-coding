@@ -43,7 +43,8 @@ import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
 import { en, NS, zh, type PlatformKey } from './locales.ts'
 import { PlatformDemoController } from './controller.ts'
 import { PlatformEntry } from './PlatformEntry.tsx'
-import { PlatformSurface, type PlatformSurfaceProps } from './PlatformSurface.tsx'
+import { PlatformSurfaceEntry } from './PlatformSurfaceEntry.tsx'
+import type { PlatformSurfaceProps } from './PlatformSurface.tsx'
 import { PlatformClientConfigSchema, resolvePlatformClientConfig } from './remote/config.ts'
 import { resolveBrowserSettings } from './remote/settings.ts'
 import { TeamSkillsRemoteService } from './remote/team-skills.ts'
@@ -185,5 +186,5 @@ export function apply(ctx: ClientContext): void {
       // replacement. The workspace registry no longer owns Session creation.
       startSession: () => { faces.sessions.create() },
     }),
-  }, PlatformSurface))
+  }, PlatformSurfaceEntry))
 }
