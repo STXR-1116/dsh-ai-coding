@@ -17,6 +17,39 @@
 **不许凭印象猜规范**：写进代码或文档的规则要能指回具体页；文档确实未覆盖时，显式标注
 「手册未覆盖，依据为随包源码 + 实测」。
 
+## 改了插件代码，必须走完收尾清单才算「完成」（**强制**）
+
+**仓库里的代码 ≠ 用户运行时跑的代码。** 只 build 不安装，等于没修：本仓已经发生过一次
+——0.1.6 修掉了「配错地址就回不去」的死结，但 profile 里仍是 0.1.5，用户继续撞同一个 bug，
+而我报了「已修」。**在装上去并冒烟通过之前，不要说「已完成」。**
+
+固定收尾序列：
+
+```pwsh
+# 1) 递增版本 —— 必做，理由见下
+node -e "const f='package.json',p=require('./'+f);p.version='0.1.N';require('fs').writeFileSync(f,JSON.stringify(p,null,2)+'\n')"
+pnpm build
+pnpm pack
+dsh plugin --profile web add (Resolve-Path dsh-ai-coding-<version>.tgz).Path
+node build/mount-smoke.mjs 8090        # 必须 GREEN，失败就不是完成
+```
+
+两条会静默咬人的前提：
+
+- **同版本重装不会更新。** `dsh plugin add` 走 profile lockfile 里记录的完整性，从 pnpm store
+  还原**旧内容**；版本号没变就等于没装。所以**每次改完都要递增 `version`**，或删掉
+  `node_modules/dsh-ai-coding` **与** profile 的 `pnpm-lock.yaml` 再装。
+- **别删还在被引用的 tarball。** profile 的依赖指向具体 tgz 路径；用 `Remove-Item *.tgz` 清场
+  会让下一次 `dsh plugin add` 直接 `pnpm failed`（本仓已踩两次）。要清就清**比当前版本旧**的。
+
+装完核对（不要只看命令退出码）：
+
+```pwsh
+$p = "$env:USERPROFILE\.dsh\profiles\web\node_modules\dsh-ai-coding"
+(Get-Content "$p\package.json" -Raw | ConvertFrom-Json).version   # 应等于刚打包的版本
+# 并确认本次改动引入的**新字符串**确实出现在 lib/*.js 里
+```
+
 ## 仓库定位
 
 `dsh-ai-coding` —— DSH 的 AI Coding 平台插件，双半结构（host `src/*.ts` + browser `src/client/*`）。
