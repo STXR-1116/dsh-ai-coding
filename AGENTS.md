@@ -41,6 +41,22 @@ node build/mount-smoke.mjs 8090        # 必须 GREEN，失败就不是完成
   `node_modules/dsh-ai-coding` **与** profile 的 `pnpm-lock.yaml` 再装。
 - **别删还在被引用的 tarball。** profile 的依赖指向具体 tgz 路径；用 `Remove-Item *.tgz` 清场
   会让下一次 `dsh plugin add` 直接 `pnpm failed`（本仓已踩两次）。要清就清**比当前版本旧**的。
+- **`dsh plugin add` 需要 npm registry —— 本机它常常不可达，所以首选离线安装。**
+  实测：`registry.npmjs.org` 两个端点均 HTTP 000 / 8s 超时，同刻 `raw.githubusercontent.com`
+  正常 200 / 590ms。此时 `dsh plugin add` 不报错也不返回，只在 pnpm 里退避重试
+  （`ETIMEDOUT` → 20s → 2min → …，5 次），在外面看就是**挂住**。
+  **离线安装（首选，依赖此前都已在 store 里，实测 747ms 完成、`downloaded 0`）**：
+
+  ```pwsh
+  $prof = "$env:USERPROFILE\.dsh\profiles\web"
+  $tgz  = (Resolve-Path dsh-ai-coding-<version>.tgz).Path
+  # 把 profile 的依赖指向新 tarball，再离线装（等价于 plugin add 做的事，但不碰 registry）
+  node -e "const fs=require('fs');const f=process.argv[1];const p=JSON.parse(fs.readFileSync(f,'utf8'));p.dependencies['dsh-ai-coding']='file:'+process.argv[2].replace(/\\/g,'/');fs.writeFileSync(f,JSON.stringify(p,null,2)+'\n')" "$prof\package.json" $tgz
+  Push-Location $prof; pnpm install --offline; Pop-Location
+  ```
+
+  注意 `dsh plugin add` 还会**更新 profile 的 `dsh.profile.bundles`**；手工改依赖时该列表通常
+  已含 `dsh-ai-coding`（此前装过），若新 profile 则需自行补上。
 
 装完核对（不要只看命令退出码）：
 
