@@ -3,25 +3,42 @@
 import { useState } from 'react'
 import { IconSparkle16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { resolvePlatformClientConfig } from './remote/config.ts'
-import { writeBrowserSettings } from './remote/settings.ts'
+import { clearBrowserSettings, readBrowserSettings, readDeploymentSettings, resolveBrowserSettings, writeBrowserSettings } from './remote/settings.ts'
 import type { BrowserRemoteSettings } from './remote/settings.ts'
 import css from './PlatformSurface.module.css'
 
+/** Props for {@link RemoteSettingsView}. */
+export interface RemoteSettingsViewProps {
+  /**
+   * Present when the form is opened over a running workbench rather than
+   * standing in for an unconfigured one: shows a way back without saving.
+   */
+  readonly onCancel?: (() => void) | undefined
+}
+
 /**
- * The unconfigured workbench's only screen: the deployment values the browser
- * remote services need, validated by the same resolver the services build on.
- * Saving persists them and the workbench proceeds to its account flow.
+ * The deployment values the browser remote services need, validated by the same
+ * resolver the services build on.
  *
- * The 0.1.5-rc.2 client runner delivers no mount-row configuration to browser
- * fragments, so this face — not the patch — is the browser deployment channel;
- * an unconfigured workbench stays here, naming exactly what is missing.
+ * It is two things depending on how it is reached. With nothing configured it is
+ * the workbench's only screen — the config channel for a bare mount, naming
+ * exactly what is missing. It is also the **override editor**, reachable from the
+ * workbench's failure state, because a configured-but-unreachable endpoint has to
+ * be correctable from the browser that is hitting it: the deployment declaration
+ * supplies the default, and this form is how an operator departs from it or drops
+ * the departure again.
  */
-export function RemoteSettingsView() {
-  const [apiBaseUrl, setApiBaseUrl] = useState('')
-  const [accessToken, setAccessToken] = useState('')
-  const [workspaceApiBaseUrl, setWorkspaceApiBaseUrl] = useState('')
-  const [workspaceAccessToken, setWorkspaceAccessToken] = useState('')
-  const [authMode, setAuthMode] = useState<'account' | 'static-token'>('account')
+export function RemoteSettingsView({ onCancel }: RemoteSettingsViewProps = {}) {
+  // Prefill from whatever is in effect, so opening this to fix a broken address
+  // shows the broken address rather than an empty form.
+  const effective = resolveBrowserSettings()
+  const stored = readBrowserSettings()
+  const declared = readDeploymentSettings()
+  const [apiBaseUrl, setApiBaseUrl] = useState(stored?.apiBaseUrl ?? declared?.apiBaseUrl ?? '')
+  const [accessToken, setAccessToken] = useState(stored?.accessToken ?? declared?.accessToken ?? '')
+  const [workspaceApiBaseUrl, setWorkspaceApiBaseUrl] = useState(stored?.workspaceApiBaseUrl ?? declared?.workspaceApiBaseUrl ?? '')
+  const [workspaceAccessToken, setWorkspaceAccessToken] = useState(stored?.workspaceAccessToken ?? declared?.workspaceAccessToken ?? '')
+  const [authMode, setAuthMode] = useState<'account' | 'static-token'>(stored?.authMode ?? declared?.authMode ?? 'account')
   const [error, setError] = useState<string | undefined>()
   const [busy, setBusy] = useState(false)
 
@@ -37,7 +54,16 @@ export function RemoteSettingsView() {
       </div>
       <p className={css.kicker}>DSH / AI CODING PLATFORM</p>
       <h1>配置编程协作台的服务地址</h1>
-      <p>浏览器端直接访问 AI Coding 服务。填写一次，保存在本机浏览器中。</p>
+      <p>
+        {declared === undefined
+          ? '本部署未声明服务地址，请在浏览器端填写。填写一次，保存在本机浏览器中。'
+          : '本部署已声明服务地址，下面是当前生效的值。修改会覆盖本机对部署值的采用，保存在本机浏览器中。'}
+      </p>
+      {effective !== undefined && (
+        <p className={css.formHint}>
+          当前生效地址：<code>{effective.apiBaseUrl}</code>
+        </p>
+      )}
       <form
         className={css.loginForm}
         onSubmit={(event) => {
@@ -142,6 +168,23 @@ export function RemoteSettingsView() {
           保存并继续
         </button>
       </form>
+      <div className={css.settingsActions}>
+        {stored !== undefined && declared !== undefined && (
+          <button
+            type="button"
+            onClick={() => {
+              // Drop the override and let the deployment's own value apply again.
+              clearBrowserSettings()
+              onCancel?.()
+            }}
+          >
+            清除本机覆盖，改用部署声明的地址
+          </button>
+        )}
+        {onCancel !== undefined && (
+          <button type="button" onClick={onCancel}>返回</button>
+        )}
+      </div>
       <span className={css.formHint}>
         令牌保存在本机浏览器；account 模式使用面板登录的账号作为工作空间身份。
       </span>

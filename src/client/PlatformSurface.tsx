@@ -239,9 +239,19 @@ function PlatformShell({ controller, t, remote, layout, useSessions, useWorkspac
   // remote faces have nowhere to answer from, and the settings form is the
   // only screen that can change that.
   const [settingsReady, setSettingsReady] = useState<boolean>(() => resolveBrowserSettings() !== undefined)
+  // The form is also the override editor, so it stays reachable once configured —
+  // otherwise a wrong or moved endpoint could never be corrected from the browser
+  // that is hitting it.
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  // Rendered only while the settings form is NOT standing in for the workbench:
+  // an open override editor replaces the panel rather than stacking under it.
+  const chromeVisible = settingsReady && !settingsOpen
   useEffect(() => subscribeBrowserSettings(() => {
     setSettingsReady(resolveBrowserSettings() !== undefined)
-    if (resolveBrowserSettings() !== undefined) setGate('signed-out')
+    if (resolveBrowserSettings() !== undefined) {
+      setGate('signed-out')
+      setSettingsOpen(false)
+    }
   }), [])
   const [account, setAccount] = useState<AuthenticatedAccount | undefined>()
   const [organizations, setOrganizations] = useState<readonly TeamSkillOrganization[]>([])
@@ -1120,7 +1130,7 @@ function PlatformShell({ controller, t, remote, layout, useSessions, useWorkspac
           </button>
         </div>
 
-        {settingsReady && gate === 'ready' && (
+        {chromeVisible && gate === 'ready' && (
           <nav className={css.nav} aria-label="平台模块">
             {renderNavItem(OVERVIEW_NAV_ITEM, true)}
             {NAV_GROUPS.map(group => (
@@ -1135,7 +1145,7 @@ function PlatformShell({ controller, t, remote, layout, useSessions, useWorkspac
         )}
 
         <div className={css.railBottom}>
-          {settingsReady && gate === 'ready' && (
+          {chromeVisible && gate === 'ready' && (
             <div className={css.demoNotice}>
               <span className={css.statusLive} />
               <div>
@@ -1144,7 +1154,7 @@ function PlatformShell({ controller, t, remote, layout, useSessions, useWorkspac
               </div>
             </div>
           )}
-          {settingsReady && gate === 'ready' && account !== undefined && (
+          {chromeVisible && gate === 'ready' && account !== undefined && (
             <div role="group" aria-label="账户" className={css.accountGroup}>
               <button
                 type="button"
@@ -1182,7 +1192,7 @@ function PlatformShell({ controller, t, remote, layout, useSessions, useWorkspac
             <IconQueueOutline14 size={18} />
           </button>
           <div className={css.contextBar} role="group" aria-label="当前上下文">
-            {settingsReady && gate === 'ready' && account !== undefined && (
+            {chromeVisible && gate === 'ready' && account !== undefined && (
               <>
                 <span className={css.contextItem}>
                   <small>组织</small>
@@ -1333,10 +1343,16 @@ function PlatformShell({ controller, t, remote, layout, useSessions, useWorkspac
           </div>
         </header>
 
-        {!settingsReady && <RemoteSettingsView />}
-        {settingsReady && gate === 'loading' && <StatePanel state="loading" title="正在验证账号" reason="正在从 Host 读取服务端身份和访问范围。" />}
-        {settingsReady && gate === 'signed-out' && <LoginView busy={busy} error={message} onLogin={login} />}
-        {settingsReady && gate === 'not-ready' && (
+        {/* Unconfigured: the form is the only screen. Configured but opened from
+            the failure state: the form is the override editor, with a way back. */}
+        {(!settingsReady || settingsOpen) && (
+          <RemoteSettingsView
+            {...(settingsReady ? { onCancel: () => { setSettingsOpen(false) } } : {})}
+          />
+        )}
+        {chromeVisible && gate === 'loading' && <StatePanel state="loading" title="正在验证账号" reason="正在从 Host 读取服务端身份和访问范围。" />}
+        {chromeVisible && gate === 'signed-out' && <LoginView busy={busy} error={message} onLogin={login} />}
+        {chromeVisible && gate === 'not-ready' && (
           <StatePanel
             state="not-ready"
             title="服务未就绪"
@@ -1349,7 +1365,7 @@ function PlatformShell({ controller, t, remote, layout, useSessions, useWorkspac
             }
           />
         )}
-        {settingsReady && gate === 'forbidden' && (
+        {chromeVisible && gate === 'forbidden' && (
           <StatePanel
             state="forbidden"
             title="无权访问"
@@ -1368,26 +1384,34 @@ function PlatformShell({ controller, t, remote, layout, useSessions, useWorkspac
             )}
           </StatePanel>
         )}
-        {settingsReady && gate === 'service-error' && (
+        {chromeVisible && gate === 'service-error' && (
           <StatePanel
             state="service-error"
             title="服务暂时不可用"
-            reason={message ?? '无法读取服务端数据，请稍后重试。'}
+            // Name the endpoint. `Failed to fetch` alone says something is
+            // unreachable but not *what*, which is the difference between a report
+            // an operator can act on and one they can only forward.
+            reason={`${message ?? '无法读取服务端数据，请稍后重试。'}（当前服务地址：${resolveBrowserSettings()?.apiBaseUrl ?? '未配置'}）`}
             action={
-              <button type="button" className={css.primaryButton} onClick={() => void loadAccount()}>
-                <IconRefreshOutline16 size={16} />
-                重新加载
-              </button>
+              <>
+                <button type="button" className={css.primaryButton} onClick={() => void loadAccount()}>
+                  <IconRefreshOutline16 size={16} />
+                  重新加载
+                </button>
+                {/* The escape hatch: a configured-but-unreachable endpoint has to
+                    be correctable from the browser that is hitting it. */}
+                <button type="button" onClick={() => { setSettingsOpen(true) }}>服务设置</button>
+              </>
             }
           />
         )}
-        {settingsReady && gate === 'change-password' && <ChangePasswordView busy={busy} error={message} onSubmit={changePassword} />}
-        {settingsReady && gate === 'ready' && message !== undefined && (
+        {chromeVisible && gate === 'change-password' && <ChangePasswordView busy={busy} error={message} onSubmit={changePassword} />}
+        {chromeVisible && gate === 'ready' && message !== undefined && (
           <div className={css.surfaceNotice} role="alert">
             {message}
           </div>
         )}
-        {settingsReady && gate === 'ready' && access !== undefined && (
+        {chromeVisible && gate === 'ready' && access !== undefined && (
           <div className={css.content} data-page-content="">
             {/* Page transition: opacity + 6px rise; the key remount matches the
                 existing per-view conditional unmount, so no state survives that

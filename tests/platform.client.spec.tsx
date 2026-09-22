@@ -571,7 +571,13 @@ describe('AI Coding platform demo', () => {
     mountSurface(controller, remote)
 
     expect(await screen.findByRole('heading', { name: '服务暂时不可用' })).toBeTruthy()
-    expect(screen.getByText('项目访问接口未装配')).toBeTruthy()
+    // Substring, not exact: the panel now appends the endpoint it failed against,
+    // because `Failed to fetch` alone tells an operator something is unreachable
+    // but not *what*.
+    expect(screen.getByText(/项目访问接口未装配/u)).toBeTruthy()
+    // The address is the actionable half of that message — a wrong or moved
+    // endpoint is exactly the case this panel has to make visible.
+    expect(screen.getByText(/当前服务地址：/u)).toBeTruthy()
   })
 
   // 0.1.5 replaced ILayout's pixel-width geometry call `reserveRight(px)` with a

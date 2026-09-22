@@ -24,6 +24,7 @@ import {
   workspaceDeploymentInjection,
 } from '../src/deployment-contract.ts'
 import {
+  clearBrowserSettings,
   readBrowserSettings,
   readDeploymentSettings,
   resolveBrowserSettings,
@@ -111,10 +112,21 @@ describe('浏览器侧：读取与重新校验', () => {
   })
 })
 
-describe('优先级：部署声明胜过浏览器本地值', () => {
-  it('两者都在时用部署声明（否则过期本地值会盖住部署且无路回退）', () => {
+describe('优先级：显式保存的值是覆盖，部署声明是默认', () => {
+  it('两者都在时用**本机保存的值** —— 保存表单就是一次明确的覆盖', () => {
+    // 反过来的规则（部署永远赢）会把操作者的明确选择静默作废，而那比它想防的「过期值」更糟：
+    // 一个说不清生效值的浏览器也没法被修好。真正防住「卡死」的不是优先级，而是表单曾经在配置后
+    // 不可达 —— 现在它可以从失败态打开，覆盖也能被清除（见下一条）。
     scope()[PLATFORM_DEPLOYMENT_GLOBAL] = { apiBaseUrl: 'http://deployment/v1' }
-    writeBrowserSettings({ apiBaseUrl: 'http://stale-local/v1' })
+    writeBrowserSettings({ apiBaseUrl: 'http://local-override/v1' })
+    expect(resolveBrowserSettings()?.apiBaseUrl).toBe('http://local-override/v1')
+  })
+
+  it('清除本机覆盖后，部署声明重新生效', () => {
+    scope()[PLATFORM_DEPLOYMENT_GLOBAL] = { apiBaseUrl: 'http://deployment/v1' }
+    writeBrowserSettings({ apiBaseUrl: 'http://local-override/v1' })
+    clearBrowserSettings()
+    expect(readBrowserSettings()).toBeUndefined()
     expect(resolveBrowserSettings()?.apiBaseUrl).toBe('http://deployment/v1')
   })
 

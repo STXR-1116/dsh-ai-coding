@@ -1,23 +1,26 @@
 /**
  * Browser-side deployment settings for the remote client layer.
  *
- * Two sources, in this order:
+ * Two sources:
  *
  * 1. **The deployment declaration** the host rows inject into the served page
  *    (`src/deployment-contract.ts`). The 0.1.5-rc.2 client runner delivers no
  *    mount-row configuration to browser fragments, so the rows publish their own
  *    slice through the webserver's structured injection table instead. This is
- *    the normal case: the operator configures the row once and every browser
- *    picks it up.
- * 2. **This settings face**, persisted in `localStorage`, used when the
- *    deployment declared nothing (a bare mount with no endpoint configured).
- *    That is the case the form exists for, and the workbench then opens on it
- *    rather than pretending to be configured.
+ *    the default: the operator configures the row once and every browser picks it
+ *    up without being told anything.
+ * 2. **This settings face**, persisted in `localStorage`: the config channel for
+ *    a deployment that declared nothing, and an explicit **override** on one that
+ *    did.
  *
- * The declaration deliberately wins: it is the deployment's own statement, and
- * letting a value typed in a browser shadow it would strand an operator on a
- * stale endpoint with no way back to the form (the form only shows when nothing
- * is configured).
+ * An explicitly saved value wins over the declaration, because that is what
+ * saving the form means. The opposite rule (declaration always wins) silently
+ * voided the operator's deliberate choice, which is the worse failure: a browser
+ * whose effective settings cannot be explained cannot be repaired either. What
+ * actually prevented a stranded operator before was not precedence but the fact
+ * that the form was unreachable once anything was configured — so the form is now
+ * openable from the workbench's failure state, and an override can be dropped
+ * again with {@link clearBrowserSettings}.
  *
  * An unconfigured browser answers every remote read with the face's explicit
  * `not-ready` union — never a silent fake-ready.
@@ -85,6 +88,22 @@ export function writeBrowserSettings(settings: BrowserRemoteSettings): void {
   for (const listener of [...listeners]) listener()
 }
 
+/**
+ * Drop this browser's override so the deployment declaration applies again.
+ *
+ * The escape hatch that makes "a saved value wins" safe: without it an operator
+ * who once pointed the workbench at a service that has since moved would have no
+ * way back to the deployment's own value, and no way to reach the form to fix it.
+ */
+export function clearBrowserSettings(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY)
+  } catch {
+    // Storage can be denied (private mode); nothing was persisted to begin with.
+  }
+  for (const listener of [...listeners]) listener()
+}
+
 const listeners = new Set<() => void>()
 
 /**
@@ -100,14 +119,14 @@ export function subscribeBrowserSettings(listener: () => void): () => void {
 /**
  * Resolve the current settings into the decided config the services build on.
  *
- * The deployment declaration wins over anything stored in this browser; see the
- * module header for why. Both sources are shaped like the row config, so the
- * same resolver validates them and applies the "workspace endpoint follows the
- * platform endpoint unless declared" rule.
+ * A value saved in this browser is an explicit override and wins; otherwise the
+ * deployment's declaration applies. Both sources are shaped like the row config,
+ * so the same resolver validates them and applies the "workspace endpoint follows
+ * the platform endpoint unless declared" rule.
  * @returns the resolved configuration, or `undefined` while unconfigured.
  */
 export function resolveBrowserSettings(): ResolvedPlatformClientConfig | undefined {
-  const settings = readDeploymentSettings() ?? readBrowserSettings()
+  const settings = readBrowserSettings() ?? readDeploymentSettings()
   if (settings === undefined) return undefined
   return resolvePlatformClientConfig(settings)
 }

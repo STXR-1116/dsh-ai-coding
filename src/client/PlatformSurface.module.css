@@ -3097,6 +3097,31 @@
 
 input[type='checkbox'], input[type='radio'] { accent-color: var(--dsh-accent-brand); }
 
+/* Escape-hatch row under the settings form (see RemoteSettingsView.tsx): the way
+   back without saving, and the way to drop a browser override. */
+.settingsActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-top: 0.75rem;
+}
+
+.settingsActions button {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  opacity: 0.8;
+  padding: 0.25rem 0.5rem;
+  text-decoration: underline;
+}
+
+.settingsActions button:hover {
+  opacity: 1;
+}
+
 /* Workbench render-failure panel (see PlatformSurfaceEntry.tsx). Kept outside
    the `.surface` tree on purpose: it must render even when the surface itself
    is what failed, so it depends on no token that a broken surface would leave
