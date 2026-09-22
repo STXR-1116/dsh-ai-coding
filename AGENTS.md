@@ -1,5 +1,22 @@
 # 本仓工作约定
 
+## 先查官方文档，再动手（**强制**）
+
+**定位任何问题、写或改任何 DSH 插件代码之前，先查 `docs/dsh-docs-index.md`。** 它把「任务形状 →
+该读哪一页」做成路由表，指向本地纯文本镜像 `~/.dsh/dsh-manual/`（86 个站点页 + 17 份仓库文档，
+可 grep、离线；用 `build/fetch-dsh-manual.ps1` 刷新）。
+
+两条最容易踩的：
+
+- **只读 `develop/` 是不够的。** 本仓最难的两个问题（测试时钟该不该 mock、「单跑才通过」算谁的
+  缺陷）的答案都在**文档站之外**：`docs/testing.zh.md` 与 `.agents/skills/dsh-ci-test-reliability/`。
+  索引里单列了这一类。
+- **浏览器半不是未文档化。** 参考区有整个客户端平面（`client-modules` / `slots` / `web-client` /
+  `typert` / `web-server` 等）。改 `src/client/**` 前先读对应页。
+
+**不许凭印象猜规范**：写进代码或文档的规则要能指回具体页；文档确实未覆盖时，显式标注
+「手册未覆盖，依据为随包源码 + 实测」。
+
 ## 仓库定位
 
 `dsh-ai-coding` —— DSH 的 AI Coding 平台插件，双半结构（host `src/*.ts` + browser `src/client/*`）。
