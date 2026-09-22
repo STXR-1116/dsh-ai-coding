@@ -185,6 +185,15 @@ export interface TeamSkillServiceOptions {
   readonly seed?: boolean
   /** Server-only WeKnora REST/MCP capability adapter used by the platform routes. */
   readonly weknora?: WeKnoraAdapter
+  /**
+   * Clock the workspace fixture's scheduled transitions and expiries read.
+   *
+   * Tests inject a controllable clock so a deadline cannot elapse between a
+   * client's revision read and its `If-Match` write — the load-sensitive race
+   * documented on {@link WorkspaceFixtureOptions.now}. Defaults to the wall
+   * clock, which is what the standalone server and the browser smoke want.
+   */
+  readonly now?: (() => number) | undefined
 }
 
 /** Small in-memory API used to validate the plugin and admin workflow locally. */
@@ -204,6 +213,7 @@ export function createTeamSkillService(options: TeamSkillServiceOptions = {}) {
   const telemetry = new TelemetryFixture(accounts)
   const workspace = new WorkspaceFixture(accounts, {
     seed: options.seed !== false,
+    ...(options.now === undefined ? {} : { now: options.now }),
     assetExists: (kind, id, version) => {
       if (kind === 'skill') {
         return skills.some(skill => skill.skillId === id && skill.versions.some(item => item.version === version && item.status === 'published'))

@@ -443,6 +443,29 @@ export interface WorkspaceFixtureOptions {
   readonly seed?: boolean
   /** Server closure deciding whether one asset version reference may be bound. */
   readonly assetExists?: (kind: 'skill' | 'knowledge' | 'memory', id: string, version?: string) => boolean
+  /**
+   * Clock the **scheduled lifecycle transitions** read.
+   *
+   * Scheduled transitions (`provisioning -> starting -> ready`, a run leaving
+   * `preparing`) are materialized lazily on read once their deadline passes, and
+   * a transition bumps the record's `revision`. With the wall clock those
+   * deadlines (`+40`/`+200` ms from creation) can elapse *between* a client's
+   * revision read and its `If-Match` write, so the fixture correctly answers
+   * `REVISION_CONFLICT` and a test that assumed nothing changed goes red — under
+   * load only, which is the official "load-sensitive synchronization" signature
+   * (`docs/testing`: a spec that passes alone is that spec's defect, and the
+   * clock is one of the three boundaries that should be mocked).
+   *
+   * Tests therefore inject a **controllable** clock: with it frozen, a scheduled
+   * transition happens only when the test advances time, which is the barrier
+   * that replaces probabilistic waiting. Defaults to the wall clock, so the
+   * standalone server and the browser smoke keep today's behaviour.
+   *
+   * Only deadline arithmetic reads this clock. Identity and audit timestamps
+   * (`createdAt`, ids, event times) stay on the wall clock, so freezing time
+   * cannot make two records collide.
+   */
+  readonly now?: (() => number) | undefined
 }
 
 /** Admin/manager predicate for organization-scoped cloud-workspace governance. */
@@ -496,6 +519,19 @@ export class WorkspaceFixture {
     private readonly options: WorkspaceFixtureOptions = {},
   ) {
     if (options.seed !== false) this.seed()
+  }
+
+  /**
+   * Read the clock the scheduled transitions use.
+   *
+   * Every deadline that decides *when a state change becomes due* goes through
+   * here, so a test can hold time still and make the fixture's progression a
+   * decision it makes rather than a race it loses. See
+   * {@link WorkspaceFixtureOptions.now}.
+   * @returns the current time in milliseconds.
+   */
+  private clock(): number {
+    return this.options.now?.() ?? Date.now()
   }
 
   /** Routes owned by this fixture; `parts` starts after the `/v1` prefix. */
@@ -1984,7 +2020,7 @@ export class WorkspaceFixture {
       revision: 1,
       createdAt: now,
       updatedAt: now,
-      transitionAt: Date.now() + 200,
+      transitionAt: this.clock() + 200,
       transitionTo: 'starting',
     }
     this.workspaces.set(workspace.workspaceId, workspace)
@@ -2105,7 +2141,7 @@ export class WorkspaceFixture {
     const approvalRequired = body.approval_required === true
     const expiresAt = typeof body.approval_expires_at === 'string' && !Number.isNaN(Date.parse(body.approval_expires_at))
       ? body.approval_expires_at
-      : new Date(Date.now() + 15 * 60 * 1000).toISOString()
+      : new Date(this.clock() + 15 * 60 * 1000).toISOString()
     const initialStatus: RunStatus = approvalRequired ? 'awaiting_approval' : 'preparing'
     const run: RunRecord = {
       runId: `run-${randomUUID().slice(0, 8)}`,
@@ -2129,7 +2165,7 @@ export class WorkspaceFixture {
       errorCode: undefined,
       createdAt: now,
       updatedAt: now,
-      ...(approvalRequired ? {} : { transitionAt: Date.now() + 40 }),
+      ...(approvalRequired ? {} : { transitionAt: this.clock() + 40 }),
       traceId,
       timeline: [{
         status: initialStatus,
@@ -2457,7 +2493,7 @@ export class WorkspaceFixture {
       workspaceRevision: workspace.revision,
       createdAt: now,
       updatedAt: now,
-      transitionAt: Date.now() + 40,
+      transitionAt: this.clock() + 40,
       timeline: [{
         status: 'preparing',
         at: now,
@@ -2620,7 +2656,7 @@ export class WorkspaceFixture {
       reason: mode === 'continue' ? '从检查点继续：重用已保留的工具结果' : '从检查点重放：已执行结果清空，剩余工作重新执行',
       operator: principal.displayName,
     })
-    run.transitionAt = Date.now() + 40
+    run.transitionAt = this.clock() + 40
     this.recordAudit(principal, action, 'succeeded', requestId, { workspace, run })
     const dto = toRunDto(run)
     this.remember(claim, dto, 200)
@@ -2651,7 +2687,7 @@ export class WorkspaceFixture {
     }
     const grant = {
       url: `https://workspace-app.fixture.internal/${workspace.workspaceId}/p/${randomUUID().slice(0, 8)}`,
-      expires_at: new Date(Date.now() + 300_000).toISOString(),
+      expires_at: new Date(this.clock() + 300_000).toISOString(),
       workspace_id: workspace.workspaceId,
     }
     this.recordAudit(principal, action, 'succeeded', requestId, { workspace })
@@ -3713,7 +3749,7 @@ export class WorkspaceFixture {
 
   private advanceWorkspace(workspace: WorkspaceRecord): WorkspaceRecord {
     if (workspace.transitionAt === undefined || workspace.transitionTo === undefined) return workspace
-    if (Date.now() < workspace.transitionAt) return workspace
+    if (this.clock() < workspace.transitionAt) return workspace
     this.applyTransition(workspace, workspace.transitionTo)
     return workspace
   }
@@ -3723,8 +3759,8 @@ export class WorkspaceFixture {
     workspace.revision += 1
     workspace.updatedAt = new Date().toISOString()
     const followUp: Partial<Record<WorkspaceStatus, { readonly at: number; readonly to: WorkspaceStatus }>> = {
-      provisioning: { at: Date.now() + 200, to: 'starting' },
-      starting: { at: Date.now() + 200, to: 'ready' },
+      provisioning: { at: this.clock() + 200, to: 'starting' },
+      starting: { at: this.clock() + 200, to: 'ready' },
     }
     const next = followUp[to]
     if (next === undefined) {
@@ -3861,7 +3897,7 @@ export class WorkspaceFixture {
       return
     }
     const approval = run.approval
-    if (Date.parse(approval.expiresAt) < Date.now()) {
+    if (Date.parse(approval.expiresAt) < this.clock()) {
       this.fail(response, 409, requestId, 'APPROVAL_EXPIRED', '审批已过有效期，需重新发起')
       this.recordAudit(principal, action, 'failed', requestId, { workspace, run, errorCode: 'APPROVAL_EXPIRED' })
       return
@@ -3965,7 +4001,7 @@ export class WorkspaceFixture {
   }
 
   private advanceRun(run: RunRecord): RunRecord {
-    if (run.transitionAt === undefined || Date.now() < run.transitionAt) return run
+    if (run.transitionAt === undefined || this.clock() < run.transitionAt) return run
     if (run.status === 'preparing') {
       this.applyRunTransition(run, 'running', { reason: '准备完成，开始执行', operator: 'system' })
     }
@@ -4421,7 +4457,7 @@ export class WorkspaceFixture {
     ]
     for (const [projectId, sources] of seededCodeSources) this.codeSources.set(projectId, sources)
 
-    const now = Date.now()
+    const now = this.clock()
     const seedWorkspaces: readonly WorkspaceRecord[] = [
       {
         workspaceId: 'ws-alpha-1',
