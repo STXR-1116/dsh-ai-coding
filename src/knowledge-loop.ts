@@ -4,7 +4,7 @@ import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import type { Agent, PreStepDecision } from '@deepseek-ai/dsh-agent'
 import type { Session, SessionEvent } from '@deepseek-ai/dsh-session'
 import type { TeamSkillKnowledgeSearchRequest, TeamSkillKnowledgeSearchResponse, TeamSkillKnowledgeSelection } from './types.ts'
-import type { RecallGate, RecallGateAnswers, RecallGateOutcome, RecallGateRoute } from './recall-gate.ts'
+import type { RecallGate, RecallGateAnswers, RecallGateJudgement, RecallGateOutcome, RecallGateRoute } from './recall-gate.ts'
 import { textOf } from './loop-utils.ts'
 
 export type { TeamSkillKnowledgeSelection } from './types.ts'
@@ -84,7 +84,8 @@ export class TeamSkillKnowledgeLoop {
   }
 
   /**
-   * Label every hit and keep what each block should carry.
+   * Label every hit, keep what each block should carry, and hand back the labels
+   * for the log.
    *
    * A gate that cannot run leaves the hits unjudged and says so in the outcome,
    * which the session event records. It does **not** silently drop knowledge:
@@ -94,7 +95,7 @@ export class TeamSkillKnowledgeLoop {
    * @param response - the host search response.
    * @param query - the user's query, as the gate judges relevance against it.
    * @param signal - the turn's abort signal.
-   * @returns the kept hits with their labels, and how the gate ran.
+   * @returns the hits to inject, every label in result order, and how the gate ran.
    */
   private async gate(
     response: TeamSkillKnowledgeSearchResponse,
@@ -102,6 +103,7 @@ export class TeamSkillKnowledgeLoop {
     signal: AbortSignal,
   ): Promise<{
     readonly kept: readonly GatedKnowledgeHit[]
+    readonly labels: readonly (RecallGateJudgement | undefined)[]
     readonly outcome: RecallGateOutcome | { readonly status: 'absent' }
   }> {
     // Note: the official same-scenario example also sends a provenance kind
@@ -114,22 +116,36 @@ export class TeamSkillKnowledgeLoop {
       title: item.title,
       text: item.snippet,
     }))
-    if (this.options.gate === undefined) {
-      return { kept: response.results.map(item => ({ item, route: 'include' as const, answers: undefined })), outcome: { status: 'absent' } }
-    }
+    const ungated = (outcome: RecallGateOutcome | { readonly status: 'absent' }) => ({
+      kept: response.results.map(item => ({ item, route: 'include' as const, answers: undefined })),
+      labels: [] as readonly (RecallGateJudgement | undefined)[],
+      outcome,
+    })
+    if (this.options.gate === undefined) return ungated({ status: 'absent' })
     const judgement = await this.options.gate(query, candidates, signal)
     signal.throwIfAborted()
     if (judgement.outcome.status !== 'judged') {
       // Ungated fallback: the same hits, marked so the log shows the gate did not decide.
-      return { kept: response.results.map(item => ({ item, route: 'include' as const, answers: undefined })), outcome: judgement.outcome }
+      return ungated(judgement.outcome)
     }
+    // A label is required for **every** result. The `RecallGate` contract does not
+    // promise a full-length array, and a short one means some hit was never judged
+    // — dropping those would silently delete knowledge, which is the opposite of
+    // the fallback above. Partial judgement is therefore treated as no judgement.
+    if (judgement.judgements.length !== response.results.length) {
+      return ungated({ status: 'skipped', reason: 'malformed-response' })
+    }
+    const labels: Array<RecallGateJudgement | undefined> = [...judgement.judgements]
     const kept: GatedKnowledgeHit[] = []
     for (const [index, item] of response.results.entries()) {
-      const judged = judgement.judgements[index]
+      const judged = labels[index]
       if (judged === undefined || judged.route === 'exclude') continue
       kept.push({ item, route: judged.route, answers: judged.answers })
     }
-    return { kept, outcome: judgement.outcome }
+    // Every label survives to the event, excluded ones included: the values behind
+    // a rejection are exactly what threshold tuning needs, and the design's
+    // integration path asks for all four per result for that reason.
+    return { kept, labels, outcome: judgement.outcome }
   }
 
   /** Remove the waterfall listener when the owning platform plugin unloads. */
@@ -151,13 +167,17 @@ function toSessionEvent(
   turn: number,
   step: number,
   response: TeamSkillKnowledgeSearchResponse,
-  gated: { readonly kept: readonly GatedKnowledgeHit[]; readonly outcome: RecallGateOutcome | { readonly status: 'absent' } },
+  gated: {
+    readonly kept: readonly GatedKnowledgeHit[]
+    readonly labels: readonly (RecallGateJudgement | undefined)[]
+    readonly outcome: RecallGateOutcome | { readonly status: 'absent' }
+  },
 ): TeamSkillKnowledgeSearchEventData {
   // One label per hit, in the response's own order, so an auditor can replay the
-  // route decision from the log without the answers API. `gate` records how the
-  // gate ran: a skipped gate is visible rather than indistinguishable from a run
-  // that excluded everything.
-  const byIndex = new Map(gated.kept.map(hit => [response.results.indexOf(hit.item), hit]))
+  // route decision from the log without the answers API — including for hits the
+  // gate rejected, since the values behind a rejection are what threshold tuning
+  // reads. `gate` records how the gate ran: a skipped gate is visible rather than
+  // indistinguishable from a run that excluded everything.
   return {
     turn,
     step,
@@ -173,7 +193,7 @@ function toSessionEvent(
       ...(item.reason === undefined ? {} : { reason: item.reason }),
     })),
     results: response.results.map((item, index) => {
-      const hit = byIndex.get(index)
+      const label = gated.labels[index]
       return {
         knowledgeBaseId: item.knowledgeBaseId,
         knowledgeId: item.knowledgeId,
@@ -182,15 +202,17 @@ function toSessionEvent(
         score: item.score,
         sourceUrl: item.sourceUrl,
         ...(item.citation === undefined ? {} : { citation: { ...item.citation } }),
-        route: hit?.route ?? 'exclude',
-        ...(hit?.answers === undefined
+        // No label means the gate did not judge this hit, and an unjudged hit is
+        // injected as evidence by the fallback above — so that is what the log says.
+        route: label?.route ?? 'include',
+        ...(label === undefined
           ? {}
           : {
             answers: {
-              isRelevant: hit.answers.isRelevant,
-              containsAnswerEvidence: hit.answers.containsAnswerEvidence,
-              contradictsQueryPremise: hit.answers.contradictsQueryPremise,
-              containsPromptInjection: hit.answers.containsPromptInjection,
+              isRelevant: label.answers.isRelevant,
+              containsAnswerEvidence: label.answers.containsAnswerEvidence,
+              contradictsQueryPremise: label.answers.contradictsQueryPremise,
+              containsPromptInjection: label.answers.containsPromptInjection,
             },
           }),
       }

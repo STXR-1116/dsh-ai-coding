@@ -7,7 +7,8 @@ import { TypertRemoteService, Remote } from '@deepseek-ai/dsh-typert-protocol'
 import { WorkspaceId } from '@deepseek-ai/dsh-workspace'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { SessionId } from '@deepseek-ai/dsh-session'
-import type {} from '@deepseek-ai/dsh-credentials'
+import { credentialRef } from '@deepseek-ai/dsh-credentials'
+import type { CredentialProvider } from '@deepseek-ai/dsh-credentials'
 import type {} from '@deepseek-ai/dsh-skill'
 import { STATIC_TOKEN_PARTITION, TeamSkillHost } from './host.ts'
 import type {
@@ -40,6 +41,8 @@ import type {
 } from './types.ts'
 import { TeamSkillKnowledgeLoop } from './knowledge-loop.ts'
 import type { TeamSkillKnowledgeSelection } from './knowledge-loop.ts'
+import { createRecallGate, DEFAULT_RECALL_GATE_THRESHOLDS, RECALL_GATE_MODEL } from './recall-gate.ts'
+import type { RecallGate, RecallGateThresholds } from './recall-gate.ts'
 import { TeamSkillMemoryLoop } from './memory-loop.ts'
 import { CollectorController, TeamSkillTelemetryBackend } from './telemetry/backend.ts'
 import type { CollectorSnapshot } from './types.ts'
@@ -76,6 +79,37 @@ export interface SkillDiscoveryConfig {
   readonly confirmIntervalMs?: number
 }
 
+/**
+ * Default number of concurrent recall-gate requests.
+ *
+ * The public TypeSafe endpoint is rate limited and the official same-scenario
+ * example works four passages at a time; the schema default and the runtime
+ * fallback both read this one constant.
+ */
+export const RECALL_GATE_CONCURRENCY = 4
+
+/**
+ * Deployment-owned settings for the TypeSafe recall gate.
+ *
+ * Every default is the value measured in `docs/typesafe-recall-gate.md`, so a
+ * deployment states only what it changes. `endpoint` and `requestTimeoutMs` are
+ * optional here without a schema default because `createRecallGate` already owns
+ * those two fallbacks: restating the URL and the timeout in this file would give
+ * the same number two homes, and the two would drift.
+ */
+export interface RecallGateConfig {
+  /** Model id; must be a pinned version, an alias would drift (the thresholds are tuned per version). */
+  readonly model?: string
+  /** Concurrent requests; the public endpoint is rate limited. */
+  readonly concurrency?: number
+  /** The four thresholds; they **must** be re-tuned on real recall data (the design doc requires it). */
+  readonly thresholds?: Partial<RecallGateThresholds>
+  /** Service endpoint; omitted uses the gate's own default. */
+  readonly endpoint?: string
+  /** Per-request timeout in milliseconds; omitted uses the gate's own default. */
+  readonly requestTimeoutMs?: number
+}
+
 /** Deployment-owned collector queue settings for the AI Coding profile. */
 export interface TelemetryCollectorConfig {
   readonly maxEvents?: number
@@ -103,6 +137,8 @@ export interface Config {
   readonly telemetry?: TelemetryCollectorConfig
   /** Discovery-confirmation bounds; omitted fields use the validated default. */
   readonly discovery?: SkillDiscoveryConfig
+  /** TypeSafe recall-gate settings; omitted means every field uses the measured default. */
+  readonly recallGate?: RecallGateConfig
   /**
    * Largest body the host bridge accepts on its own route.
    *
@@ -154,6 +190,21 @@ export class TeamSkillGateway extends TypertRemoteService {
     discovery: z.object({
       confirmTimeoutMs: z.number().default(SKILL_DISCOVERY_CONFIRM_TIMEOUT_MS),
       confirmIntervalMs: z.number().default(SKILL_DISCOVERY_CONFIRM_INTERVAL_MS),
+    }),
+    // 默认值写在 schema 里（官方 config 页的 Harness 约定），并且逐字段给：整个
+    // thresholds 对象给一个默认值会让「只写一项」的合并语义变成实现细节。四个数值
+    // 与被固定的模型版本来自 `recall-gate.ts` 的常量，不在这里抄第二份。
+    recallGate: z.object({
+      model: z.string().default(RECALL_GATE_MODEL),
+      concurrency: z.number().default(RECALL_GATE_CONCURRENCY),
+      thresholds: z.object({
+        injectionMax: z.number().default(DEFAULT_RECALL_GATE_THRESHOLDS.injectionMax),
+        contradictsMin: z.number().default(DEFAULT_RECALL_GATE_THRESHOLDS.contradictsMin),
+        relevantMin: z.number().default(DEFAULT_RECALL_GATE_THRESHOLDS.relevantMin),
+        evidenceMin: z.number().default(DEFAULT_RECALL_GATE_THRESHOLDS.evidenceMin),
+      }),
+      endpoint: z.string(),
+      requestTimeoutMs: z.number(),
     }),
     hostBridgeMaxBodyBytes: z.number().default(HOST_BRIDGE_MAX_BODY_BYTES),
   })
@@ -231,6 +282,7 @@ export class TeamSkillGateway extends TypertRemoteService {
           if (result.status === 'ready') return result
           return result
         }),
+      gate: this.buildRecallGate(credentials, config),
     })
     this.memoryLoop = new TeamSkillMemoryLoop(ctx, {
       resolveProject: agent => this.memoryProjects.get(agent),
@@ -279,6 +331,49 @@ export class TeamSkillGateway extends TypertRemoteService {
       },
       'ai-coding-platform: telemetry queue close',
     )
+  }
+
+  /**
+   * Build the recall gate this row mounts on its knowledge loop.
+   *
+   * The gate is mounted **unconditionally**. Reading the API key happens per
+   * recall, not here, because the credentials seam resolves per operation by
+   * design (a rotated key must reach the next recall without a reload) — and
+   * because a gate that cannot read a key reports `no-credential` per recall,
+   * which `knowledge-loop.ts` records and answers by injecting without judging.
+   * Deciding at construction time would turn "no key set yet" into "recall is
+   * never gated", a difference a deployment could not see from its own config.
+   *
+   * The key is read through `ctx.get('credentials')`, never `process.env`: DSH
+   * spawns plugin children with a scrubbed environment (`scrubbedParentEnv`), so
+   * a bare `process.env` read silently yields `undefined`.
+   * @param credentials - the optional credentials service; absent means no key can be resolved.
+   * @param config - this row's validated configuration.
+   * @returns the gate, with every omitted tunable resolved to its documented default.
+   */
+  private buildRecallGate(credentials: CredentialProvider | undefined, config: Config): RecallGate {
+    const settings = config.recallGate
+    // 阈值逐字段回落：部署只写一项时，另外三项必须仍是已实测的默认值。整体替换
+    // （`settings?.thresholds ?? DEFAULT_...`）看起来等价，实际会让「只调 relevantMin」
+    // 静默把注入与矛盾两个阈值一起改掉 —— 那两个是安全与冲突判定，改动必须是显式的。
+    const thresholds: RecallGateThresholds = {
+      injectionMax: settings?.thresholds?.injectionMax ?? DEFAULT_RECALL_GATE_THRESHOLDS.injectionMax,
+      contradictsMin: settings?.thresholds?.contradictsMin ?? DEFAULT_RECALL_GATE_THRESHOLDS.contradictsMin,
+      relevantMin: settings?.thresholds?.relevantMin ?? DEFAULT_RECALL_GATE_THRESHOLDS.relevantMin,
+      evidenceMin: settings?.thresholds?.evidenceMin ?? DEFAULT_RECALL_GATE_THRESHOLDS.evidenceMin,
+    }
+    return createRecallGate({
+      // `credentialRef` 给裸字符串打上凭证引用的 brand（`String(...)` 只是 string，
+      // 过不了类型）；解析放在这里按次调用，与凭据 seam 的「每次操作重新解析」一致。
+      apiKey: async () => (await credentials?.resolve(credentialRef('TYPESAFE_API_KEY')))?.value,
+      model: settings?.model ?? RECALL_GATE_MODEL,
+      concurrency: settings?.concurrency ?? RECALL_GATE_CONCURRENCY,
+      thresholds,
+      // endpoint / requestTimeoutMs 只有部署显式设了才传：默认值归 `recall-gate.ts`
+      // 所有，不在这里抄第二份。
+      ...(settings?.endpoint === undefined ? {} : { endpoint: settings.endpoint }),
+      ...(settings?.requestTimeoutMs === undefined ? {} : { requestTimeoutMs: settings.requestTimeoutMs }),
+    })
   }
 
   /**
