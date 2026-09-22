@@ -38,15 +38,6 @@
 #                             discovery.confirmTimeoutMs (5000) |
 #                             discovery.confirmIntervalMs (100)
 #                             hostBridgeMaxBodyBytes (1048576)
-#                             recallGate.model (jev-1.13.0) |
-#                             recallGate.concurrency (4) |
-#                             recallGate.thresholds.injectionMax (0.7) |
-#                             recallGate.thresholds.contradictsMin (0.7) |
-#                             recallGate.thresholds.relevantMin (0.38) |
-#                             recallGate.thresholds.evidenceMin (0.48) |
-#                             recallGate.endpoint | recallGate.requestTimeoutMs
-#                               (these two carry no value here because their
-#                                defaults live in the gate, not in the schema)
 #   dsh-ai-coding/workspace:  previewOrigins ([])
 #                             eventBufferLimit (256)
 #                             pageWalkLimit (1000)
@@ -55,14 +46,6 @@
 # confirming a write is a handshake with an asynchronously updated on-disk Skill
 # catalog, so a network Skill root or a busy host wants a longer window than the
 # local default.
-#
-# `recallGate` labels each recall hit before it reaches the model. Its four
-# thresholds are measured values with their evidence in
-# `docs/typesafe-recall-gate.md`; re-tune them on real recall data, not by feel.
-# The gate reads its key from the `TYPESAFE_API_KEY` credential reference (host
-# credentials, never process env) and is mounted even without one: it then
-# reports `no-credential` per recall and the knowledge loop injects unjudged,
-# exactly as it did before the gate existed.
 
 - insert:
     # Host Team Skill gateway AND the single browser roster entry. This row

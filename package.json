@@ -1,7 +1,7 @@
 {
   "name": "dsh-ai-coding",
   "description": "AI Coding platform plugin for DSH: cloud workspace workbench, team skill governance, knowledge and memory surfaces (host + browser double-half plugin)",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "private": true,
   "type": "module",
   "license": "MIT",

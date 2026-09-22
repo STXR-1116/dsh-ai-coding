@@ -99,7 +99,7 @@ git 安装需 `prepare` + `allowBuilds`、优先交付 tarball）。
 
 | 问题 | 读 |
 |---|---|
-| 本仓的召回闸门设计、阈值依据、实测值 | `docs/typesafe-recall-gate.md`（**动 `src/knowledge-loop.ts` 前必须完整读**） |
+| 一份**未集成**的召回闸门设计（研究记录，含阈值实测与官方依据） | `docs/typesafe-recall-gate.md`（**所有者已决定不集成，勿照此实现**） |
 | 官方同名场景：四个 Noul + `route()` 顺序 + 两段式注入 | [classifying_rag_passages](https://docs.typesafe.ai/cookbooks/classifying_rag_passages.md) |
 | 失败模式（literal reading / context rot / 对抗性内容 / score 校准弱） | [model-jaggedness/jev-1.13](https://docs.typesafe.ai/model-jaggedness/jev-1.13.md) |
 | 三种原语怎么选 | [primitives](https://docs.typesafe.ai/primitives.md)、[noul](https://docs.typesafe.ai/primitives/noul.md)、[score](https://docs.typesafe.ai/primitives/score.md)、[advanced](https://docs.typesafe.ai/primitives/advanced.md) |

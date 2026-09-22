@@ -13,12 +13,10 @@
  */
 import { describe, expect, it } from 'vitest'
 import {
-  RECALL_GATE_CONCURRENCY,
   SKILL_DISCOVERY_CONFIRM_INTERVAL_MS,
   SKILL_DISCOVERY_CONFIRM_TIMEOUT_MS,
   TeamSkillGateway,
 } from '../src/gateway.ts'
-import { DEFAULT_RECALL_GATE_THRESHOLDS, RECALL_GATE_MODEL } from '../src/recall-gate.ts'
 import { WorkspaceGateway } from '../src/workspace-gateway.ts'
 import { HOST_BRIDGE_MAX_BODY_BYTES } from '../src/host-bridge.ts'
 import { DEFAULT_EVENT_BUFFER_LIMIT, DEFAULT_PAGE_WALK_LIMIT } from '../src/workspace-host.ts'
@@ -59,57 +57,6 @@ describe('Team Skill 行的部署可调参数', () => {
   })
 })
 
-describe('TypeSafe 召回闸门的部署可调参数', () => {
-  it('省略 recallGate 时 schema 补齐模型、并发与四个阈值', () => {
-    const resolved = TeamSkillGateway.Config(REQUIRED_TEAM_SKILL_CONFIG)
-    expect(resolved.recallGate?.model).toBe(RECALL_GATE_MODEL)
-    expect(resolved.recallGate?.concurrency).toBe(RECALL_GATE_CONCURRENCY)
-    // 逐字段相等，而不只是「有值」：schema 默认值必须是 recall-gate.ts 里那四个
-    // 已实测的数，抄一份副本就会在这里红。
-    expect(resolved.recallGate?.thresholds).toEqual(DEFAULT_RECALL_GATE_THRESHOLDS)
-  })
-
-  it('只写一个阈值时其余三个仍取默认值', () => {
-    const resolved = TeamSkillGateway.Config({
-      ...REQUIRED_TEAM_SKILL_CONFIG,
-      recallGate: { thresholds: { relevantMin: 0.5 } },
-    })
-    expect(resolved.recallGate?.thresholds).toEqual({ ...DEFAULT_RECALL_GATE_THRESHOLDS, relevantMin: 0.5 })
-  })
-
-  it('只写模型时并发与阈值仍取默认值', () => {
-    const resolved = TeamSkillGateway.Config({
-      ...REQUIRED_TEAM_SKILL_CONFIG,
-      recallGate: { model: 'jev-1.13.0' },
-    })
-    expect(resolved.recallGate?.model).toBe('jev-1.13.0')
-    expect(resolved.recallGate?.concurrency).toBe(RECALL_GATE_CONCURRENCY)
-    expect(resolved.recallGate?.thresholds).toEqual(DEFAULT_RECALL_GATE_THRESHOLDS)
-  })
-
-  it('端点与超时不在 schema 里写死默认值，由闸门自己兜底', () => {
-    // 这两个数归 recall-gate.ts 所有：schema 里再写一份就是同一个数有两个家，
-    // 迟早漂移。部署显式设置时才落到配置上。
-    const resolved = TeamSkillGateway.Config(REQUIRED_TEAM_SKILL_CONFIG)
-    expect(resolved.recallGate?.endpoint).toBeUndefined()
-    expect(resolved.recallGate?.requestTimeoutMs).toBeUndefined()
-    const explicit = TeamSkillGateway.Config({
-      ...REQUIRED_TEAM_SKILL_CONFIG,
-      recallGate: { endpoint: 'https://gateway.test/v1/systemone', requestTimeoutMs: 1_500 },
-    })
-    expect(explicit.recallGate?.endpoint).toBe('https://gateway.test/v1/systemone')
-    expect(explicit.recallGate?.requestTimeoutMs).toBe(1_500)
-  })
-
-  it('拒绝非法类型，而不是静默接受', () => {
-    expect(() => TeamSkillGateway.Config({ ...REQUIRED_TEAM_SKILL_CONFIG, recallGate: { concurrency: 'many' } })).toThrow()
-    expect(() => TeamSkillGateway.Config({ ...REQUIRED_TEAM_SKILL_CONFIG, recallGate: { model: 13 } })).toThrow()
-    expect(() =>
-      TeamSkillGateway.Config({ ...REQUIRED_TEAM_SKILL_CONFIG, recallGate: { thresholds: { relevantMin: 'high' } } })).toThrow()
-    expect(() => TeamSkillGateway.Config({ ...REQUIRED_TEAM_SKILL_CONFIG, recallGate: { requestTimeoutMs: 'slow' } })).toThrow()
-  })
-})
-
 describe('云工作空间行的部署可调参数', () => {
   it('省略时 schema 补齐缓冲区与游走上限', () => {
     const resolved = WorkspaceGateway.Config({})
@@ -136,18 +83,5 @@ describe('默认值本身是当前行为', () => {
     expect(DEFAULT_EVENT_BUFFER_LIMIT).toBe(256)
     expect(DEFAULT_PAGE_WALK_LIMIT).toBe(1000)
     expect(HOST_BRIDGE_MAX_BODY_BYTES).toBe(1024 * 1024)
-  })
-
-  it('闸门默认值仍是设计文档里实测的那几个数', () => {
-    // 同理：配置面只是把这些数搬进 schema，数值本身有独立实测依据
-    // （docs/typesafe-recall-gate.md），不得在这里被顺手「调优」。
-    expect(RECALL_GATE_MODEL).toBe('jev-1.13.0')
-    expect(RECALL_GATE_CONCURRENCY).toBe(4)
-    expect(DEFAULT_RECALL_GATE_THRESHOLDS).toEqual({
-      injectionMax: 0.70,
-      contradictsMin: 0.70,
-      relevantMin: 0.38,
-      evidenceMin: 0.48,
-    })
   })
 })
