@@ -3,7 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import type { Server } from 'node:http'
+import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { Context } from '@deepseek-ai/cordis'
 import LlmRuntime, { createUserMessage } from '@deepseek-ai/dsh-llm'
@@ -65,6 +65,29 @@ async function startService(port = 0): Promise<void> {
   await service.listen()
   const address = service.server.address() as AddressInfo
   BASE = `http://127.0.0.1:${address.port}/v1`
+}
+
+/**
+ * Reserve one OS-assigned port for a test that must reuse the same address.
+ *
+ * The outage-recovery case below deliberately stops the service and brings it
+ * back at the *same* URL, which is why it cannot simply pass `0` twice — but a
+ * hard-coded literal made that address a shared identifier: with several Vitest
+ * processes running at once (the owning gate forks workers and runs projects
+ * side by side), a second process binding the same literal fails with
+ * `EADDRINUSE`, and a test whose service never bound then talks to whichever
+ * stranger did — surfacing as a wrong account state or someone else's revision
+ * rather than as the bind failure that caused it. That is the official
+ * "host-resource collision" class; the remedy is atomic unique allocation, so
+ * this asks the OS once and the test reuses the answer.
+ * @returns a port number the OS has just confirmed is free.
+ */
+async function reservePort(): Promise<number> {
+  const probe = createServer()
+  await new Promise<void>((resolve) => { probe.listen(0, '127.0.0.1', () => { resolve() }) })
+  const { port } = probe.address() as AddressInfo
+  await new Promise<void>((resolve) => { probe.close(() => { resolve() }) })
+  return port
 }
 
 async function waitFor(predicate: () => Promise<boolean> | boolean, timeoutMs = 4000): Promise<boolean> {
@@ -851,7 +874,12 @@ describe('AI Coding observability closed loop over real HTTP', () => {
   })
 
   it('retains the queue across service unavailability and resumes delivery after recovery', async () => {
-    await startService(4456)
+    // One OS-assigned reservation reused by both starts: the outage models the
+    // same service returning at the same URL *without* claiming a shared literal
+    // port, which is what made this case collide with concurrent Vitest
+    // processes (EADDRINUSE) and then fail as a wrong account state.
+    const port = await reservePort()
+    await startService(port)
     // Static-token delivery mirrors OIDC-configured deployments; the fixture's
     // deterministic seed token survives the restart used to model recovery.
     const host = new TeamSkillHost({
@@ -910,7 +938,7 @@ describe('AI Coding observability closed loop over real HTTP', () => {
     // the queue drains once the retry backoff window has elapsed. A pooled
     // keep-alive socket to the dead instance may cost one attempt; bounded
     // retries model the reporter's own backoff.
-    await startService(4456)
+    await startService(port)
     const recovery = new TelemetryReporter(queue, settings, {
       send: (batch, accountId) => host.telemetryDeliver(batch, settings.httpTimeoutMs, accountId),
       resolveAccount: async () => {
