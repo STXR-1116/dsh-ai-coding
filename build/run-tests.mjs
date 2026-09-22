@@ -32,6 +32,7 @@
  */
 
 import { spawnSync } from 'node:child_process'
+import { writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
@@ -81,6 +82,51 @@ function summarise(output) {
     .join('\n')
 }
 
+/**
+ * Lines carrying the *reason* under a `FAIL` block.
+ *
+ * Vitest prints the assertion a few lines below the test name; the exact wording
+ * varies by matcher, so this matches the shapes rather than one message.
+ */
+const DETAIL_PATTERN = /^\s*(AssertionError|TypeError|ReferenceError|RangeError|Error:|Serialized Error|expected\b|Expected\b|Received\b|- Expected|\+ Received|→)/u
+
+/** How many failure blocks the digest prints before collapsing the rest. */
+const DIGEST_LIMIT = 15
+
+/**
+ * Condense `FAIL` blocks into a readable digest.
+ *
+ * The raw run output is printed in full above, but a mass failure buries the
+ * assertions in thousands of lines of progress output — which is exactly how a
+ * diagnosis gets lost: reading only the tallies tells you *how many* failed and
+ * never *why*. This pulls each failing test's name and its assertion lines to the
+ * end of the log, where they are read first.
+ * @param output - combined stdout/stderr of the run.
+ * @returns one indented block per failing test, capped at {@link DIGEST_LIMIT}.
+ */
+function failureDigest(output) {
+  const lines = output.split('\n')
+  const blocks = []
+  for (let index = 0; index < lines.length; index += 1) {
+    if (!/^\s*FAIL\s+\|/u.test(lines[index])) continue
+    const block = [`  ${lines[index].trim()}`]
+    for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
+      const line = lines[cursor]
+      if (/^\s*FAIL\s+\|/u.test(line)) break
+      // The per-file tallies end the detail region of a block.
+      if (/^\s*(Test Files|Tests|Duration|Errors)\s+/u.test(line)) break
+      if (DETAIL_PATTERN.test(line)) block.push(`      ${line.trim()}`)
+      if (block.length > 10) break
+    }
+    blocks.push(block.join('\n'))
+    if (blocks.length > DIGEST_LIMIT) break
+  }
+  if (blocks.length === 0) return '    (no FAIL block found — inspect the raw output above)'
+  const shown = blocks.slice(0, DIGEST_LIMIT)
+  if (blocks.length > DIGEST_LIMIT) shown.push(`  … and ${String(blocks.length - DIGEST_LIMIT)} more failing tests`)
+  return shown.join('\n')
+}
+
 for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
   console.log(`\n=== pnpm test — attempt ${attempt}/${maxAttempts} ===`)
   const run = spawnSync('pnpm', ['exec', 'vitest', 'run', ...passthrough], {
@@ -100,6 +146,12 @@ for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
   if (verdict === 'test-failure') {
     console.log('\nTEST RESULT: real test failure(s) — not retrying')
     console.log(summarise(output))
+    // Keep the raw run so the failure survives this terminal, then lead with the
+    // assertions: a mass failure is diagnosed from the reasons, not the counts.
+    const saved = join(root, 'test-failures.log')
+    writeFileSync(saved, output)
+    console.log(`\n--- failing assertions (raw output: ${saved}) ---`)
+    console.log(failureDigest(output))
     process.exit(run.status ?? 1)
   }
 

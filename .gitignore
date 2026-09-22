@@ -15,3 +15,6 @@ dev/team-skill-service/lib/
 # Gate evidence logs under docs/ are deliverables (red/green smoke runs, test
 # retry transcripts); everything else stays ignored.
 !docs/**/*.log
+
+# Raw output of the last failing pnpm test run (see build/run-tests.mjs).
+test-failures.log
