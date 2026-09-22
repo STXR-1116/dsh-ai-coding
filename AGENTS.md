@@ -86,6 +86,7 @@ TypeSafe / Jev 的用途是**给 agent 自己做判断**，不是给插件增加
 
 一条跨项目通用的事实，留在这里因为本文件早先写错过：**凭证引用要写 `credentialRef('NAME')`，不能写
 `String('NAME')`** —— `CredentialRef` 是 brand 类型，后者过不了类型检查（实测 `TS2322`）。
+
 ## 文档惯例
 
 `docs/` 下是交付物（见 `.gitignore` 中 `!docs/**/*.log` 的用意）。笔记类文档的体例：开头声明改动范围与证据强度，
