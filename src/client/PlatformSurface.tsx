@@ -1673,10 +1673,32 @@ function surfaceIssueFromFailure(value: HostFailure): SurfaceIssue {
   return surfaceIssueFromCode(value.code, value.message)
 }
 
-// Only permission denials are forbidden; UNAUTHORIZED/TOKEN_* are session
-// failures recovered by reloading the account, not by reading scope help.
+/**
+ * Codes that mean "this account may not read this", as opposed to "the service
+ * is broken".
+ *
+ * The list follows the authorization-denial vocabulary this app already names
+ * elsewhere — `PROJECT_NOT_MEMBER` and `NO_ORGANIZATION_ACCESS` are checked
+ * explicitly on the catalog (below) and Team Skill paths — so the generic mapping
+ * agrees with the specific ones instead of contradicting them.
+ *
+ * Two things make this easy to get wrong, and both bit us:
+ *
+ * 1. **The status cannot be used.** The platform answers a membership denial with
+ *    a **404** on purpose, so it does not leak whether the project exists. Only
+ *    the code separates "no access" from "not found" and from "unreachable".
+ * 2. **Authentication is not authorization.** `UNAUTHORIZED`, `TOKEN_REVOKED`,
+ *    `INVALID_CREDENTIALS` and `ACCOUNT_SUSPENDED` mean "sign in again" and have
+ *    their own path; calling those a permission problem would tell the operator to
+ *    ask an admin for access they already have.
+ *
+ * Without this, a membership denial rendered as 「服务暂时不可用」 and pointed the
+ * reader at the endpoint's reachability — the wrong direction entirely.
+ * @param code - the failure code from the service envelope.
+ * @returns whether the failure is an access denial.
+ */
 function isForbiddenCode(code: string): boolean {
-  return code.includes('FORBIDDEN')
+  return code.includes('FORBIDDEN') || code.includes('NOT_MEMBER') || code === 'NO_ORGANIZATION_ACCESS'
 }
 
 function LoginView({
