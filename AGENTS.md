@@ -66,6 +66,24 @@ $p = "$env:USERPROFILE\.dsh\profiles\web\node_modules\dsh-ai-coding"
 # 并确认本次改动引入的**新字符串**确实出现在 lib/*.js 里
 ```
 
+## 验收期间的协作协议（**所有者约定**）
+
+所有者会一边验收一边报问题。**安装会换掉他正在运行的实例所加载的文件**，所以：
+
+- **可以随时做**（不碰他的实例）：改源码、写测试、`pnpm test`、`pnpm build`、`pnpm pack`。
+- **装之前必须先问**（或等他说「装」）：`dsh plugin add` / 离线安装都会替换
+  `~/.dsh/profiles/web/node_modules/dsh-ai-coding`。装完**他需要重启 `dsh web`** 才生效。
+- **攒着批量修、一次交付**：每发现一个就重装一次，等于让他反复重启。
+- 报「已修」之前，上面那条收尾清单照样要满足（装上 + 冒烟绿）；**只 build+pack 不算完成**，
+  要明确说「已打包，未安装」。
+
+**不建议为此开两个 DSH**：插件装在 **profile** 里，同一 profile 的多个实例共用同一份
+`node_modules`，安装照样在两边脚下换文件。真要隔离得开第二个 **profile**（独立依赖目录），
+为这点事不值得。
+
+验收环境还有两件与代码无关的前置条件（夹具必须在跑、浏览器里存的静态令牌会盖过账号登录），
+见 README 的「验收与排查」。
+
 ## 仓库定位
 
 `dsh-ai-coding` —— DSH 的 AI Coding 平台插件，双半结构（host `src/*.ts` + browser `src/client/*`）。

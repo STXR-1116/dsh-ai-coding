@@ -116,6 +116,44 @@ form only shows when nothing is configured.
 An unconfigured browser opens the workbench straight onto that form — the failure
 is loud and named, never a silent `not-ready` blur (P0-2).
 
+## 验收与排查
+
+两条**与插件代码无关**的前置条件，验收时都被当成插件 bug 查过：
+
+### 1. 平台服务必须在跑
+
+工作台直接访问 AI Coding 服务。本地验收就是 `dev/team-skill-service` 夹具，默认端口 **4100**：
+
+```pwsh
+$env:TEAM_SKILL_SERVICE_PORT='4100'      # 可省略：4100 就是默认值
+node --import tsx dev/team-skill-service/src/server.ts
+```
+
+没起 → 工作台显示「服务暂时不可用 / Failed to fetch」。自 0.1.6 起报错会**点名它够不着的地址**
+（形如「当前服务地址：http://127.0.0.1:4100/v1」）—— 那行就是判断「服务没起」还是「配错地址」的依据。
+
+### 2. 浏览器里存的平台令牌会盖过账号登录
+
+浏览器半把部署值存在 `localStorage`，且**显式保存的值优先于部署声明**。若其中存了 `accessToken`，
+**每个数据请求都会带它** —— 于是服务端看到的是**那个令牌的身份**，而不是你刚登录的账号。
+
+夹具里 `demo-token` 就是一个绑定到 `member-1` 的静态会话（`account-store.ts`），而 `member-1`
+是 `project-alpha` 的成员、**不是** `project-beta` 的。所以只要 `demo-token` 还存着，
+**换成 `admin@example.com` 登录也没用**：工作台会一直回 `PROJECT_NOT_MEMBER`。
+
+清除方式：**服务设置 → 清除本机覆盖，改用部署声明的地址**（0.1.6 加的逃生口），
+或把「平台访问令牌」那一栏清空后保存。
+
+### 权限拒绝会说明自己是权限问题
+
+自 0.1.10 起，访问被拒渲染为**「无权访问」**，而不是「服务暂时不可用」。在那之前，成员拒绝被呈现成
+服务中断，把排查引向服务可达性、而不是「这条请求以谁的身份发出」。
+
+平台对这个拒绝**故意返回 404**（不泄露项目是否存在），所以**只有 code（`PROJECT_NOT_MEMBER`）
+能区分**「无权限」「不存在」「够不着」—— 不能按 HTTP 状态判断。`isForbiddenCode` 已按应用自己在
+目录页与 Team Skill 页早就使用的那套词汇补齐；认证类（`UNAUTHORIZED` / `TOKEN_REVOKED` /
+`INVALID_CREDENTIALS` / `ACCOUNT_SUSPENDED`）**刻意不算权限问题**，那是「重新登录」。
+
 ## Development
 
 ```
