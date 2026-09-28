@@ -1664,7 +1664,20 @@ interface SurfaceIssue {
 }
 
 /** Surface a failed page-scoped read: permission denials get their own state. */
-function surfaceIssueFromCode(code: string, message: string): SurfaceIssue {
+/**
+ * Classify a page-scoped read failure into the panel state that renders it.
+ *
+ * Exported because it is the single seam where an access denial is told apart
+ * from an outage, and that distinction is what went wrong in acceptance: a
+ * membership denial rendered under 「服务暂时不可用」 and sent the reader off to
+ * check whether the endpoint was reachable. A test that drives a whole page to
+ * observe this would depend on which panel happens to render where; this is the
+ * decision itself.
+ * @param code - the failure code from the service envelope.
+ * @param message - the service's message, shown as the panel's reason.
+ * @returns the issue the page-level panel renders.
+ */
+export function surfaceIssueFromCode(code: string, message: string): SurfaceIssue {
   return { kind: isForbiddenCode(code) ? 'forbidden' : 'service', message: message.length > 0 ? `${message}（${code}）` : code }
 }
 

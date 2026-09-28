@@ -5,7 +5,7 @@ import type { ClientRemote, WorkspaceId } from '@deepseek-ai/dsh-api-remotes/cli
 import type { WorkspaceListState } from './helpers/client-runtime-types.ts'
 import type { PlatformSurfaceProps } from '../src/client/PlatformSurface.tsx'
 import { PlatformEntry } from '../src/client/PlatformEntry.tsx'
-import { PlatformSurface } from '../src/client/PlatformSurface.tsx'
+import { PlatformSurface, surfaceIssueFromCode } from '../src/client/PlatformSurface.tsx'
 import { PlatformDemoController } from '../src/client/controller.ts'
 import { seedBrowserSettings } from './helpers/browser-settings.ts'
 
@@ -559,6 +559,29 @@ describe('AI Coding platform demo', () => {
     const accountInput = await screen.findByLabelText('用户名或邮箱')
     expect(accountInput).toHaveProperty('type', 'text')
     expect(accountInput).toHaveProperty('inputMode', 'text')
+  })
+
+  it('tells an access denial apart from an outage', () => {
+    // The seam that misread an acceptance report: a project-scoped membership denial
+    // (`GET /v1/projects/<id>/workspaces` → `PROJECT_NOT_MEMBER`) rendered under
+    // 「服务暂时不可用」, which sent the investigation at the endpoint's reachability
+    // instead of at who the request authenticated as. Two things make the code — not
+    // the status — the only usable discriminator here: the platform answers this
+    // denial with a 404 on purpose (so it does not leak whether the project exists),
+    // and the same code is already recognized on the catalog and Team Skill paths,
+    // so the generic mapper has to agree with them.
+    expect(surfaceIssueFromCode('PROJECT_NOT_MEMBER', '用户不是该项目成员').kind).toBe('forbidden')
+    expect(surfaceIssueFromCode('FORBIDDEN', '无权').kind).toBe('forbidden')
+    expect(surfaceIssueFromCode('MEMORY_SCOPE_FORBIDDEN', '无权').kind).toBe('forbidden')
+    expect(surfaceIssueFromCode('NO_ORGANIZATION_ACCESS', '无权').kind).toBe('forbidden')
+    // The service's own message reaches the panel — that text is what made the report
+    // diagnosable at all, so it must not be swallowed.
+    expect(surfaceIssueFromCode('PROJECT_NOT_MEMBER', '用户不是该项目成员').message).toContain('用户不是该项目成员')
+    // Authentication is not authorization: these mean "sign in again", and calling
+    // them a permission problem would send the operator to an admin for access they
+    // already have. Read failures that are genuinely about the service stay 'service'.
+    for (const code of ['UNAUTHORIZED', 'TOKEN_REVOKED', 'INVALID_CREDENTIALS', 'ACCOUNT_SUSPENDED', 'RESOURCE_NOT_FOUND', 'SERVICE_UNAVAILABLE'])
+      expect(surfaceIssueFromCode(code, 'x').kind).toBe('service')
   })
 
   it('shows an explicit service error when access loading rejects', async () => {
