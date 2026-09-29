@@ -93,6 +93,21 @@ $p = "$env:USERPROFILE\.dsh\profiles\web\node_modules\dsh-ai-coding"
 验收环境还有两件与代码无关的前置条件（夹具必须在跑、浏览器里存的静态令牌会盖过账号登录），
 见 README 的「验收与排查」。
 
+## 客户端半边的已知坑（都是实测踩出来的）
+
+**未 `inject` 的服务，属性访问会抛错 —— 必须用 `ctx.get`。**
+
+```ts
+ctx.workspaces                 // ✗ 未 inject 时抛 "cannot get property … without inject"
+ctx.get('workspaces')          // ✓ 缺服务时返回 undefined
+```
+
+`as unknown as { workspaces?: X }` 这种类型层面的绕过**骗得过 tsc，骗不过 cordis 的运行时守卫**。
+0.1.13 就是这样让整个浏览器片段没加载的：`apply()` 抛错 → 侧栏入口永不出现 → 冒烟第一步 RED，
+而 console 只留下一条无关的 Permissions-Policy 噪音。同类的坑早先在 `webServer` 上出现过一次。
+
+读可选服务一律 `ctx.get`（本仓既有先例：`ctx.get('credentials')`）。
+
 ## 仓库定位
 
 `dsh-ai-coding` —— DSH 的 AI Coding 平台插件，双半结构（host `src/*.ts` + browser `src/client/*`）。
