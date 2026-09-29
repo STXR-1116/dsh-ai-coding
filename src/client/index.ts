@@ -147,10 +147,17 @@ interface ClientWorkspacesFace {
 function clientFaces(ctx: ClientContext): { sessions: ClientSessionFace; workspaces: ClientWorkspacesFace | undefined } {
   return {
     sessions: ctx.sessions as unknown as ClientSessionFace,
-    // Read through a cast rather than a declaration: whether cordis' `Context`
-    // carries `workspaces` depends on which half of the program won the merge,
-    // and an absent provider must read as "unavailable", never as a crash.
-    workspaces: (ctx as unknown as { workspaces?: ClientWorkspacesFace }).workspaces,
+    // Read through `ctx.get`, **not** as a property. This plugin does not inject
+    // `workspaces` (it is an optional dependency — see the resolver, which reports
+    // a stable failure when it is missing), and cordis **throws** on a property
+    // read of a service the fiber did not inject:
+    //   `cannot get property "webServer" without inject`
+    // Reading it as `ctx.workspaces` therefore threw inside `apply()`, which killed
+    // this browser fragment on load: no sidebar entry, and the mount smoke's first
+    // step failed as 0.1.13 was installed. `ctx.get` is the accessor that returns
+    // `undefined` instead of throwing, and it is the pattern this repository
+    // already uses for optional services (`ctx.get('credentials')`).
+    workspaces: ctx.get('workspaces') as unknown as ClientWorkspacesFace | undefined,
   }
 }
 

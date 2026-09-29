@@ -64,6 +64,17 @@ function fakeContext() {
       },
     },
     workspaces: { marker: 'workspaces' },
+    /**
+     * cordis' accessor for a service this fiber does not inject.
+     *
+     * The plugin reads `workspaces` through it, because a **property** read of a
+     * non-injected service throws at runtime (`cannot get property … without
+     * inject`) — doing that killed this whole browser fragment in 0.1.13: no sidebar
+     * entry, and the mount smoke's first step went red. See `src/client/index.ts`.
+     * @param name - service key being read.
+     * @returns the fake service, or `undefined` for anything not provided here.
+     */
+    get: (name: string): unknown => (name === 'workspaces' ? ctx.workspaces : undefined),
   }
   return {
     ctx,
