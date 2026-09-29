@@ -69,7 +69,8 @@
     "test:admin": "vitest run --project admin",
     "verify:face": "node build/generate-remote-face.mjs --check",
     "test:fixture": "vitest run --config dev/team-skill-service/vitest.config.ts",
-    "clean": "node build/clean-lib.mjs"
+    "clean": "node build/clean-lib.mjs",
+    "fixture": "node build/run-fixture.mjs"
   },
   "dependencies": {
     "@deepseek-ai/dsh-atomic-write": "0.1.5-rc.2",

@@ -125,9 +125,15 @@ is loud and named, never a silent `not-ready` blur (P0-2).
 工作台直接访问 AI Coding 服务。本地验收就是 `dev/team-skill-service` 夹具，默认端口 **4100**：
 
 ```pwsh
-$env:TEAM_SKILL_SERVICE_PORT='4100'      # 可省略：4100 就是默认值
-node --import tsx dev/team-skill-service/src/server.ts
+pnpm fixture                             # 幂等：已在跑就报「已运行」，没跑就起并等到就绪
+pnpm fixture 4155                        # 换端口（可选；4100 是夹具默认值）
 ```
+
+手工等价写法（不想用脚本时）：`node --import tsx dev/team-skill-service/src/server.ts`。
+
+**为什么用幂等脚本**：这条报错在验收中出现过四次，每次原因都一样 —— 夹具没在跑，而**没有任何东西会
+启动它**（DSH 不管它）。手工起一次能解决，但独立进程不总能长期存活，于是「再起一次」变成了反复的
+手工步骤。`pnpm fixture` 让这一步可以安全重复：**已在运行不会重复启动**，没运行才起并等到就绪。
 
 没起 → 工作台显示「服务暂时不可用 / Failed to fetch」。自 0.1.6 起报错会**点名它够不着的地址**
 （形如「当前服务地址：http://127.0.0.1:4100/v1」）—— 那行就是判断「服务没起」还是「配错地址」的依据。
