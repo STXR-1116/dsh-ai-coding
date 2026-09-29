@@ -346,3 +346,62 @@ archiveSession(sessionId): Promise<RemoteResult<WorkspaceArchiveValue>>
 §8.3 的五步计划**不变**，只在步骤 1 增加一步动作（`create` 之后 `archiveSession`），并新增一条验收：
 
 - 步骤 1 验收补充：**新建的 Workspace 会话不出现在侧栏任何分组下**，且 `binding(sessionId)` 仍能取到快照。
+
+## 11. 关键更正：为什么 0.1.11 装上后「还是不对」
+
+所有者装上 0.1.11（`openRightbar(false, true)`）后，云工作空间**仍贴在右侧**。根因**不在那个参数**，
+而在我们自己的 CSS —— 我上一轮改的是「**报告**」，没动「**几何**」。
+
+### 11.1 根因（代码为证）
+
+`PlatformSurface.module.css` 的 `.surfaceDocked`（注释自述就是「让出中栏」那套设计）：
+
+```css
+/* Workbench dock: the cloud-workspaces view yields the app's own center
+   column to the resident native conversation, so the surface anchors right
+   and stays non-modal while that view is active. */
+.surfaceDocked {
+  left: auto;                 /* 解除左边界 */
+  width: min(1280px, 88%);    /* 限宽 → 贴右固定宽面板 */
+  min-width: 560px;
+  box-shadow: -24px 0 48px …;
+}
+```
+
+组件里 `const docked = view === 'cloud-workspaces'`（`PlatformSurface.tsx:1059`）**始终**挂着这个类。
+而 `ILayout.openRightbar` 契约原文是「**Report** the right panel's presentation」—— 它只报告右面板
+呈现，**不决定我们浮层的位置**。所以改它对几何毫无影响。
+
+**现有代码里已有正确先例**：总览视图就是「全屏模态 + `closeRightbar()`」。云工作空间应当照办。
+
+### 11.2 完整改动清单（`docked` 概念**整体移除**）
+
+`docked` 贯穿几何、无障碍与一个 UI 开关，不是一行改动：
+
+| 位置 | 现状 | 改为 |
+| --- | --- | --- |
+| `PlatformSurface.module.css` L171-181 | `.surfaceDocked`（右贴 + 限宽） | **删除**（`.surface` 本身已是 `inset: 0` 全屏） |
+| 同上 L182-184 / L186-189 | `.surfaceDocked .rail` / `.brandBlock` | **删除** |
+| 同上 L191-195 | `@media (max-width:768px)` 里的 `.surfaceDocked` | **删除**（全屏后无需特例） |
+| `PlatformSurface.tsx` L1059-1063 | `docked` + `setRailCollapsed(docked)` | 删除；图标栏折叠改由用户手动（railToggle 已在） |
+| 同上 L1064-1087 | `if (!docked) closeRightbar() else openRightbar(…)` | **统一 `layout.closeRightbar()`**（我们不占右面板轨道） |
+| 同上 L1092 | `className={docked ? … : css.surface}` | 恒为 `css.surface` |
+| 同上 L1099-1101 | `aria-modal={docked ? undefined : true}` | **恒为 `true`**（全屏模态；docked 时代为让原生会话可交互而豁免） |
+| 同上 L1255 | `{docked && (专注模式按钮)}` | 重新决定：全屏后该按钮语义已变（原先用于收起我们自己的图标栏） |
+| `CloudWorkspacesView.module.css` L12 | 注释「docked workbench sits beside the native conversation column」 | 更新为「全屏浮层」 |
+| `CloudWorkspacesView.tsx` L1866 | 提示「工作台已让出中栏…」 | **删除**（不再让出；改为会话区空态文案） |
+
+### 11.3 验收点
+
+1. 进云工作空间后，我们的浮层**覆盖整个视口**，无 `min(1280px,88%)` 残留；
+2. 总览视图行为**不变**（它本来就是全屏 + `closeRightbar`）；
+3. 四档布局预设仍只控三栏可见性；
+4. 全量测试绿 —— 需同步更新 `platform.client.spec.tsx` 中那条断言（0.1.11 时我刚把它改成
+   `openRightbar(false, true)`，本次应改为「与总览一致：`closeRightbar` 被调用、`openRightbar` 未被调用」）；
+5. **真机复核**：量测 `.surface` 的 `getBoundingClientRect()` ≈ 视口尺寸。
+
+### 11.4 教训（写给下一个会话）
+
+**「报告」与「几何」是两回事。** 我读到 `openRightbar(track, fullscreen)` 契约里的 "covers the
+frame"，就以为改参数能改变布局 —— 但那是**向外壳报告右面板的呈现**，而我们的浮层位置由自己的 CSS
+决定。**改布局前先读自己的样式，再读对外契约。** 0.1.11 因此白装一次。
