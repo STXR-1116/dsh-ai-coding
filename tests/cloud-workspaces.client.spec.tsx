@@ -244,6 +244,13 @@ function fakeRemote(overrides: Partial<RemoteCalls> = {}): { remote: ClientRemot
       gitCommit: wrap(calls.gitCommit),
       createPullRequest: wrap(calls.createPullRequest),
     },
+    // This plugin's own namespace. The object is cast (`as unknown as ClientRemote`),
+    // so the compiler cannot notice its absence — but the view calls it the moment a
+    // Workspace is selected, and an absent namespace used to throw inside the effect
+    // and take the whole view down with it.
+    workspaceSessions: {
+      ensure: vi.fn(async () => ({ ok: true as const, sessionId: 'session-ws-alpha-1', created: true })),
+    },
   } as unknown as ClientRemote
   return { remote, calls }
 }

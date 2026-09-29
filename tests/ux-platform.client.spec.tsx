@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { ClientRemote } from '@deepseek-ai/dsh-api-remotes/client'
+import type { PlatformRemote } from '../src/client/remote/types.ts'
 import type { WorkspaceListState } from './helpers/client-runtime-types.ts'
 import type { PlatformSurfaceProps } from '../src/client/PlatformSurface.tsx'
 import { PlatformSurface } from '../src/client/PlatformSurface.tsx'
@@ -165,8 +166,14 @@ const demoMemory = {
   sourceKind: 'agent_turn' as const,
 }
 
-function demoRemote(): ClientRemote {
+function demoRemote(): PlatformRemote {
   return {
+    // This plugin's own namespace; see the note in platform.client.spec.tsx — it is
+    // declared so a missing namespace fails the compiler rather than crashing a
+    // workspace-selecting test at runtime.
+    workspaceSessions: {
+      ensure: vi.fn(async () => ({ ok: true as const, sessionId: 'session-ws-alpha-1', created: true })),
+    },
     teamSkills: {
       account: vi.fn(async () => ({ ok: true, value: demoAccount })),
       login: vi.fn(async () => ({ ok: true, value: demoAccount })),

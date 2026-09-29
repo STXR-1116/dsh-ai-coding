@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { ClientRemote, WorkspaceId } from '@deepseek-ai/dsh-api-remotes/client'
+import type { PlatformRemote } from '../src/client/remote/types.ts'
 import type { WorkspaceListState } from './helpers/client-runtime-types.ts'
 import type { PlatformSurfaceProps } from '../src/client/PlatformSurface.tsx'
 import { PlatformEntry } from '../src/client/PlatformEntry.tsx'
@@ -204,8 +205,16 @@ const demoCollectorStatus = {
   storageError: null,
 }
 
-function demoRemote(): ClientRemote {
+function demoRemote(): PlatformRemote {
   return {
+    // This plugin's own namespace, declared rather than cast away. The specs hand
+    // the props object over as a whole (`as unknown as PlatformSurfaceProps`),
+    // which is exactly what hides a missing namespace from the compiler — so the
+    // next test that selects a cloud Workspace would have met `undefined` and
+    // crashed the workbench instead of failing an assertion.
+    workspaceSessions: {
+      ensure: vi.fn(async () => ({ ok: true as const, sessionId: 'session-ws-alpha-1', created: true })),
+    },
     teamSkills: {
       account: vi.fn(async () => ({ ok: true, value: demoAccount })),
       login: vi.fn(async () => ({ ok: true, value: demoAccount })),
@@ -310,6 +319,41 @@ function demoRemote(): ClientRemote {
       })),
     },
     cloudWorkspaces: {
+      // Companion reads the view issues once a Workspace is selected, plus the code
+      // sources the create form wants. They answer with a stable failure instead of
+      // a hand-built success body: these tests assert the *session* wiring, not the
+      // detail panes, and a method left undefined rejects asynchronously — which
+      // vitest reports as an unhandled error and fails the whole run for.
+      codeSources: vi.fn(async () => ({ ok: false as const, error: { code: 'RESOURCE_NOT_FOUND', message: 'demo', details: {} } })),
+      workspace: vi.fn(async () => ({ ok: false as const, error: { code: 'RESOURCE_NOT_FOUND', message: 'demo', details: {} } })),
+      workspaceChanges: vi.fn(async () => ({ ok: false as const, error: { code: 'RESOURCE_NOT_FOUND', message: 'demo', details: {} } })),
+      workspaceRuns: vi.fn(async () => ({ ok: false as const, error: { code: 'RESOURCE_NOT_FOUND', message: 'demo', details: {} } })),
+      workspaceFiles: vi.fn(async () => ({ ok: false as const, error: { code: 'RESOURCE_NOT_FOUND', message: 'demo', details: {} } })),
+      // The live subscription the view opens for the selected Workspace. Answering
+      // with a failure envelope is a state the view handles (`reportFailure`),
+      // whereas leaving the method undefined rejects asynchronously.
+      startStream: vi.fn(async () => ({ ok: false as const, error: { code: 'SERVICE_UNAVAILABLE', message: 'demo', details: {} } })),
+      stopStream: vi.fn(async () => ({ ok: true as const, value: { stopped: true } })),
+      // The Workspace list the workbench resolves a session for. Without it these
+      // specs only ever exercised the shell around the view: no Workspace could be
+      // selected, so the session path was unreachable from a unit test.
+      workspaces: vi.fn(async () => ({
+        ok: true as const,
+        value: {
+          status: 'ready' as const,
+          fixtureOnly: true,
+          value: [{
+            workspaceId: 'ws-alpha-1',
+            projectId: 'orbit-ui',
+            repositoryId: 'repo-1',
+            branch: 'main',
+            displayName: '云工作台主空间',
+            status: 'ready' as const,
+            revision: 7,
+            defaultAgentProfileVersionId: 'apv-1',
+          }],
+        },
+      })),
       workspacePlans: vi.fn(async () => ({ ok: true as const, value: { status: 'ready' as const, fixtureOnly: true, value: [] } })),
       agentProfiles: vi.fn(async () => ({
         ok: true as const,
@@ -637,6 +681,69 @@ describe('AI Coding platform demo', () => {
     expect(layout.openRightbar).not.toHaveBeenCalled()
     view.unmount()
     expect(layout.closeRightbar.mock.calls.length).toBeGreaterThan(retractsAfterOverview)
+  })
+
+  it('resolves the selected Workspace its own conversation session', async () => {
+    // The workspace's session is what the centre pane will render. It is created on
+    // demand and archived immediately so it stays out of the shell's session list —
+    // and it must carry the signed-in account, because the durable mapping is
+    // account-scoped (a resolve under an unknown account would land in the
+    // anonymous bucket and create a second session once the account arrived).
+    const remote = demoRemote()
+    const controller = new PlatformDemoController()
+    controller.open()
+    render(<PlatformSurface {...({
+      controller,
+      t,
+      useSessions: (<S,>(selector: (state: typeof demoSessionState) => S): S => selector(demoSessionState)) as never,
+      useWorkspaces: (<S,>(selector: (state: WorkspaceListState) => S): S => selector(demoWorkspaceState)) as never,
+      remote,
+      layout: { openRightbar: vi.fn(), closeRightbar: vi.fn(), toggleSidebar: vi.fn(), openDetails: vi.fn() },
+    } as unknown as PlatformSurfaceProps)} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: '云工作空间' }))
+
+    // The Workspace list comes from the selected project, so pick one first:
+    // without it there is no Workspace to select and therefore no session to
+    // resolve. The view auto-selects the first Workspace it receives.
+    fireEvent.change(await screen.findByLabelText('cloud-workspace-project'), { target: { value: 'orbit-ui' } })
+    await waitFor(() => { expect(remote.workspaceSessions.ensure).toHaveBeenCalled() })
+    expect(remote.workspaceSessions.ensure).toHaveBeenCalledWith(
+      expect.objectContaining({ accountId: demoAccount.user.userId }),
+    )
+    // The pane reports readiness rather than sitting blank with no explanation.
+    expect(await screen.findByLabelText('工作空间会话状态')).toBeTruthy()
+    expect(screen.getByText(/会话已就绪/u)).toBeTruthy()
+  })
+
+  it('says why the Workspace session is unavailable instead of showing an empty conversation', async () => {
+    const remote = demoRemote()
+    remote.workspaceSessions.ensure = vi.fn(async () => ({
+      ok: false as const,
+      code: 'ARCHIVE_FAILED' as const,
+      message: 'REVISION_CONFLICT: 冲突',
+    }))
+    const controller = new PlatformDemoController()
+    controller.open()
+    render(<PlatformSurface {...({
+      controller,
+      t,
+      useSessions: (<S,>(selector: (state: typeof demoSessionState) => S): S => selector(demoSessionState)) as never,
+      useWorkspaces: (<S,>(selector: (state: WorkspaceListState) => S): S => selector(demoWorkspaceState)) as never,
+      remote,
+      layout: { openRightbar: vi.fn(), closeRightbar: vi.fn(), toggleSidebar: vi.fn(), openDetails: vi.fn() },
+    } as unknown as PlatformSurfaceProps)} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: '云工作空间' }))
+
+    // Same precondition as the test above: a selected project produces the
+    // Workspace list, and the first Workspace is auto-selected.
+    fireEvent.change(await screen.findByLabelText('cloud-workspace-project'), { target: { value: 'orbit-ui' } })
+    const status = await screen.findByLabelText('工作空间会话状态')
+    // An archive failure means the session would be visible in the shell's list, so
+    // the reason has to reach the user — an empty pane would hide it.
+    expect(status.textContent).toContain('REVISION_CONFLICT')
+    expect(status.getAttribute('role')).toBe('alert')
   })
 
   it('opens from the sidebar entry and closes from the overlay', () => {

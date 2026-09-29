@@ -32,6 +32,7 @@ import { buildRunPulse, type PulseReconnect } from './run-pulse.ts'
 import { assetGovernanceLabel, runAssetRows, runAssetSnapshotDrifted } from './run-asset-snapshot.ts'
 import { buildRecoveryCenter } from './recovery-center.ts'
 import { selectPreviewViewer, treeEntryMarkers } from './workspace-markers.ts'
+import type { WorkspaceSessionOutcome } from './workspace-sessions.ts'
 import css from './CloudWorkspacesView.module.css'
 
 /** Failure codes that mean the Host account session must be refreshed upstream. */
@@ -379,6 +380,60 @@ export function CloudWorkspacesView({
   const [draftBranch, setDraftBranch] = useState('')
   const [draftRepositoryId, setDraftRepositoryId] = useState('')
   const [repositories, setRepositories] = useState<readonly WorkspaceCodeSource[]>([])
+  /**
+   * This Workspace's own conversation session, or the reason there is none.
+   *
+   * One session per Workspace, created on demand and archived the moment it
+   * exists so it never appears in the shell's session list while the session
+   * controller still resolves it (`docs/cloud-workspace-redesign.md` §10). The
+   * outcome is held rather than swallowed: an empty conversation with no
+   * explanation would hide a real service problem behind a wordless pane.
+   */
+  const [workspaceSession, setWorkspaceSession] = useState<WorkspaceSessionOutcome | undefined>()
+  /**
+   * The `accountId\0workspaceId` pair already resolved, so a re-render cannot
+   * resolve the same Workspace twice.
+   *
+   * This is not just an optimisation. `remote` is a prop object; a parent that
+   * rebuilds it per render would re-run an effect that depended on it, and each
+   * resolution calls `setWorkspaceSession` — an update loop that starves every
+   * other async query on the page (measured: two acceptance specs timed out at
+   * ~1s until the dependency was reduced to stable values).
+   */
+  const resolvedKeyRef = useRef<string | undefined>()
+  /** Live `remote` for the effect below, which must not depend on the object. */
+  const remoteRef = useRef(remote)
+  remoteRef.current = remote
+  useEffect(() => {
+    // Wait for the account before resolving anything. The mapping is scoped per
+    // account, so a resolve under `undefined` would record itself in the anonymous
+    // bucket and then create a *second* session once the account arrived — and
+    // sessions cannot be deleted from the client, so that leak is permanent.
+    if (selectedId === undefined || accountId === undefined) {
+      resolvedKeyRef.current = undefined
+      setWorkspaceSession(undefined)
+      return
+    }
+    const key = `${accountId}\u0000${selectedId}`
+    if (resolvedKeyRef.current === key) return
+    resolvedKeyRef.current = key
+    // A remote that does not carry this plugin's namespace must degrade, not throw:
+    // the call used to sit directly on `remote.workspaceSessions`, and a test double
+    // without it threw inside this effect and unmounted the entire workbench. A
+    // slice of the app that vanishes is worse than one that reports what is missing.
+    const resolver = remoteRef.current.workspaceSessions
+    if (resolver === undefined) {
+      setWorkspaceSession({ ok: false, code: 'CREATE_FAILED', message: '会话服务不可用：remote 未提供 workspaceSessions' })
+      return
+    }
+    let cancelled = false
+    void resolver
+      .ensure({ accountId, workspaceId: selectedId })
+      .then(outcome => { if (!cancelled) setWorkspaceSession(outcome) })
+    // Switching Workspace mid-flight must not let the previous Workspace's answer
+    // land on the new selection.
+    return () => { cancelled = true }
+  }, [accountId, selectedId])
   const [repositoriesState, setRepositoriesState] = useState<'loading' | 'ready' | 'empty' | 'failed'>('loading')
   const [loadError, setLoadError] = useState<{ code: string; message: string } | undefined>()
   const [signedOut, setSignedOut] = useState(false)
@@ -1863,6 +1918,22 @@ export function CloudWorkspacesView({
                 新建会话
               </button>
             </div>
+            {selectedId !== undefined && (
+              <p
+                className={css.hint}
+                aria-label="工作空间会话状态"
+                role={workspaceSession !== undefined && !workspaceSession.ok ? 'alert' : undefined}
+              >
+                {workspaceSession === undefined
+                  ? '正在准备本工作空间的会话…'
+                  : workspaceSession.ok
+                    // Readiness only: the conversation itself lands in this pane in
+                    // the next step. The id is shortened because a full SessionId is
+                    // noise on screen, and it is not a handle the user acts on.
+                    ? `本工作空间的会话已就绪：${String(workspaceSession.sessionId).slice(0, 8)}…`
+                    : `本工作空间的会话不可用：${workspaceSession.message}`}
+              </p>
+            )}
             {/* The 「工作台已让出中栏…」 hint lived here. It described the docked
                 layout, in which this workbench sat beside the shell's conversation
                 and the native session stayed interactive in the app rail. The

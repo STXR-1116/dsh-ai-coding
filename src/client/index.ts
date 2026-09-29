@@ -41,6 +41,8 @@ import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
 import { en, NS, zh, type PlatformKey } from './locales.ts'
+import { WorkspaceSessionsRemote } from './remote/workspace-sessions.ts'
+import { resolveBrowserStorage } from './cloud-workspaces/workspace-session-store.ts'
 import { PlatformDemoController } from './controller.ts'
 import { PlatformEntry } from './PlatformEntry.tsx'
 import { PlatformSurfaceEntry } from './PlatformSurfaceEntry.tsx'
@@ -112,17 +114,44 @@ export const inject = ['locale', 'slots', 'sessions', 'layout']
 interface ClientSessionFace {
   /** Focus one existing Session. */
   open(id: SessionId): void
-  /** Create and open a new Session. */
-  create(): unknown
+  /** Create and adopt a Session on the Host; resolves once addressable. */
+  create(opts?: { readonly workspaceId?: string; readonly cwd?: string }): Promise<string>
+  /** Resolve one Session's binding; `undefined` when the id is unknown. */
+  binding(id: string): unknown
 }
 
 /**
- * Read the client-side service face off the shared context.
- * @param ctx - client plugin context carrying the assembled services.
- * @returns the session face, client-side typed.
+ * The client workspace-controller slice this plugin needs.
+ *
+ * Same boundary and same reason as {@link ClientSessionFace}: the `workspaces` key
+ * is declared by whichever half wins declaration merging in this single program,
+ * so the browser face is narrowed here once — from the published client contract
+ * (`IWorkspaces.archiveSession(sessionId): Promise<RemoteResult<WorkspaceArchiveValue>>`,
+ * see `docs/cloud-workspace-redesign.md` §10), not guessed.
  */
-function clientFaces(ctx: ClientContext): { sessions: ClientSessionFace } {
-  return { sessions: ctx.sessions as unknown as ClientSessionFace }
+interface ClientWorkspacesFace {
+  /**
+   * Archive a Session into the registry-global archive set: hidden from every
+   * grouping surface, log and accounting slot retained.
+   * @param sessionId - Session to hide.
+   * @returns the remote result; `ok: false` carries a stable code.
+   */
+  archiveSession(sessionId: string): Promise<{ readonly ok: boolean; readonly error?: { readonly code: string; readonly message: string } }>
+}
+
+/**
+ * Read the client-side service faces off the shared context.
+ * @param ctx - client plugin context carrying the assembled services.
+ * @returns the session and workspace faces, client-side typed.
+ */
+function clientFaces(ctx: ClientContext): { sessions: ClientSessionFace; workspaces: ClientWorkspacesFace | undefined } {
+  return {
+    sessions: ctx.sessions as unknown as ClientSessionFace,
+    // Read through a cast rather than a declaration: whether cordis' `Context`
+    // carries `workspaces` depends on which half of the program won the merge,
+    // and an absent provider must read as "unavailable", never as a crash.
+    workspaces: (ctx as unknown as { workspaces?: ClientWorkspacesFace }).workspaces,
+  }
 }
 
 /**
@@ -148,11 +177,30 @@ export function apply(ctx: ClientContext): void {
     () => teamSkills.currentGrant(),
     (grant) => { teamSkills.clearSessionIfCurrent(grant) },
   )
-  // The face this plugin's components consume: the two namespaces self-hosted,
-  // shaped exactly like the assembled `ctx.remote` they stand in for.
-  const remote: PlatformRemote = { teamSkills, cloudWorkspaces }
   const controller = new PlatformDemoController()
   const faces = clientFaces(ctx)
+  // Cloud-Workspace conversation sessions: one session per Workspace, created on
+  // demand and archived the moment it exists, so it never appears in the shell's
+  // session list while the session controller still resolves it (redesign notes
+  // §10). The durable mapping is scoped per account; when the services or the
+  // storage are unavailable the face reports a stable failure rather than
+  // inventing a session id.
+  const workspaceSessions = new WorkspaceSessionsRemote({
+    // Thunks, not values: this fragment is applied while the browser app is still
+    // assembling, so a service that is absent right now may exist a moment later.
+    // Capturing it here would pin this face to "unavailable" for the session.
+    services: () => {
+      const current = clientFaces(ctx)
+      return current.workspaces === undefined
+        ? undefined
+        : { sessions: current.sessions, workspaces: current.workspaces }
+    },
+    storage: resolveBrowserStorage,
+  })
+  // The face this plugin's components consume: the two namespaces self-hosted,
+  // shaped exactly like the assembled `ctx.remote` they stand in for, plus this
+  // plugin's own `workspaceSessions`.
+  const remote: PlatformRemote = { teamSkills, cloudWorkspaces, workspaceSessions }
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-ai-coding-platform: dictionaries')
 
   ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({

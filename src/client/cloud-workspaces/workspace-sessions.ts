@@ -95,7 +95,16 @@ export type WorkspaceSessionOutcome =
  */
 export async function ensureWorkspaceSession(input: {
   readonly workspaceId: string
-  readonly cwd: string
+  /**
+   * Local working directory for the session, when one is known.
+   *
+   * A **cloud** workspace contributes none: the plugin never learns its remote
+   * physical path (design doc §4 — 「插件不显示或保存远程物理路径」), so the workbench
+   * passes `workspaceId` alone and the session takes the default location. The
+   * field stays because a local association may legitimately become known later,
+   * and because the tests exercise both shapes.
+   */
+  readonly cwd?: string
   readonly sessions: WorkspaceSessionService
   readonly workspaces: WorkspaceArchiveService
   readonly store: WorkspaceSessionStore
@@ -107,7 +116,11 @@ export async function ensureWorkspaceSession(input: {
 
   let sessionId: string
   try {
-    sessionId = await input.sessions.create({ workspaceId: input.workspaceId, cwd: input.cwd })
+    sessionId = await input.sessions.create(
+      input.cwd === undefined
+        ? { workspaceId: input.workspaceId }
+        : { workspaceId: input.workspaceId, cwd: input.cwd },
+    )
   } catch (error) {
     return { ok: false, code: 'CREATE_FAILED', message: error instanceof Error ? error.message : String(error) }
   }
