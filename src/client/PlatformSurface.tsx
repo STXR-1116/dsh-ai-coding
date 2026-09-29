@@ -1051,54 +1051,39 @@ function PlatformShell({ controller, t, remote, layout, useSessions, useWorkspac
     )
   }
 
-  // The docked workbench borrows the frame's right edge: reserve exactly the
-  // rendered surface width so the native conversation column shrinks beside
-  // it instead of being covered. The surface width depends on the viewport
-  // alone, so measuring it cannot feed back into the layout.
   const surfaceRef = useRef<HTMLDivElement | null>(null)
   const docked = view === 'cloud-workspaces'
-  // docked 工作台进入时收窄侧栏（64px 图标栏）；退出时恢复展开。
+  // 进入工作台时收起我们自己的图标栏（64px），把宽度让给三栏；退出时恢复展开。
   useEffect(() => {
     setRailCollapsed(docked)
   }, [docked])
+  // This overlay covers the whole viewport in **every** view — its geometry lives
+  // in `.surface` (`inset: 0`), not in the frame. `layout.openRightbar()` only
+  // *reports* the right panel's presentation; it never positioned this overlay,
+  // which is why the docked report this effect used to send (together with the
+  // `.surfaceDocked` geometry that matched it) changed nothing on screen. The
+  // overview view already retracts the report, and that is all the frame needs.
   useEffect(() => {
-    if (!docked) {
-      layout.closeRightbar()
-      return
-    }
-    // 0.1.5 replaced the pixel-width geometry call `reserveRight(px)` with a
-    // presentation report; the frame owns the width, the overlay only declares how
-    // its panel is presented. The 0.1.5-era call passed `(true, false)` — a
-    // reserved grid track — which squeezed the shell's centre and pushed this
-    // surface into a narrow right column beside the conversation. That is not the
-    // design: the plugin is a **fullscreen overlay** whose own layout is the three
-    // columns (left project/工程目录, centre session, right Preview/Changes/Run),
-    // following the Codex-style workbench in
-    // `插件-云工作空间设计文档.md` §2. So: cover the frame, reserve no track.
-    //   fullscreen (2nd) — "whether the panel covers the frame and hides its outer
-    //     resize handle";
-    //   track (1st) — reserves a grid track "including beneath a fullscreen
-    //     overlay", i.e. it would keep narrowing the shell underneath a panel
-    //     nobody can see past.
-    layout.openRightbar(false, true)
+    layout.closeRightbar()
     return () => {
       layout.closeRightbar()
     }
-  }, [docked, layout])
+  }, [layout])
 
   return (
     <div
       ref={surfaceRef}
-      className={docked ? `${css.surface} ${css.surfaceDocked}` : css.surface}
+      className={css.surface}
       data-style-surface=""
       data-theme={resolvedTheme}
       data-density={appearance.density}
       data-focus-mode={focusMode}
       data-rail-collapsed={railCollapsed ? 'true' : 'false'}
       role="dialog"
-      // Docked workbench keeps the resident native session interactive
-      // beside it, so the dialog stops being modal for that view.
-      aria-modal={docked ? undefined : true}
+      // The surface covers the viewport in every view, so it is modal in every
+      // view. It used to be exempt for cloud-workspaces, back when a docked
+      // surface left the resident native session interactive beside it.
+      aria-modal={true}
       aria-label={t('platform.name')}
     >
       <div

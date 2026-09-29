@@ -1863,7 +1863,11 @@ export function CloudWorkspacesView({
                 新建会话
               </button>
             </div>
-            <p className={css.hint}>工作台已让出中栏：原生会话在左侧应用栏中显示与输入，此处的 Session/Run 关联跟随当前原生会话。</p>
+            {/* The 「工作台已让出中栏…」 hint lived here. It described the docked
+                layout, in which this workbench sat beside the shell's conversation
+                and the native session stayed interactive in the app rail. The
+                workbench now covers the viewport and owns its own session, so that
+                hint told the user the opposite of what happens. */}
           </section>
           {selected !== undefined && (
             <section className={css.lensSection}>

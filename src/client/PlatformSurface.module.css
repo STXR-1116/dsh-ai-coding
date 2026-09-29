@@ -165,39 +165,16 @@
   isolation: isolate;
 }
 
-/* Workbench dock: the cloud-workspaces view yields the app's own center
-   column to the resident native conversation, so the surface anchors right
-   and stays non-modal while that view is active. */
-.surfaceDocked {
-  left: auto;
-  /* 完整桌面档（≥1280 视口）需要 ≥960px 容器展示三栏标杆（规格 §6/§9）；
-     docked 态侧栏自动收窄为 64px 图标栏（可展开，a11y 名称保留），
-     更窄视口仍折叠为单栏 + 抽屉。 */
-  width: min(1280px, 88%);
-  min-width: 560px;
-  border-left: 1px solid var(--dsh-border-subtle);
-  box-shadow: -24px 0 48px var(--dsh-shadow-color);
-  /* docked 进入时由组件置 data-rail-collapsed，折叠样式走统一规则。 */
-}
-.surfaceDocked .rail {
-  padding-inline: 8px;
-}
-
-.surfaceDocked .brandBlock {
-  justify-content: center;
-  padding-inline: 4px;
-}
-
-/* Narrow viewports: the docked workbench takes the full width so the
-   conversation keeps a usable column (spec §9 <768). */
-@media (max-width: 768px) {
-  .surfaceDocked {
-    width: 100%;
-    min-width: 0;
-    border-left: 0;
-    box-shadow: none;
-  }
-}
+/* The workbench covers the whole viewport in every view, cloud-workspaces
+   included — `.surface` above already pins it to `inset: 0`.
+   There used to be a `.surfaceDocked` variant here: it anchored the surface
+   right at `min(1280px, 88%)` so the app's own centre column could stay visible
+   beside it ("yields the app's own center column to the resident native
+   conversation"). The owner rejected that layout — the cloud workspace must
+   occupy the whole interface — so the docked geometry is gone.
+   Note where the geometry lives: `ILayout.openRightbar` only *reports* the right
+   panel's presentation to the frame; it never positioned this overlay. Changing
+   that call therefore changed nothing on screen. */
 
 /* `:where()` keeps this reset at element specificity (0,0,1) so the component
    button classes (0,1,0) still win: a plain `.surface button` reset (0,1,1) beat
