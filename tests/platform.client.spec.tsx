@@ -608,7 +608,7 @@ describe('AI Coding platform demo', () => {
   // so the frame owns the track width and the overlay no longer measures itself.
   // The assertion follows the new contract: retract while undocked, report a
   // reserved (non-fullscreen) track while docked, retract on cleanup.
-  it('reports the docked right panel to the frame and retracts it on close', async () => {
+  it('reports the fullscreen right panel to the frame and retracts it on close', async () => {
     const layout = { openRightbar: vi.fn(), closeRightbar: vi.fn(), toggleSidebar: vi.fn(), openDetails: vi.fn(), closeDetails: vi.fn() }
     const controller = new PlatformDemoController()
     controller.open()
@@ -627,8 +627,14 @@ describe('AI Coding platform demo', () => {
     expect(layout.openRightbar).not.toHaveBeenCalled()
     const retractsAfterOverview = layout.closeRightbar.mock.calls.length
     fireEvent.click(await screen.findByRole('button', { name: '云工作空间' }))
-    // Docked: a reserved grid track, not a fullscreen cover.
-    expect(layout.openRightbar).toHaveBeenCalledWith(true, false)
+    // Fullscreen, no track — the owner's decision (plan B): the plugin is a fullscreen
+    // overlay whose *own* layout is the three columns (left project/工程目录, centre
+    // session, right Preview/Changes/Run). The docked track this test used to assert
+    // squeezed this surface into a narrow column beside the shell's conversation, which
+    // is precisely what the owner rejected. `track: false` follows the contract's own
+    // wording: a track is reserved "including beneath a fullscreen overlay", so keeping
+    // one would go on narrowing the shell underneath a panel nobody can see past.
+    expect(layout.openRightbar).toHaveBeenCalledWith(false, true)
     view.unmount()
     expect(layout.closeRightbar.mock.calls.length).toBeGreaterThan(retractsAfterOverview)
   })

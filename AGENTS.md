@@ -28,6 +28,11 @@
 ```pwsh
 # 1) 递增版本 —— 必做，理由见下
 node -e "const f='package.json',p=require('./'+f);p.version='0.1.N';require('fs').writeFileSync(f,JSON.stringify(p,null,2)+'\n')"
+# 全量必须绿。冒烟只查"挂载得起来"，不查契约测试 —— 0.1.11 就是这样溜过去的：
+# 我改了 openRightbar 的调用，一条断言旧契约的单测变红，而 build/pack/安装/冒烟全绿，
+# 于是带红测试的版本装到了你机器上。行为变更后，测试要么跟着改（有意的契约变更），
+# 要么说明改错了 —— 不许"没跑全量"。
+pnpm test
 pnpm build
 pnpm pack
 dsh plugin --profile web add (Resolve-Path dsh-ai-coding-<version>.tgz).Path

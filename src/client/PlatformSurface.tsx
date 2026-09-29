@@ -1067,10 +1067,20 @@ function PlatformShell({ controller, t, remote, layout, useSessions, useWorkspac
       return
     }
     // 0.1.5 replaced the pixel-width geometry call `reserveRight(px)` with a
-    // presentation report: the frame owns the track width, so the overlay only
-    // declares that its right panel is docked — a reserved grid track, not a
-    // fullscreen cover. That removes the width measurement the old call needed.
-    layout.openRightbar(true, false)
+    // presentation report; the frame owns the width, the overlay only declares how
+    // its panel is presented. The 0.1.5-era call passed `(true, false)` — a
+    // reserved grid track — which squeezed the shell's centre and pushed this
+    // surface into a narrow right column beside the conversation. That is not the
+    // design: the plugin is a **fullscreen overlay** whose own layout is the three
+    // columns (left project/工程目录, centre session, right Preview/Changes/Run),
+    // following the Codex-style workbench in
+    // `插件-云工作空间设计文档.md` §2. So: cover the frame, reserve no track.
+    //   fullscreen (2nd) — "whether the panel covers the frame and hides its outer
+    //     resize handle";
+    //   track (1st) — reserves a grid track "including beneath a fullscreen
+    //     overlay", i.e. it would keep narrowing the shell underneath a panel
+    //     nobody can see past.
+    layout.openRightbar(false, true)
     return () => {
       layout.closeRightbar()
     }
