@@ -573,11 +573,41 @@
   padding: 4px 0;
 }
 
+/* Layout presets hide panes — and must also **release their tracks**.
+   The template above is explicit (five tracks), so `display: none` alone left 260px
+   and 320px of dead space and squeezed the remaining column into a sliver: that is
+   what rendered 「专注会话」's content one character per line. (Before the template
+   became explicit, auto-placement happened to re-flow the survivors, so the defect
+   stayed hidden.) Hidden panes are hidden whole — never left as a zero-width track
+   with padding, which would paint over its neighbours. */
 .columns[data-layout='focus-session'] .leftPane,
 .columns[data-layout='focus-session'] .rightPane,
-.columns[data-layout='review-diff'] .nativeSessionPane,
+.columns[data-layout='review-diff'] .centerPane,
 .columns[data-layout='monitor-runs'] .leftPane,
-.columns[data-layout='monitor-runs'] .nativeSessionPane {
+.columns[data-layout='monitor-runs'] .centerPane {
+  display: none;
+}
+
+/* 专注会话 — the conversation alone, filling the workbench. */
+.columns[data-layout='focus-session'] {
+  grid-template-columns: 0 0 minmax(0, 1fr) 0 0;
+}
+
+/* 审阅 diff — tree + panels; the panels take the remaining width. */
+.columns[data-layout='review-diff'] {
+  grid-template-columns: var(--dsh-tree-w, 260px) 0 0 0 minmax(0, 1fr);
+}
+
+/* 监控运行 — the panels alone, filling the workbench. */
+.columns[data-layout='monitor-runs'] {
+  grid-template-columns: 0 0 0 0 minmax(0, 1fr);
+}
+
+/* A separator that no longer separates two visible columns is hidden too; 审阅 diff
+   keeps its tree divider, because the tree is still there to resize. */
+.columns[data-layout='focus-session'] .panelDivider,
+.columns[data-layout='review-diff'] .panelDivider[data-panel-divider='right'],
+.columns[data-layout='monitor-runs'] .panelDivider {
   display: none;
 }
 
