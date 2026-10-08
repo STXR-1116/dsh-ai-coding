@@ -26,7 +26,7 @@
   align-items: center;
   gap: 4px;
   margin: 0;
-  font-size: 17px;
+  font-size: var(--dsh-cw-font-title, 16px);
 }
 
 .projectSelect {
@@ -38,8 +38,8 @@
   display: inline-flex;
   align-items: center;
   padding: 4px 8px;
-  border-radius: 14px;
-  font-size: 12px;
+  border-radius: var(--dsh-cw-radius-pill, 999px);
+  font-size: var(--dsh-content-font-size-secondary, 12px);
   background: var(--dsh-bg-hover);
 }
 
@@ -58,7 +58,9 @@
   /* Widths come from the drag separators via --dsh-tree-w/--dsh-panel-w; the
      container query below overrides the whole declaration when collapsed. */
   grid-template-columns: var(--dsh-tree-w, 260px) minmax(0, 1fr) var(--dsh-panel-w, 320px);
-  gap: 12px;
+  /* No gutter: the columns are separated by their own 1px dividers, so a gap would
+     read as a second, wider boundary next to the line. */
+  gap: 0;
   flex: 1;
   min-height: 0;
 }
@@ -100,36 +102,48 @@
   outline-offset: 2px;
 }
 
+/* The three columns are full-bleed areas separated by 1px dividers, not three
+   bordered cards. DSH's own conversation page separates regions this way: the
+   panes share one canvas and the boundary is a line, so the eye reads three areas
+   rather than three boxes. Card-per-pane also doubled every border against the
+   overlay's own edge — see docs/cloud-workspace-style-audit.md §6. */
 .leftPane,
 .rightPane {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--dsh-cw-gap, 8px);
   min-height: 0;
   overflow: auto;
-  padding: 8px;
-  border: 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover));
-  border-radius: 10px;
+  padding: var(--dsh-cw-pane-pad, 12px);
+}
+
+.leftPane {
+  border-right: var(--dsh-cw-divider, 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover)));
 }
 
 .centerPane {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--dsh-cw-gap, 8px);
+  min-width: 0;
   min-height: 0;
-  padding: 8px;
-  border: 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover));
-  border-radius: 10px;
+  padding: var(--dsh-cw-pane-pad, 12px);
 }
 
+.rightPane {
+  border-left: var(--dsh-cw-divider, 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover)));
+}
+
+/* Nested inside the session column, so it is separated by a divider rather than
+   boxed: that column already reads as one area, and the native-session panel is a
+   section of it, not a peer of the three columns. */
 .nativeSessionPane {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--dsh-cw-gap, 8px);
   flex: none;
-  padding: 8px;
-  border: 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover));
-  border-radius: 10px;
+  padding-bottom: var(--dsh-cw-gap, 8px);
+  border-bottom: var(--dsh-cw-divider, 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover)));
 }
 
 .nativeSessionBar {
@@ -157,7 +171,7 @@
   padding: 4px 8px;
   text-align: left;
   border: none;
-  border-radius: 7px;
+  border-radius: var(--dsh-cw-radius-control, 6px);
   background: transparent;
   cursor: pointer;
 }
@@ -167,18 +181,18 @@
 }
 
 .workspaceName {
-  font-size: 14px;
+  font-size: var(--dsh-content-font-size, 14px);
   font-weight: 600;
 }
 
 .workspaceMeta {
-  font-size: 12px;
+  font-size: var(--dsh-content-font-size-secondary, 12px);
   opacity: 0.75;
 }
 
 .workspaceError {
   color: var(--dsh-status-danger-text);
-  font-size: 12px;
+  font-size: var(--dsh-content-font-size-secondary, 12px);
 }
 
 .fileTree ul {
@@ -192,9 +206,9 @@
   width: 100%;
   padding: 4px 4px;
   text-align: left;
-  font-size: 12px;
+  font-size: var(--dsh-content-font-size-secondary, 12px);
   border: none;
-  border-radius: 7px;
+  border-radius: var(--dsh-cw-radius-control, 6px);
   background: transparent;
   cursor: pointer;
 }
@@ -209,7 +223,7 @@
 
 .paneTitle {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--dsh-content-font-size, 14px);
   font-weight: 600;
 }
 
@@ -218,7 +232,7 @@
   grid-template-columns: auto 1fr;
   gap: 4px 12px;
   margin: 0;
-  font-size: 14px;
+  font-size: var(--dsh-content-font-size, 14px);
 }
 
 .sessionFacts dt {
@@ -231,7 +245,7 @@
 
 .hint {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--dsh-content-font-size, 14px);
   opacity: 0.7;
 }
 
@@ -244,8 +258,8 @@
   gap: 8px;
   margin: 0;
   padding: 8px 8px;
-  border-radius: 7px;
-  font-size: 14px;
+  border-radius: var(--dsh-cw-radius-control, 6px);
+  font-size: var(--dsh-content-font-size, 14px);
 }
 
 .errorBanner,
@@ -274,8 +288,8 @@
   display: inline-flex;
   align-items: center;
   padding: 4px 8px;
-  border-radius: 14px;
-  font-size: 12px;
+  border-radius: var(--dsh-cw-radius-pill, 999px);
+  font-size: var(--dsh-content-font-size-secondary, 12px);
   background: var(--dsh-bg-hover);
   color: var(--dsh-status-warning-text);
 }
@@ -297,7 +311,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 12px;
+  font-size: var(--dsh-content-font-size-secondary, 12px);
   opacity: 0.85;
 }
 
@@ -315,14 +329,14 @@
   gap: 8px;
   padding: 8px;
   border: 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover));
-  border-radius: 7px;
+  border-radius: var(--dsh-cw-radius-control, 6px);
 }
 
 .fieldRow input {
   padding: 4px 8px;
-  font-size: 14px;
+  font-size: var(--dsh-content-font-size, 14px);
   border: 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover));
-  border-radius: 7px;
+  border-radius: var(--dsh-cw-radius-control, 6px);
   background: transparent;
   color: inherit;
 }
@@ -333,17 +347,17 @@
   align-items: center;
   gap: 8px;
   padding: 8px 8px;
-  font-size: 14px;
-  border-radius: 7px;
+  font-size: var(--dsh-content-font-size, 14px);
+  border-radius: var(--dsh-cw-radius-control, 6px);
   background: var(--dsh-status-danger-soft);
   color: var(--dsh-status-danger-text);
 }
 
 .dangerButton {
   padding: 4px 12px;
-  font-size: 14px;
+  font-size: var(--dsh-content-font-size, 14px);
   border: 1px solid var(--dsh-status-danger, var(--dsh-status-danger-text));
-  border-radius: 7px;
+  border-radius: var(--dsh-cw-radius-control, 6px);
   color: var(--dsh-status-danger-text);
   background: transparent;
   cursor: pointer;
@@ -362,9 +376,9 @@
 .tab,
 .tabActive {
   padding: 4px 12px;
-  font-size: 14px;
+  font-size: var(--dsh-content-font-size, 14px);
   border: 1px solid transparent;
-  border-radius: 14px;
+  border-radius: var(--dsh-cw-radius-pill, 999px);
   background: transparent;
   cursor: pointer;
 }
@@ -386,13 +400,13 @@
   width: 100%;
   min-height: 260px;
   border: 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover));
-  border-radius: 7px;
+  border-radius: var(--dsh-cw-radius-control, 6px);
   background: var(--dsh-bg-surface);
 }
 
 .previewImage {
   max-width: 100%;
-  border-radius: 7px;
+  border-radius: var(--dsh-cw-radius-control, 6px);
 }
 
 .previewText,
@@ -400,9 +414,9 @@
   margin: 0;
   padding: 8px;
   overflow: auto;
-  font-size: 12px;
+  font-size: var(--dsh-content-font-size-secondary, 12px);
   white-space: pre-wrap;
-  border-radius: 7px;
+  border-radius: var(--dsh-cw-radius-control, 6px);
   background: var(--dsh-bg-hover);
 }
 
@@ -417,7 +431,7 @@
 }
 
 .changePath {
-  font-size: 14px;
+  font-size: var(--dsh-content-font-size, 14px);
   font-weight: 600;
 }
 
@@ -428,21 +442,21 @@
 
 .runSnapshot {
   color: var(--dsh-text-tertiary);
-  font-size: 11px;
+  font-size: var(--dsh-content-font-size-secondary, 12px);
 }
 
 .runItem {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: var(--dsh-content-font-size-secondary, 12px);
 }
 
 .actionButton {
   padding: 4px 12px;
-  font-size: 14px;
+  font-size: var(--dsh-content-font-size, 14px);
   border: 1px solid var(--dsh-accent-brand, var(--dsh-accent-action));
-  border-radius: 7px;
+  border-radius: var(--dsh-cw-radius-control, 6px);
   color: var(--dsh-accent-brand, var(--dsh-accent-action));
   background: transparent;
   cursor: pointer;
@@ -456,7 +470,7 @@
 .iconButton {
   padding: 4px;
   border: none;
-  border-radius: 7px;
+  border-radius: var(--dsh-cw-radius-control, 6px);
   background: transparent;
   cursor: pointer;
 }
@@ -468,9 +482,9 @@
 
 .drawerToggle {
   padding: 4px 12px;
-  font-size: 14px;
+  font-size: var(--dsh-content-font-size, 14px);
   border: 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover));
-  border-radius: 7px;
+  border-radius: var(--dsh-cw-radius-control, 6px);
   background: transparent;
 }
 
@@ -502,12 +516,12 @@
   margin: 0 0 8px;
   padding: 0;
   list-style: none;
-  font-size: 11px;
+  font-size: var(--dsh-content-font-size-secondary, 12px);
 }
 
 .wizardStep {
   padding: 4px 8px;
-  border-radius: 14px;
+  border-radius: var(--dsh-cw-radius-pill, 999px);
   border: 1px solid var(--dsh-bg-overlay);
   color: var(--dsh-text-tertiary);
 }
@@ -521,12 +535,12 @@
   display: grid;
   gap: 4px;
   margin: 0 0 8px;
-  font-size: 12px;
+  font-size: var(--dsh-content-font-size-secondary, 12px);
 }
 
 .wizardConfirm dt {
   color: var(--dsh-text-tertiary);
-  font-size: 11px;
+  font-size: var(--dsh-content-font-size-secondary, 12px);
 }
 
 .wizardConfirm dd {
@@ -559,7 +573,7 @@
   margin-top: 6px;
   padding: 10px;
   border: 1px solid var(--dsh-border-strong, #94a3b8);
-  border-radius: 8px;
+  border-radius: var(--dsh-cw-radius-container, 8px);
 }
 
 .approvalGrid {
@@ -594,7 +608,7 @@
   overflow: auto;
   padding: 12px;
   border: 1px solid var(--dsh-border-strong, #94a3b8);
-  border-radius: 10px;
+  border-radius: var(--dsh-cw-radius-container, 8px);
   background: var(--dsh-surface, #ffffff);
   box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
 }
@@ -608,7 +622,7 @@
   margin: 6px 0 0;
   padding: 8px 8px 8px 24px;
   border: 1px solid var(--dsh-border-strong, #94a3b8);
-  border-radius: 8px;
+  border-radius: var(--dsh-cw-radius-container, 8px);
 }
 
 .pulseEntry {
@@ -649,7 +663,7 @@
   width: 100%;
   padding: 10px;
   border: 1px solid var(--dsh-border-strong, #94a3b8);
-  border-radius: 8px;
+  border-radius: var(--dsh-cw-radius-container, 8px);
 }
 
 .lensGroup {
