@@ -281,14 +281,22 @@ export async function runMechanismProbe(ctx: Context): Promise<ProbeReport> {
       return { ok: false, detail: 'M3 未成功或 openTab 不可用' }
     }
     try {
-      sidebarRight.openTab(probeKind, { replaceTab: false, revealIfOpened: false })
+      // **不传 `replaceTab`**：这里调的是**导航服务** `ctx.sidebarRight.openTab`，其
+      // `replaceTab?: TabId`（字符串，见随包 `service.d.ts`）；而官方文档页举的例子用的是
+      // **tab 自身动作** `tab.actions.openTab`，那里的 `replaceTab?: boolean`（`slots.d.ts`）。
+      // 两者同名、选项类型不同 —— 我照文档写了 `replaceTab: false`，于是布局引擎去找一个叫
+      // `false` 的 tab，报 `layout: tab false has no pane`。
+      sidebarRight.openTab(probeKind)
       const split = sidebarRight.split?.()
       const expanded = sidebarRight.isExpanded?.()
+      facts.activeTab = (() => {
+        try { return JSON.stringify(sidebarRight.active?.() ?? null).slice(0, 120) } catch (error) { return `active() 抛错：${String(error)}` }
+      })()
       facts.splitReturned = split === undefined ? 'undefined' : String(split).slice(0, 40)
       facts.expandedAfterOpen = expanded
       multiPane = split === undefined
-        ? { ok: false, detail: 'openTab 未抛错但 split() 返回 undefined（预算或宽度不允许，或 API 形状不同）' }
-        : { ok: true, detail: `openTab 成功且 split() 返回 ${String(split).slice(0, 24)}…` }
+        ? { ok: false, detail: `openTab 未抛错（active=${String(facts.activeTab)}，expanded=${String(expanded)}），但 split() 返回 undefined` }
+        : { ok: true, detail: `openTab 成功、split() 返回 ${String(split).slice(0, 24)}…，expanded=${String(expanded)}` }
       return multiPane
     } catch (error) {
       return { ok: false, detail: `openTab/split 抛错：${error instanceof Error ? error.message : String(error)}` }
