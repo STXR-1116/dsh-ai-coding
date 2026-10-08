@@ -281,4 +281,32 @@ goal/change · todo/write · deliverables/presented · subagent/catalog · subag
 Puppeteer 读到的 DOM 节点；由 `build/` 下的脚本启动自己的 `dsh web` 实例读取结果 —— 这样
 **不影响所有者正在运行的实例**，也无需他重启。
 
+## 10. 机制验证结果：**四条全部通过**（2026-09-22，真机）
+
+| # | 机制 | 结果 | 证据 |
+| --- | --- | --- | --- |
+| **M1** | 外壳 Conversation 能渲染我们创建的会话 | ✅ | `uiConversation.binding(id).target("chat")` 可解析且具备 `getSnapshot/subscribe` |
+| **M2** | **归档**会话能否 `open` | ✅ | `open(已归档 id)` 未抛错，且该会话**仍在控制器列表**（列表 34 个 id，映射的 1 个在列） |
+| **M3** | 右侧 Sidebar 能承载我们注册的 pane | ✅ | `sidebarRightTabs.register({id,kind,patterns,canOpen,title})` 成功；正文经 `slots.inject('sidebar.right.pane.tab', …)` 登记 |
+| **M4** | 右栏**多 pane** 能共存 | ✅ | `openTab(kind)` + `split()` 成功；所有者截图里**同一右栏并列两块**：我们的「探针 pane」（正文已渲染）与内置「文件」树 |
+
+**⇒ 方案乙成立**（右栏承载「平台会话列表 + 云文件树 + 文件预览」，两模式＝右栏折叠/展开）。
+且 M2 说明**归档策略可以保留**：归档只影响列表呈现，不影响它成为外壳的当前会话。
+
+### 10.1 三次"失败"都是探针自己的 bug（记录以免重蹈）
+
+| 表象 | 真因 |
+| --- | --- |
+| `Cannot read properties of undefined (reading 'ids')` | 我把方法**摘下来调用**丢了 `this`，而注册表用私有字段 `this.ids`。**本仓早有测试守着这个坑**（`conversation-source.ts`：「calls the underlying methods with their own receiver」），我却在探针里踩了，还据此误判"机制不可行" |
+| `layout: tab false has no pane` | **两条同名 API 的选项类型不同**：导航服务 `ctx.sidebarRight.openTab` 的 `replaceTab?: TabId`（字符串），tab 自身动作 `tab.actions.openTab` 的 `replaceTab?: boolean`。文档页举的是后者，我照着写却调了前者 |
+| 所有者"一进会话就被踢回首页"（每 4 秒） | 探针每轮都调 `ISessions.open()`，而它会改变界面上的当前会话。**这是我该预见到的副作用** |
+
+### 10.2 验证方法本身的两条经验
+
+- **判据不能自己发明**：我最初用 `[contenteditable="true"]` / `<main>` 判断"会话面是否挂载"，
+  两个标记都不存在 —— 该 facts 项不可信，已作废。官方契约给的可靠判据是**写操作的行为**：
+  没有挂载的会话面时 `openTab` 抛 `no session surface is mounted`。
+- **"没测到"要区分三种**：机制不可行 / 调用写错 / 环境不具备。三次失败分别属于后两种，
+  而我第一次就下了"机制不可行"的结论 —— 这正是本文开头那条规矩要防的错误。
+
 

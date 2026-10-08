@@ -42,7 +42,6 @@ import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
 import { en, NS, zh, type PlatformKey } from './locales.ts'
 import { WorkspaceSessionsRemote, type UiConversationFace } from './remote/workspace-sessions.ts'
-import { maybeRunMechanismProbe } from './probe.ts'
 import { resolveBrowserStorage } from './cloud-workspaces/workspace-session-store.ts'
 import { PlatformDemoController } from './controller.ts'
 import { PlatformEntry } from './PlatformEntry.tsx'
@@ -183,9 +182,6 @@ function readUiConversation(ctx: ClientContext): UiConversationFace | undefined 
  * @param ctx - client plugin context (the mounting fiber's cordis context).
  */
 export function apply(ctx: ClientContext): void {
-  // 临时机制探针（仅 URL 带 ?probe=1 时运行）：验证复用 DSH 前端所依赖的四条机制。
-  // 见 src/client/probe.ts 与 docs/cloud-workspace-reuse-design.md §9.5 —— 验证完即删。
-  void maybeRunMechanismProbe(ctx)
   // The 0.1.5-rc.2 client runner delivers no mount-row configuration to
   // browser fragments (see docs/api-drift-ledger.md D23): the deployment
   // values come from the workbench's settings face instead, applied live.
