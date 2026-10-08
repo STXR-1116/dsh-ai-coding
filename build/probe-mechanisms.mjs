@@ -83,6 +83,27 @@ async function clickByText(page, labels) {
 }
 
 /**
+ * 点侧栏里一个**已知标题**的会话，让 Conversation 挂载。
+ *
+ * 这条是实测逼出来的：全新浏览器没有工作区/当前会话记录，应用停在「选择工作区」英雄页，
+ * 而右侧 Sidebar 的席位「仅在选中 Conversation 时」挂载 —— 不进入会话就测不到 M3/M4。
+ * 标题取自所有者浏览器里真实存在的会话名（截图可见），不猜 DOM 结构：找 textContent
+ * **恰好等于**标题的元素，取最深的一个点击（容器也含同样文本，点容器不会打开会话）。
+ * @param titles - 候选会话标题。
+ * @returns 是否点中。
+ */
+async function clickSessionByTitle(page, titles) {
+  return page.evaluate(candidates => {
+    const all = [...document.querySelectorAll('button, a, [role="button"], [role="treeitem"], li, div, span')]
+    const matches = all.filter(node => candidates.includes((node.textContent ?? '').trim()))
+    const target = matches[matches.length - 1]
+    if (target === undefined) return false
+    target.click()
+    return true
+  }, titles)
+}
+
+/**
  * Best-effort: 点侧栏里一个既有会话，让 Conversation 挂载。
  *
  * 不猜 DOM 结构：只认带 `data-session-id` 或 `role="listitem"` 的行；找不到就返回 false，
@@ -147,6 +168,19 @@ const main = async () => {
     console.log(`初次加载 Conversation 挂载: ${mounted}`)
     // 本脚本不再新建会话（那会在 DSH 里留下删不掉的空会话），所以没有要清理的 id。
     const createdId = undefined
+    // 进会话：点侧栏里一个已知标题的会话。这是唯一被实测证明有效的办法 ——
+    // 跳过引导、种 `dsh.sessions.current`、`ISessions.open()` 都不改变界面。
+    if (!mounted) {
+      const clicked = await clickSessionByTitle(page, [
+        '插件与管理后台调试', 'Jev', '这张图中的人物是谁', 'dsh-ai-coding', 'AI Coding Hub', '新会话',
+      ])
+      console.log(`点会话标题: ${clicked}`)
+      const afterClick = await page.waitForFunction(
+        () => document.querySelector('[contenteditable="true"]') !== null,
+        { timeout: 20_000 },
+      ).then(() => true).catch(() => false)
+      console.log(`点后 Conversation 挂载: ${afterClick}`)
+    }
     // 新浏览器没有"当前会话"记录（`dsh.sessions.current = {}`），应用停在「选择工作区」英雄页，
     // **Conversation 不挂载 ⇒ 右侧面不挂载 ⇒ M3 无从验证**（实测三次都卡在这）。
     // 所以点一次侧栏的「新会话」让会话面出现；跑完用 `__aiCodingProbeArchive` 把那个会话归档隐藏，

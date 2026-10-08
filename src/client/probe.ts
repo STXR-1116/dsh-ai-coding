@@ -39,6 +39,26 @@ export interface ProbeReport {
 /** 我们持久化映射的键前缀（`workspace-session-store` 保持一致）。 */
 const MAPPING_PREFIX = 'dsh-ai-coding:workspace-session'
 
+/**
+ * M2 只在首轮切换会话。
+ *
+ * 探针会自动重跑，而 `ISessions.open()` 会改变界面上的当前会话 —— 重复调用会把使用者从会话里
+ * 反复踢回英雄页（实测：每 4 秒一次）。机制只需要验证一次。
+ */
+let openedOnce = false
+
+/**
+ * 首轮的成功结果。
+ *
+ * 探针会自动重跑，而注册**不幂等**：同一个 tab 类型 id 再次注册会被注册表按文档拒绝
+ * （`tab type id … is already registered` —— 重复 id 属接线错误）。所以注册只做一次，
+ * 之后各轮复用首轮结论，否则报告里看到的会是"重跑时的假失败"，而首轮其实成功了。
+ */
+let registered: MechanismResult | undefined
+let multiPane: MechanismResult | undefined
+/** 已注册的探针 kind；M4 的 `openTab` 需要它，而它在重跑时不再重新注册。 */
+let probeKind: string | undefined
+
 /** 收集 localStorage 里我们记下的会话 id（探针不创建任何东西）。 */
 function mappedSessionIds(): readonly string[] {
   const ids = new Set<string>()
@@ -144,14 +164,19 @@ export async function runMechanismProbe(ctx: Context): Promise<ProbeReport> {
     binding?: (id: string) => unknown
   }
   const uiConversation = read('uiConversation') as undefined | { binding?: (id: string) => unknown }
-  const sidebarRightTabs = read('sidebarRightTabs') as undefined | { register?: unknown }
+  const sidebarRightTabs = read('sidebarRightTabs') as undefined | {
+    register?: (definition: Record<string, unknown>) => unknown
+  }
   const sidebarRight = read('sidebarRight') as undefined | {
     openTab?: (kind: string, options?: unknown) => unknown
     isExpanded?: () => boolean
     split?: (paneId?: string) => unknown
     active?: () => unknown
   }
-  const slots = read('slots') as undefined | { register?: unknown; inject?: unknown }
+  const slots = read('slots') as undefined | {
+    register?: (registration: Record<string, unknown>, component: unknown) => unknown
+    inject?: (name: string, register: () => unknown) => unknown
+  }
 
   const ids = (() => {
     try { return sessions?.list?.getSnapshot?.().ids ?? [] } catch { return [] }
@@ -173,20 +198,21 @@ export async function runMechanismProbe(ctx: Context): Promise<ProbeReport> {
   })()
 
   // M2（先做，因为 M1 依赖一个可用的会话 id）：把归档会话设为当前会话。
+  //
+  // **只在第一轮调用**：探针会自动重跑，而每次 `open()` 都会切换界面上的当前会话 —— 实测后果是
+  // 所有者一进会话就被踢回「探索未至之境」英雄页（每 4 秒一次）。机制验证不需要重复切换。
   let target = mapped.find(id => ids.includes(id)) ?? mapped[0]
   const m2: MechanismResult = (() => {
     if (target === undefined) return { ok: false, detail: '没有找到我们映射过的会话 id（先前的验收可能已清掉 localStorage）' }
+    if (openedOnce) return { ok: true, detail: `已在首轮 open(${target.slice(0, 12)}…)；本轮不重复切换会话` }
     try {
       sessions?.open?.(target)
+      openedOnce = true
       return { ok: true, detail: `open(${target.slice(0, 12)}…) 未抛错` }
     } catch (error) {
       return { ok: false, detail: `open 抛错：${error instanceof Error ? error.message : String(error)}` }
     }
   })()
-
-  // `open()` 之后等**会话面真正挂载**：右侧 Sidebar 的席位「仅在选中 Conversation 时」挂载，
-  // 而 M3 的注册要依赖它。判据取编辑器（会话区的 composer）出现。
-  facts.conversationMounted = await waitForConversationSurface()
 
   // M1：会话装配能否为该会话解析（外壳 Conversation 渲染它的前提）。
   const m1: MechanismResult = (() => {
@@ -214,55 +240,56 @@ export async function runMechanismProbe(ctx: Context): Promise<ProbeReport> {
   // 2. **要等右侧 Sidebar 的面挂载**：官方契约是「root 作用域的 rightbar 控制器**仅在选中
   //    Conversation 时**挂载该席位」，所以它是有状态依赖的，得等 M2 的 `open()` 让会话面出现。
   //    第一次实测就是在这个状态下抛 `Cannot read properties of undefined (reading 'ids')`。
-  let registeredKind: string | undefined
   const m3: MechanismResult = await (async () => {
-    if (sidebarRightTabs?.register === undefined || slots?.inject === undefined) {
-      return { ok: false, detail: 'sidebarRightTabs 或 slots 服务不可用' }
+    if (registered !== undefined) return { ...registered, detail: `${registered.detail}（重跑复用首轮结论）` }
+    const tabs = sidebarRightTabs
+    const slotRegistry = slots
+    if (tabs?.register === undefined || slotRegistry?.inject === undefined || slotRegistry.register === undefined) {
+      return { ok: false, detail: 'sidebarRightTabs 或 slots 服务不可用（缺 register/inject）' }
     }
     const kind = 'ai-coding-probe'
-    const registerTabs = sidebarRightTabs.register as (definition: unknown) => unknown
-    const inject = slots.inject as (name: string, register: () => unknown) => unknown
-    const define = (): void => {
-      registerTabs({
+    try {
+      // **带接收者**：注册表用私有字段 `this.ids`，摘下来调用会丢 `this` 并抛
+      // `Cannot read properties of undefined (reading 'ids')` —— 我第一次就是这么误判的。
+      tabs.register({
         id: '@dsh-ai-coding/probe',
         kind,
         patterns: ['*.probe'],
         canOpen: (address: string) => address.startsWith('dsh-resource://probe/'),
         title: () => '探针 pane',
       })
-      inject('sidebar.right.pane.tab', () => (slots.register as (registration: unknown, component: unknown) => unknown)(
+      // 正文走 `slots.inject(...)`（官方示例写法）：直接 register 会读到尚未声明的席位注册表。
+      // `.bind(...)` 不只是为了过类型：它**保证接收者不丢** —— 摘下来调用会丢 `this`，
+      // 本仓已经因此出过一次事故（tab 注册表那次）。
+      const registerSlot = slotRegistry.register.bind(slotRegistry)
+      slotRegistry.inject('sidebar.right.pane.tab', () => registerSlot(
         { name: 'sidebar.right.pane.tab', key: '@dsh-ai-coding/probe' },
         probePaneBody,
       ))
+      probeKind = kind
+      registered = { ok: true, detail: `已注册 kind=${kind}（带接收者调用），正文经 slots.inject 登记` }
+      return registered
+    } catch (error) {
+      return { ok: false, detail: `注册抛错：${error instanceof Error ? error.message : String(error)}` }
     }
-    let lastError = ''
-    for (let attempt = 1; attempt <= 15; attempt += 1) {
-      try {
-        define()
-        registeredKind = kind
-        return { ok: true, detail: `第 ${attempt} 次尝试成功：已注册 kind=${kind}，正文经 slots.inject 登记` }
-      } catch (error) {
-        lastError = error instanceof Error ? error.message : String(error)
-        await new Promise(resolve => setTimeout(resolve, 1_000))
-      }
-    }
-    return { ok: false, detail: `15 次重试仍失败（右侧面可能始终未挂载）：${lastError}` }
   })()
 
-  // M4：连续开两个 tab 并 split，看 pane 能否共存。
+  // M4：开一个 tab 并 split，看 pane 能否共存（重跑复用首轮结论）。
   const m4: MechanismResult = await (async () => {
-    if (registeredKind === undefined || sidebarRight?.openTab === undefined) {
+    if (multiPane !== undefined) return { ...multiPane, detail: `${multiPane.detail}（重跑复用首轮结论）` }
+    if (probeKind === undefined || sidebarRight?.openTab === undefined) {
       return { ok: false, detail: 'M3 未成功或 openTab 不可用' }
     }
     try {
-      sidebarRight.openTab(registeredKind, { replaceTab: false, revealIfOpened: false })
+      sidebarRight.openTab(probeKind, { replaceTab: false, revealIfOpened: false })
       const split = sidebarRight.split?.()
       const expanded = sidebarRight.isExpanded?.()
       facts.splitReturned = split === undefined ? 'undefined' : String(split).slice(0, 40)
       facts.expandedAfterOpen = expanded
-      return split === undefined
+      multiPane = split === undefined
         ? { ok: false, detail: 'openTab 未抛错但 split() 返回 undefined（预算或宽度不允许，或 API 形状不同）' }
         : { ok: true, detail: `openTab 成功且 split() 返回 ${String(split).slice(0, 24)}…` }
+      return multiPane
     } catch (error) {
       return { ok: false, detail: `openTab/split 抛错：${error instanceof Error ? error.message : String(error)}` }
     }
@@ -332,7 +359,24 @@ export async function maybeRunMechanismProbe(ctx: Context): Promise<ProbeReport 
     }
   } catch { /* 暴露失败不影响首次运行 */ }
 
-  return write()
+  const first = await write()
+
+  // 自动重试：探针跑在页面加载那一刻，而 M3/M4 依赖**会话面已挂载**（官方契约：右侧 Sidebar 的
+  // 席位「仅在选中 Conversation 时」挂载）。人通常是加载完之后才点进会话的，所以只跑一次必然测不到。
+  // 这里每 4 秒重跑一次、最多 90 秒，M3/M4 都成功就停 —— 使用者不必碰控制台。
+  const started = Date.now()
+  const timer = setInterval(() => {
+    if (Date.now() - started > 90_000) { clearInterval(timer); return }
+    void write().then(report => {
+      if (report.m3RightPaneRegistration.ok && report.m4MultiPane.ok) clearInterval(timer)
+    }).catch(() => { /* 单次失败不影响后续重试 */ })
+  }, 4_000)
+  try {
+    // 定时器不该拖住页面生命周期之外的东西；探针本身是临时件。
+    (globalThis as { __aiCodingProbeTimer?: unknown }).__aiCodingProbeTimer = timer
+  } catch { /* 忽略 */ }
+
+  return first
 }
 
 /**
