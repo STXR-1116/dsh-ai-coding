@@ -24,10 +24,12 @@ export interface WorkspaceSessionsFace {
   /**
    * Resolve the conversation session for one cloud Workspace, creating and hiding
    * it on first use.
-   * @param input - the signed-in account (scopes the mapping) and the Workspace.
+   * @param input - the signed-in account (scopes the mapping) and the **remote**
+   *   workspace identity. That is the platform's workspace, not a DSH local
+   *   workspace id — the two are not interchangeable (see `ensureWorkspaceSession`).
    * @returns the session to render, or a stable failure the caller must show.
    */
-  ensure(input: { readonly accountId?: string; readonly workspaceId: string }): Promise<WorkspaceSessionOutcome>
+  ensure(input: { readonly accountId?: string; readonly cloudWorkspaceId: string }): Promise<WorkspaceSessionOutcome>
 }
 
 /** Supplies the two client service faces; injected so this class stays testable. */
@@ -76,7 +78,7 @@ export class WorkspaceSessionsRemote implements WorkspaceSessionsFace {
    * @param input - the signed-in account and the cloud Workspace.
    * @returns the session to render, or a stable failure.
    */
-  async ensure(input: { readonly accountId?: string; readonly workspaceId: string }): Promise<WorkspaceSessionOutcome> {
+  async ensure(input: { readonly accountId?: string; readonly cloudWorkspaceId: string }): Promise<WorkspaceSessionOutcome> {
     const services = this.deps.services()
     if (services === undefined) {
       return { ok: false, code: 'CREATE_FAILED', message: '会话服务不可用：客户端未提供 sessions/workspaces 服务' }
@@ -89,7 +91,7 @@ export class WorkspaceSessionsRemote implements WorkspaceSessionsFace {
       return { ok: false, code: 'CREATE_FAILED', message: '会话映射无法持久化：当前环境没有 localStorage' }
     }
     return ensureWorkspaceSession({
-      workspaceId: input.workspaceId,
+      cloudWorkspaceId: input.cloudWorkspaceId,
       sessions: services.sessions,
       workspaces: services.workspaces,
       store: createWorkspaceSessionStore(storage, input.accountId),

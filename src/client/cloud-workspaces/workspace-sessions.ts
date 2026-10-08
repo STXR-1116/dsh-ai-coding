@@ -94,33 +94,40 @@ export type WorkspaceSessionOutcome =
  * @returns the session to render, or a stable failure the caller must show.
  */
 export async function ensureWorkspaceSession(input: {
-  readonly workspaceId: string
+  /**
+   * The **remote** (cloud) workspace identity, used as the mapping key.
+   *
+   * Named `cloudWorkspaceId` on purpose. It is **not** a DSH workspace id and must
+   * never be handed to `sessions.create`: the two live in different registries, and
+   * passing this one produced
+   *   `session create failed: workspace/not-found: workspace "ws-alpha-1" not found`
+   * which the workbench rendered as 「本工作空间的会话不可用」 instead of opening a
+   * conversation. The distinct names are what make that mistake unwritable.
+   */
+  readonly cloudWorkspaceId: string
   /**
    * Local working directory for the session, when one is known.
    *
    * A **cloud** workspace contributes none: the plugin never learns its remote
    * physical path (design doc §4 — 「插件不显示或保存远程物理路径」), so the workbench
-   * passes `workspaceId` alone and the session takes the default location. The
-   * field stays because a local association may legitimately become known later,
-   * and because the tests exercise both shapes.
+   * passes the workspace identity alone and the session takes the default location.
    */
   readonly cwd?: string
   readonly sessions: WorkspaceSessionService
   readonly workspaces: WorkspaceArchiveService
   readonly store: WorkspaceSessionStore
 }): Promise<WorkspaceSessionOutcome> {
-  const stored = input.store.read(input.workspaceId)
+  const stored = input.store.read(input.cloudWorkspaceId)
   if (stored !== undefined && input.sessions.binding(stored) !== undefined) {
     return { ok: true, sessionId: stored, created: false }
   }
 
   let sessionId: string
   try {
-    sessionId = await input.sessions.create(
-      input.cwd === undefined
-        ? { workspaceId: input.workspaceId }
-        : { workspaceId: input.workspaceId, cwd: input.cwd },
-    )
+    // No `workspaceId`: the session controller wants a **DSH local** workspace id,
+    // and this workbench has none to give (see the field comment above). Omitted
+    // rather than guessed — a wrong association is worse than none.
+    sessionId = await input.sessions.create(input.cwd === undefined ? {} : { cwd: input.cwd })
   } catch (error) {
     return { ok: false, code: 'CREATE_FAILED', message: error instanceof Error ? error.message : String(error) }
   }
@@ -128,7 +135,7 @@ export async function ensureWorkspaceSession(input: {
   // Persist before archiving: sessions cannot be deleted from the client, so a
   // failed archive must be retryable against this same session rather than
   // abandoning it and creating another on the next attempt.
-  input.store.write(input.workspaceId, sessionId)
+  input.store.write(input.cloudWorkspaceId, sessionId)
 
   let archived: Awaited<ReturnType<WorkspaceArchiveService['archiveSession']>>
   try {

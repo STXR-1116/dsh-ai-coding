@@ -40,7 +40,7 @@ function makeServices(create: () => Promise<string>) {
 describe('WorkspaceSessionsRemote', () => {
   it('reports a stable failure when the client services are missing', async () => {
     const remote = new WorkspaceSessionsRemote({ services: () => undefined, storage: () => makeStorage().storage })
-    const outcome = await remote.ensure({ accountId: 'user-1', workspaceId: 'ws-alpha-1' })
+    const outcome = await remote.ensure({ accountId: 'user-1', cloudWorkspaceId: 'ws-alpha-1' })
 
     expect(outcome).toMatchObject({ ok: false, code: 'CREATE_FAILED' })
   })
@@ -48,7 +48,7 @@ describe('WorkspaceSessionsRemote', () => {
   it('reports a stable failure when the mapping cannot be persisted', async () => {
     const { services } = makeServices(async () => 'session-1')
     const remote = new WorkspaceSessionsRemote({ services: () => services, storage: () => undefined })
-    const outcome = await remote.ensure({ accountId: 'user-1', workspaceId: 'ws-alpha-1' })
+    const outcome = await remote.ensure({ accountId: 'user-1', cloudWorkspaceId: 'ws-alpha-1' })
 
     // Deliberately refuses rather than creating a session it could never find again:
     // an archived session with no mapping is unreachable (archive has no undo).
@@ -64,10 +64,10 @@ describe('WorkspaceSessionsRemote', () => {
     })
 
     // Applied before the provider exists: a stable failure, not a permanent verdict.
-    expect(await remote.ensure({ accountId: 'user-1', workspaceId: 'ws-alpha-1' })).toMatchObject({ ok: false })
+    expect(await remote.ensure({ accountId: 'user-1', cloudWorkspaceId: 'ws-alpha-1' })).toMatchObject({ ok: false })
 
     available = makeServices(async () => 'session-late').services
-    expect(await remote.ensure({ accountId: 'user-1', workspaceId: 'ws-alpha-1' })).toEqual({
+    expect(await remote.ensure({ accountId: 'user-1', cloudWorkspaceId: 'ws-alpha-1' })).toEqual({
       ok: true, sessionId: 'session-late', created: true,
     })
   })
@@ -77,7 +77,7 @@ describe('WorkspaceSessionsRemote', () => {
     const { services, archiveSession } = makeServices(async () => 'session-9')
     const remote = new WorkspaceSessionsRemote({ services: () => services, storage: () => storage })
 
-    const outcome = await remote.ensure({ accountId: 'user-1', workspaceId: 'ws-alpha-1' })
+    const outcome = await remote.ensure({ accountId: 'user-1', cloudWorkspaceId: 'ws-alpha-1' })
 
     expect(outcome).toEqual({ ok: true, sessionId: 'session-9', created: true })
     expect(archiveSession).toHaveBeenCalledWith('session-9')
@@ -97,7 +97,7 @@ describe('WorkspaceSessionsRemote', () => {
       storage: () => storage,
     })
 
-    const outcome = await remote.ensure({ accountId: 'user-1', workspaceId: 'ws-alpha-1' })
+    const outcome = await remote.ensure({ accountId: 'user-1', cloudWorkspaceId: 'ws-alpha-1' })
 
     expect(outcome).toEqual({ ok: true, sessionId: 'session-9', created: false })
     expect(create).not.toHaveBeenCalled()
@@ -108,7 +108,7 @@ describe('WorkspaceSessionsRemote', () => {
     const { services } = makeServices(async () => 'session-other')
     const remote = new WorkspaceSessionsRemote({ services: () => services, storage: () => storage })
 
-    const outcome = await remote.ensure({ accountId: 'user-2', workspaceId: 'ws-alpha-1' })
+    const outcome = await remote.ensure({ accountId: 'user-2', cloudWorkspaceId: 'ws-alpha-1' })
 
     expect(outcome).toEqual({ ok: true, sessionId: 'session-other', created: true })
   })

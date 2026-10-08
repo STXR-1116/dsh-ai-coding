@@ -33,9 +33,11 @@ node -e "const f='package.json',p=require('./'+f);p.version='0.1.N';require('fs'
 # 于是带红测试的版本装到了你机器上。行为变更后，测试要么跟着改（有意的契约变更），
 # 要么说明改错了 —— 不许"没跑全量"。
 #
-# ⚠️ 跑之前先确认 4100 空闲：验收用的夹具占着它，而夹具/宿主集成测试要 bind 同一个端口，
-# 结果是 8 个文件、19 条在 10–65ms 内集体失败（EADDRINUSE），看起来像代码崩了。
-# 实测：停掉夹具 → 同一份代码全绿。跑完全量再 `pnpm fixture` 把验收环境恢复。
+# ⚠️ 夹具端口冲突：验收用的夹具占着 4100，而集成测试直接 `await service.listen()`（即走
+# `TEAM_SKILL_SERVICE_PORT ?? 4100`），于是两边撞端口 —— 实测一次是 8 个文件、19 条在 10–65ms
+# 内集体失败（EADDRINUSE），看起来像代码崩了。
+# **给测试换端口即可，不必停所有者的验收夹具**（实测：4100 照常服务，全量 171 文件绿）：
+$env:TEAM_SKILL_SERVICE_PORT = '4180'
 pnpm test
 pnpm build
 pnpm pack

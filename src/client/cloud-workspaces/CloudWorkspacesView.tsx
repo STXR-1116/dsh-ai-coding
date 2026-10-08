@@ -428,7 +428,7 @@ export function CloudWorkspacesView({
     }
     let cancelled = false
     void resolver
-      .ensure({ accountId, workspaceId: selectedId })
+      .ensure({ accountId, cloudWorkspaceId: selectedId })
       .then(outcome => { if (!cancelled) setWorkspaceSession(outcome) })
     // Switching Workspace mid-flight must not let the previous Workspace's answer
     // land on the new selection.
@@ -1892,6 +1892,27 @@ export function CloudWorkspacesView({
           onKeyDown={onDividerKeyDown}
         />
         <section className={css.centerPane} aria-label="workspace-session">
+          {/* Readiness of this Workspace's own conversation, at the top of the
+              session column where the conversation itself will render. It used to
+              sit inside the 「原生会话」 sub-panel below, which described the wrong
+              thing in the wrong place: that panel is the shell's native session,
+              this line is the Workspace's own session. */}
+          {selectedId !== undefined && (
+            <p
+              className={css.hint}
+              aria-label="工作空间会话状态"
+              role={workspaceSession !== undefined && !workspaceSession.ok ? 'alert' : undefined}
+            >
+              {workspaceSession === undefined
+                ? '正在准备本工作空间的会话…'
+                : workspaceSession.ok
+                  // Readiness only: the conversation itself lands in this pane in
+                  // the next step. The id is shortened because a full SessionId is
+                  // noise on screen, and it is not a handle the user acts on.
+                  ? `本工作空间的会话已就绪：${String(workspaceSession.sessionId).slice(0, 8)}…`
+                  : `本工作空间的会话不可用：${workspaceSession.message}`}
+            </p>
+          )}
           <section className={css.nativeSessionPane} aria-label="原生会话">
             <div className={css.nativeSessionBar}>
               <label className={css.hint}>
@@ -1918,27 +1939,13 @@ export function CloudWorkspacesView({
                 新建会话
               </button>
             </div>
-            {selectedId !== undefined && (
-              <p
-                className={css.hint}
-                aria-label="工作空间会话状态"
-                role={workspaceSession !== undefined && !workspaceSession.ok ? 'alert' : undefined}
-              >
-                {workspaceSession === undefined
-                  ? '正在准备本工作空间的会话…'
-                  : workspaceSession.ok
-                    // Readiness only: the conversation itself lands in this pane in
-                    // the next step. The id is shortened because a full SessionId is
-                    // noise on screen, and it is not a handle the user acts on.
-                    ? `本工作空间的会话已就绪：${String(workspaceSession.sessionId).slice(0, 8)}…`
-                    : `本工作空间的会话不可用：${workspaceSession.message}`}
-              </p>
-            )}
             {/* The 「工作台已让出中栏…」 hint lived here. It described the docked
                 layout, in which this workbench sat beside the shell's conversation
                 and the native session stayed interactive in the app rail. The
                 workbench now covers the viewport and owns its own session, so that
-                hint told the user the opposite of what happens. */}
+                hint told the user the opposite of what happens. The Workspace's own
+                session readiness line now sits at the top of the session column
+                instead of inside this panel. */}
           </section>
           {selected !== undefined && (
             <section className={css.lensSection}>
