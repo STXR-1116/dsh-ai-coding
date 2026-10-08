@@ -42,6 +42,7 @@ import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
 import { en, NS, zh, type PlatformKey } from './locales.ts'
 import { WorkspaceSessionsRemote, type UiConversationFace } from './remote/workspace-sessions.ts'
+import { CloudFilesPane } from './cloud-workspaces/CloudFilesPane.tsx'
 import { resolveBrowserStorage } from './cloud-workspaces/workspace-session-store.ts'
 import { PlatformDemoController } from './controller.ts'
 import { PlatformEntry } from './PlatformEntry.tsx'
@@ -246,6 +247,7 @@ export function apply(ctx: ClientContext): void {
       layout: ILayout
       openSession: (sessionId: SessionId) => void
       startSession: () => void
+      openCloudFiles: () => void
     } => ({
       controller,
       remote,
@@ -255,6 +257,77 @@ export function apply(ctx: ClientContext): void {
       // Session-layer operation, and the client `ISessions.create(opts?)` is its
       // replacement. The workspace registry no longer owns Session creation.
       startSession: () => { faces.sessions.create() },
+      openCloudFiles: () => { openCloudFilesPane(ctx, controller) },
     }),
   }, PlatformSurfaceEntry))
+
+  registerCloudFilesPane(ctx, remote)
+}
+
+/** 云文件面板在官方 tab 系统里的实现身份（同时是正文席位的 key）。 */
+export const CLOUD_FILES_TAB_ID = '@dsh-ai-coding/cloud-files'
+
+/** 云文件面板的 kind：页面类型，按 kind 打开、不认地址。 */
+export const CLOUD_FILES_TAB_KIND = 'ai-coding-cloud-files'
+
+/**
+ * 把「云文件」注册成官方右侧 Sidebar 的一个**产品页**。
+ *
+ * 两处都必须**带接收者**调用：注册表用私有字段（`this.ids`），把方法摘下来调用会丢 `this` 并抛
+ * `Cannot read properties of undefined (reading 'ids')` —— 本仓在探针里踩过一次，白跑两轮。
+ * @param ctx - 客户端插件上下文。
+ * @param remote - 本插件的浏览器侧远程面，供面板正文读取云文件。
+ */
+function registerCloudFilesPane(ctx: ClientContext, remote: PlatformRemote): void {
+  const tabs = (ctx.get as (name: string) => unknown)('sidebarRightTabs') as undefined | {
+    register?: (definition: {
+      readonly id: string
+      readonly kind: string
+      readonly title: (address: string) => string
+    }) => unknown
+  }
+  try {
+    // 省略 `patterns` ⇒ 页面类型：只按 kind 打开，不认 `dsh-resource://` 地址。
+    tabs?.register?.({ id: CLOUD_FILES_TAB_ID, kind: CLOUD_FILES_TAB_KIND, title: () => '云文件' })
+  } catch (error) {
+    // 重复注册等接线错误按官方语义是错误；这里只记录，不让它拖垮整个片段。
+    console.warn('[dsh-ai-coding] 云文件 tab 类型注册失败：', error)
+  }
+
+  // `sidebar.right.pane.tab` 由 `dsh-client-ui-sidebar-right` 声明，而本仓**装不上**那个包
+  // （registry 不可达；它只随 DSH 安装存在），所以 `ctx.slots.inject` 的名字联合里没有这个席位。
+  // 这里只把**类型**窄化，值仍是真实的 slots 服务 —— 因此接收者不丢（`slots.inject(...)` /
+  // `slots.register(...)` 都是带接收者的调用，这一点在本仓已经因为丢 `this` 吃过一次亏）。
+  const slots = ctx.slots as unknown as {
+    inject: (name: string, register: () => unknown) => unknown
+    register: (registration: Record<string, unknown>, component: unknown) => unknown
+  }
+  slots.inject('sidebar.right.pane.tab', () => slots.register({
+    name: 'sidebar.right.pane.tab',
+    key: CLOUD_FILES_TAB_ID,
+    locale: NS,
+    inject: (): { remote: PlatformRemote } => ({ remote }),
+  }, CloudFilesPane))
+}
+
+/**
+ * 迁移手势：关掉我们的浮层并打开官方右栏的云文件面板。
+ *
+ * 为什么必须先关浮层：右侧 Sidebar 只在外壳的**会话面挂载**时存在，而我们的全屏浮层会盖住它
+ * （机制验证 M4 实测：没有挂载的会话面时 `openTab` 抛 `no session surface is mounted`）。
+ * 因此"在官方右栏里看云文件"这件事，目前只能在外壳视图里看 —— 这个按钮就是两者之间的桥。
+ * @param ctx - 客户端插件上下文。
+ * @param controller - 浮层显隐控制器。
+ */
+function openCloudFilesPane(ctx: ClientContext, controller: PlatformDemoController): void {
+  controller.close()
+  const sidebarRight = (ctx.get as (name: string) => unknown)('sidebarRight') as undefined | {
+    openTab?: (kind: string) => unknown
+  }
+  try {
+    // 带接收者调用（同上）。
+    sidebarRight?.openTab?.(CLOUD_FILES_TAB_KIND)
+  } catch (error) {
+    console.warn('[dsh-ai-coding] 打开云文件面板失败（可能当前没有挂载的会话面）：', error)
+  }
 }

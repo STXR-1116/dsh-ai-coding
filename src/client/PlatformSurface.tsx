@@ -61,6 +61,13 @@ export type PlatformSurfaceProps = PropsRuntime<'shell.overlay'> &
     openSession: (sessionId: SessionId) => void
     /** The native New Session flow (creates/reuses a blank session). */
     startSession: () => void
+    /**
+     * 迁移手势：关掉浮层并在官方右侧 Sidebar 打开「云文件」面板。
+     *
+     * 官方右栏只在外壳的会话面挂载时存在，而本浮层会盖住它（机制验证 M4 实测），
+     * 所以「用官方右栏看云文件」目前只能在外壳视图里看到 —— 这个动作是两者之间的桥。
+     */
+    openCloudFiles?: () => void
   }
 
 type ViewId = 'overview' | 'projects' | 'skills' | 'cloud-workspaces' | 'knowledge' | 'memory' | 'collector' | 'agent-config'
@@ -144,7 +151,7 @@ const LOCAL_ENVIRONMENT: TeamSkillEnvironment = {
 
 /** Root overlay: listens to the local controller and mounts the demo shell. */
 export function PlatformSurface(props: PlatformSurfaceProps) {
-  const { controller, t, remote, layout, useSessions, useWorkspaces, openSession, startSession } = props
+  const { controller, t, remote, layout, useSessions, useWorkspaces, openSession, startSession, openCloudFiles } = props
   const open = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot)
 
   useEffect(() => {
@@ -169,11 +176,12 @@ export function PlatformSurface(props: PlatformSurfaceProps) {
       useWorkspaces={useWorkspaces}
       openSession={openSession}
       startSession={startSession}
+      {...(openCloudFiles === undefined ? {} : { openCloudFiles })}
     />
   )
 }
 
-function PlatformShell({ controller, t, remote, layout, useSessions, useWorkspaces, openSession, startSession }: Pick<PlatformSurfaceProps, 'controller' | 't' | 'remote' | 'layout' | 'useSessions' | 'useWorkspaces' | 'openSession' | 'startSession'>) {
+function PlatformShell({ controller, t, remote, layout, useSessions, useWorkspaces, openSession, startSession, openCloudFiles }: Pick<PlatformSurfaceProps, 'controller' | 't' | 'remote' | 'layout' | 'useSessions' | 'useWorkspaces' | 'openSession' | 'startSession' | 'openCloudFiles'>) {
   const [view, setView] = useState<ViewId>('overview')
   // Appearance (theme/density), rail collapse, and focus mode are visual-only
   // state: none of them reorder content or touch business requests (spec §8).
@@ -1465,6 +1473,7 @@ function PlatformShell({ controller, t, remote, layout, useSessions, useWorkspac
                   {...(currentSessionId === undefined ? {} : { sessionId: currentSessionId })}
                   nativeSessions={nativeSessions}
                   openSession={(sessionId) => { openSession(sessionId as SessionId) }}
+      {...(openCloudFiles === undefined ? {} : { onOpenCloudFiles: openCloudFiles })}
                   startSession={startSession}
                   {...(account === undefined ? {} : { accountId: account.user.userId })}
                   onProjectSelect={(projectId) => {

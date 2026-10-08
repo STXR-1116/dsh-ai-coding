@@ -1,0 +1,87 @@
+/* 云文件面板的样式。
+   面板挂在官方右侧 Sidebar 里（宽度由 dockkit 决定，通常窄），所以是**纵向**布局：
+   目录在上、预览在下，各自滚动。尺度一律接本仓既有的 --dsh-cw-* / --dsh-* token，
+   不在面板里再长出一套硬编码（那正是 styles-audit 记的老毛病）。 */
+
+.pane {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--dsh-cw-gap, 8px);
+  height: 100%;
+  min-height: 0;
+  padding: var(--dsh-cw-pane-pad, 12px);
+  overflow: hidden;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--dsh-cw-gap, 8px);
+}
+
+.path {
+  overflow: hidden;
+  color: var(--dsh-text-secondary);
+  font-size: var(--dsh-content-font-size-secondary, 12px);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.action {
+  padding: 2px 8px;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover));
+  border-radius: var(--dsh-cw-radius-control, 6px);
+  font-size: var(--dsh-content-font-size-secondary, 12px);
+  cursor: pointer;
+}
+
+.tree {
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+  border-bottom: var(--dsh-cw-divider, 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover)));
+}
+
+.entry {
+  display: block;
+  width: 100%;
+  padding: 2px 0;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  font: inherit;
+  font-size: var(--dsh-content-font-size, 14px);
+  text-align: left;
+  cursor: pointer;
+}
+
+.entry:hover { background: var(--dsh-bg-hover); }
+
+.preview {
+  min-height: 0;
+  overflow: auto;
+}
+
+.content {
+  margin: 0;
+  font-family: var(--dsh-font-mono, monospace);
+  font-size: var(--dsh-content-font-size-secondary, 12px);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.note {
+  margin: 0;
+  color: var(--dsh-text-tertiary);
+  font-size: var(--dsh-content-font-size-secondary, 12px);
+}
+
+.error {
+  margin: 0;
+  color: var(--dsh-status-danger-text, #d9534f);
+  font-size: var(--dsh-content-font-size-secondary, 12px);
+}

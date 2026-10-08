@@ -8,7 +8,7 @@
  */
 import { describe, expect, it } from 'vitest'
 import * as entry from '../src/client/index.ts'
-import { apply, inject } from '../src/client/index.ts'
+import { apply, inject, CLOUD_FILES_TAB_ID } from '../src/client/index.ts'
 import { NS } from '../src/client/locales.ts'
 
 /** Fixture bearer value for the fake backend; it authorizes nothing anywhere. */
@@ -153,9 +153,14 @@ describe('平台插件入口注册契约', () => {
 
     apply(fake.ctx as never)
 
-    expect(fake.registrations.map(registration => registration.name)).toEqual(['sidebar.footer.action', 'shell.overlay'])
-    expect(fake.registrations.map(registration => registration.id)).toEqual(['ai-coding-platform-entry', 'ai-coding-platform-surface'])
-    expect(fake.registrations.map(registration => registration.order)).toEqual([30, 30])
+    // 第三个是官方右侧 Sidebar 的**键控**正文席位：它带 `key`（= tab 类型的实现身份）而不是
+    // `id`/`order` —— keyed 席位由 key 定址，排序概念不适用。
+    expect(fake.registrations.map(registration => registration.name))
+      .toEqual(['sidebar.footer.action', 'shell.overlay', 'sidebar.right.pane.tab'])
+    expect(fake.registrations.map(registration => registration.id))
+      .toEqual(['ai-coding-platform-entry', 'ai-coding-platform-surface', undefined])
+    expect(fake.registrations.map(registration => registration.order)).toEqual([30, 30, undefined])
+    expect(fake.registrations[2]?.key).toBe(CLOUD_FILES_TAB_ID)
     expect(fake.registrations.every(registration => registration.locale === NS)).toBe(true)
   })
 

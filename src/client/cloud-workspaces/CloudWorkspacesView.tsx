@@ -76,6 +76,11 @@ export interface CloudWorkspacesViewProps {
   readonly accountId?: string
   /** Refresh the Host account when the service reports an authorization failure. */
   readonly onAuthorizationFailure?: () => void
+  /**
+   * 在官方右侧 Sidebar 打开「云文件」面板（会先关掉本浮层 —— 官方右栏只在外壳会话面挂载时存在）。
+   * 这是自建界面与官方界面之间的迁移手势。
+   */
+  readonly onOpenCloudFiles?: () => void
 }
 
 type Pane = 'preview' | 'changes' | 'run'
@@ -364,6 +369,7 @@ export function CloudWorkspacesView({
   startSession,
   accountId,
   onAuthorizationFailure,
+  onOpenCloudFiles,
 }: CloudWorkspacesViewProps) {
   const [state, setState] = useState<WorkspaceState>({ workspaces: [], profiles: [], runs: [], plans: [] })
   const [selectedId, setSelectedId] = useState<string | undefined>()
@@ -2159,6 +2165,18 @@ export function CloudWorkspacesView({
           onPointerCancel={endDividerDrag}
         />
         <aside className={css.rightPane} aria-label="workspace-panels">
+          {onOpenCloudFiles !== undefined && (
+            // 迁移手势：把「云文件」交给官方右侧 Sidebar（会先关掉本浮层）。
+            // 放在右栏头部，因为这里正是"面板"的位置 —— 将来这一栏整体交给官方 dockkit。
+            <button
+              type="button"
+              className={css.actionButton}
+              aria-label="在官方右栏打开云文件"
+              onClick={onOpenCloudFiles}
+            >
+              在右侧栏打开云文件（官方面板）
+            </button>
+          )}
           <div role="tablist" className={css.tabs}>
             {(['preview', 'changes', 'run'] as const).map(name => (
               <button
