@@ -55,9 +55,25 @@
 
 .columns {
   display: grid;
-  /* Widths come from the drag separators via --dsh-tree-w/--dsh-panel-w; the
-     container query below overrides the whole declaration when collapsed. */
-  grid-template-columns: var(--dsh-tree-w, 260px) minmax(0, 1fr) var(--dsh-panel-w, 320px);
+  /* **Five** tracks, not three: this grid's children are the three panes *and* the
+     two drag separators between them, in document order. Declaring three tracks made
+     auto-placement drop the session column into the 320px third track and push the
+     panels pane onto a second row — so the workbench was never actually three
+     columns, and the "empty middle" everyone kept looking at was really the left
+     separator's track, stretched and transparent (its own background is transparent,
+     and its visible line only appears on hover).
+     The separator tracks are 0-wide on purpose: `.panelDivider` is 10px wide with
+     `margin: 0 -4px`, i.e. built to straddle a zero-width track.
+     Widths come from the separators via --dsh-tree-w/--dsh-panel-w; the container
+     query below replaces this whole declaration when collapsed. */
+  grid-template-columns:
+    var(--dsh-tree-w, 260px) 0
+    minmax(0, 1fr) 0
+    var(--dsh-panel-w, 320px);
+  /* One row that fills the workbench: the panes scroll internally
+     (`overflow: auto` + `min-height: 0`), so an `auto` row would instead grow to
+     their content and push the layout past the viewport. */
+  grid-template-rows: minmax(0, 1fr);
   /* No gutter: the columns are separated by their own 1px dividers, so a gap would
      read as a second, wider boundary next to the line. */
   gap: 0;
