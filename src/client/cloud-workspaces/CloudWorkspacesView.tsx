@@ -23,15 +23,15 @@ import type {
   ContextLensSnapshot,
   RunAssetSnapshot,
 } from '../../types.ts'
-import { IconFolderOpenOutline16, IconRefreshOutline16, MarkdownText } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconFolderOpenOutline16, IconRefreshOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { WORKSPACE_LAYOUT_LABELS, WORKSPACE_LAYOUT_PRESETS, type WorkspaceLayoutPreset } from './layout-presets.ts'
-import { applyPreviewSecurity, isolatedPreviewSandbox } from './preview-security.ts'
 import { evidenceFromFailure, evidenceFromRun } from './operation-evidence.ts'
 import { groupLensLayers, lensEntryStatus, lensMemoryToggles, projectFilesSection } from './context-lens.ts'
 import { buildRunPulse, type PulseReconnect } from './run-pulse.ts'
 import { assetGovernanceLabel, runAssetRows, runAssetSnapshotDrifted } from './run-asset-snapshot.ts'
 import { buildRecoveryCenter } from './recovery-center.ts'
-import { selectPreviewViewer, treeEntryMarkers } from './workspace-markers.ts'
+import { treeEntryMarkers } from './workspace-markers.ts'
+import { FilePreview } from './FilePreview.tsx'
 import type { WorkspaceSessionOutcome } from './workspace-sessions.ts'
 import { ConversationPane } from './ConversationPane.tsx'
 import type { ConversationSourceResult } from './conversation-source.ts'
@@ -97,20 +97,6 @@ interface WorkspaceState {
 }
 
 const READY = <T,>(result: WorkspaceQueryResult<T>): T | undefined => (result.status === 'ready' ? result.value : undefined)
-
-/**
- * Localized chrome for the Markdown preview.
- *
- * The baseline's `MarkdownText` requires `labels`; on the source vintage the
- * fence/footnote chrome defaulted inside the primitive. The object is
- * module-level on purpose: `MarkdownText` documents that a new identity
- * discards its streaming render cache mid-message, so it must stay
- * reference-stable. The copy matches this surface's Chinese-first wording.
- */
-const MARKDOWN_LABELS = {
-  code: { copyLabel: '复制', copiedLabel: '已复制' },
-  footnotes: '脚注',
-} as const
 
 /** Client Remote envelope: transport failure is reported before the domain result. */
 type RemoteEnvelope<T> =
@@ -2196,47 +2182,7 @@ export function CloudWorkspacesView({
           {pane === 'preview' && (
             <div className={css.panelBody}>
               {openPath === undefined && <p className={css.hint}>在左侧目录中选择文件。</p>}
-              {(() => {
-                if (state.preview === undefined) return null
-                // 按内容类型选择查看器（§5.2）：sandbox/Markdown/图片/终端输出/diff。
-                const viewer = selectPreviewViewer(state.preview.kind, state.preview.contentType, state.preview.path)
-                if (viewer === 'sandbox') {
-                  return (
-                    <iframe
-                      title="preview-iframe"
-                      className={css.previewFrame}
-                      // 安全地板由工作台强制（§5.2/2-3）：sandbox 只透传词表内
-                      // token（不透明 origin 保持），CSP 地板先于服务端声明安
-                      // 装，声明只能收窄。
-                      sandbox={isolatedPreviewSandbox(state.preview.sandbox ?? [])}
-                      srcDoc={applyPreviewSecurity(state.preview.content ?? '', state.preview.csp ?? '')}
-                    />
-                  )
-                }
-                if (viewer === 'image') {
-                  return (
-                    <img
-                      className={css.previewImage}
-                      alt={state.preview.path}
-                      src={`data:${state.preview.contentType};base64,${state.preview.contentBase64 ?? ''}`}
-                    />
-                  )
-                }
-                if (viewer === 'markdown') {
-                  return (
-                    <div className={css.previewText} data-viewer="markdown">
-                      <MarkdownText text={state.preview.content ?? ''} labels={MARKDOWN_LABELS} />
-                    </div>
-                  )
-                }
-                if (viewer === 'terminal') {
-                  return <pre className={css.previewText} data-viewer="terminal">{state.preview.content ?? ''}</pre>
-                }
-                if (viewer === 'diff') {
-                  return <pre className={css.previewText} data-viewer="diff">{state.preview.diff ?? state.preview.content ?? ''}</pre>
-                }
-                return <pre className={css.previewText} data-viewer={viewer}>{state.preview.content ?? ''}</pre>
-              })()}
+              {state.preview !== undefined && <FilePreview preview={state.preview} />}
               <div className={css.webAppRow}>
                 <button
                   type="button"

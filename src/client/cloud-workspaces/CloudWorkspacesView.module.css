@@ -412,20 +412,6 @@
   overflow: auto;
 }
 
-.previewFrame {
-  width: 100%;
-  min-height: 260px;
-  border: 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover));
-  border-radius: var(--dsh-cw-radius-control, 6px);
-  background: var(--dsh-bg-surface);
-}
-
-.previewImage {
-  max-width: 100%;
-  border-radius: var(--dsh-cw-radius-control, 6px);
-}
-
-.previewText,
 .diffText {
   margin: 0;
   padding: 8px;

@@ -1,0 +1,26 @@
+/* 预览查看器的样式。
+   这三条规则**从 `CloudWorkspacesView.module.css` 搬来**（视图里对应的三条要删掉）——
+   预览实现只有一份，样式也只有一份。尺度全部接既有 token。 */
+
+.frame {
+  width: 100%;
+  min-height: 260px;
+  border: 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover));
+  border-radius: var(--dsh-cw-radius-control, 6px);
+  background: var(--dsh-bg-surface);
+}
+
+.image {
+  max-width: 100%;
+  border-radius: var(--dsh-cw-radius-control, 6px);
+}
+
+.text {
+  margin: 0;
+  padding: 8px;
+  overflow: auto;
+  font-size: var(--dsh-content-font-size-secondary, 12px);
+  white-space: pre-wrap;
+  border-radius: var(--dsh-cw-radius-control, 6px);
+  background: var(--dsh-bg-hover);
+}

@@ -28,7 +28,8 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import type { PlatformRemote } from '../remote/types.ts'
-import type { WorkspaceDirectory, WorkspaceQueryResult } from '../../workspace-types.ts'
+import type { WorkspaceDirectory, WorkspacePreview, WorkspaceQueryResult } from '../../workspace-types.ts'
+import { FilePreview } from './FilePreview.tsx'
 import css from './CloudFilesPane.module.css'
 
 /** 视图持久化选中态用的键前缀（与 `CloudWorkspacesView` 保持一致）。 */
@@ -86,7 +87,7 @@ export function CloudFilesPane({ remote }: CloudFilesPaneProps) {
   const [workspaceId] = useState(() => selectedWorkspaceId())
   const [path, setPath] = useState('')
   const [directory, setDirectory] = useState<WorkspaceDirectory | undefined>()
-  const [file, setFile] = useState<{ path: string; text: string } | undefined>()
+  const [preview, setPreview] = useState<WorkspacePreview | undefined>()
   const [error, setError] = useState<string | undefined>()
   const [busy, setBusy] = useState(false)
 
@@ -118,16 +119,14 @@ export function CloudFilesPane({ remote }: CloudFilesPaneProps) {
     setBusy(true)
     setError(undefined)
     try {
-      const result = unwrap(await remote.cloudWorkspaces.workspaceFileContent(workspaceId, next))
+      // 用**视图同一个** `workspacePreview` 调用，再交给共享的 `FilePreview` 渲染 —— 这样
+      // 面板与工作台的预览是同一条数据路径、同一份实现，不会再出现"两种预览质量"。
+      const result = unwrap(await remote.cloudWorkspaces.workspacePreview(workspaceId, next))
       if (result.status !== 'ready') {
         setError(describeNotReady(result))
         return
       }
-      const value = result.value
-      // 二进制内容以 base64 到达（契约如此）：面板不猜它的类型，明确说"不预览"。
-      const text = value.content
-        ?? (value.contentBase64 === undefined ? '（空文件）' : `（二进制内容，${value.size} 字节，暂不预览）`)
-      setFile({ path: next, text })
+      setPreview(result.value)
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure))
     } finally {
@@ -174,9 +173,9 @@ export function CloudFilesPane({ remote }: CloudFilesPaneProps) {
         {entries.length === 0 && error === undefined && <li className={css.note}>{busy ? '读取中…' : '目录为空'}</li>}
       </ul>
       <div className={css.preview}>
-        {file === undefined
+        {preview === undefined
           ? <p className={css.note}>选一个文件以预览</p>
-          : <pre className={css.content} aria-label="云文件预览">{file.text}</pre>}
+          : <FilePreview preview={preview} />}
       </div>
     </div>
   )

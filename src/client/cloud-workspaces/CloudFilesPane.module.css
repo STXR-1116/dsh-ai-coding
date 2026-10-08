@@ -66,14 +66,6 @@
   overflow: auto;
 }
 
-.content {
-  margin: 0;
-  font-family: var(--dsh-font-mono, monospace);
-  font-size: var(--dsh-content-font-size-secondary, 12px);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
 .note {
   margin: 0;
   color: var(--dsh-text-tertiary);
