@@ -119,6 +119,25 @@ ctx.get('workspaces')          // ✓ 缺服务时返回 undefined
 
 读可选服务一律 `ctx.get`（本仓既有先例：`ctx.get('credentials')`）。
 
+**不要自己发明响应形状 —— 先读 `src/client/remote/remote-face.ts` 与既有消费者。**
+
+契约里的返回**不是**裸对象，而是判别式 envelope（`src/workspace-types.ts`）：
+
+```ts
+{ status: 'ready'; value: T; fixtureOnly: boolean }
+| { status: 'signed-out' }
+| { status: 'not-ready'; missing: readonly string[] }
+| WorkspaceFailure
+```
+
+实测事故：云文件面板第一版我自己编了 `payload.items`（真路径是 `payload.value.items`），
+于是目录**恒为空且不报错** —— 没抛异常、没有错误分支，界面表现和"这个工作空间真的是空的"一模一样。
+这类"看起来正常但一直空"最难查。规矩：
+
+- 形状去 `remote-face.ts` 看签名（如 `Promise<RemoteResult<WorkspaceQueryResult<WorkspaceDirectory>>>`），
+  或直接看已有消费者的解析（`CloudWorkspacesView` 里那棵能用的文件树）；
+- **每个非 `ready` 分支都要显式显示原因**（`signed-out` / `not-ready` 不是"空列表"）。
+
 ## 仓库定位
 
 `dsh-ai-coding` —— DSH 的 AI Coding 平台插件，双半结构（host `src/*.ts` + browser `src/client/*`）。
