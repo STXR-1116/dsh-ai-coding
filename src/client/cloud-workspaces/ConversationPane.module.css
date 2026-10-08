@@ -1,0 +1,96 @@
+/* The workspace conversation column.
+   Sizing follows DSH's own conversation page: one centred measure for the flow
+   (`--dsh-chat-content-width`) and the same flow gap, rather than filling whatever
+   width the column happens to have. Everything else comes from the workbench scale
+   defined on `.surface` (see docs/cloud-workspace-style-audit.md §6). */
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  /* The session column itself does not scroll; the flow inside it does. */
+  overflow: auto;
+}
+
+.flow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dsh-chat-flow-gap, 12px);
+  width: 100%;
+  max-width: var(--dsh-chat-content-width, 760px);
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+}
+
+.assistant {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: var(--dsh-content-font-size, 14px);
+}
+
+.user {
+  margin: 0;
+  max-width: var(--dsh-chat-user-width, 80%);
+  padding: var(--dsh-density-pad-y, 6px) var(--dsh-density-pad-x, 10px);
+  background: var(--dsh-bg-subtle);
+  border-radius: var(--dsh-cw-radius-container, 8px);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: var(--dsh-content-font-size, 14px);
+}
+
+.tool {
+  margin: 0;
+  color: var(--dsh-text-secondary);
+  font-size: var(--dsh-content-font-size-secondary, 12px);
+}
+
+.error {
+  margin: 0;
+  color: var(--dsh-status-danger-text, #d9534f);
+  font-size: var(--dsh-content-font-size, 14px);
+}
+
+/* Not-yet-rendered node kinds and unshown blocks: visible, muted, and never a
+   substitute for the content itself. */
+.unhandled,
+.skipped {
+  margin: 0;
+  color: var(--dsh-text-tertiary);
+  font-size: var(--dsh-content-font-size-secondary, 12px);
+}
+
+.failure {
+  margin: 0;
+  color: var(--dsh-status-danger-text, #d9534f);
+  font-size: var(--dsh-content-font-size-secondary, 12px);
+}
+
+.empty {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  color: var(--dsh-text-tertiary);
+}
+
+.emptyTitle {
+  margin: 0;
+  font-size: var(--dsh-content-font-size, 14px);
+}
+
+.emptyHint {
+  margin: 0;
+  font-size: var(--dsh-content-font-size-secondary, 12px);
+}

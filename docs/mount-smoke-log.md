@@ -1,4 +1,4 @@
-﻿# 挂载冒烟日志（门禁 4）
+# 挂载冒烟日志（门禁 4）
 
 本文件归档 `build/mount-smoke.mjs` 的红/绿运行记录。脚本每一步打印 `PASS`/`FAIL`，
 结束时打印唯一一行 `SMOKE GREEN|RED (n/m)`，并以退出码反映结论。
@@ -189,3 +189,21 @@ SMOKE RED (12/13 steps)
 - 二期验收满足：真机 Chromium 打开 dsh web → 侧边栏入口 → 设置面 → 登录 →
   工作台渲染 `ws-alpha-1`、知识库渲染 `k-1`；连续 3 绿 + 受控红留档。
 - 所有者复核截图：docs/mount-acceptance/（设置面、ws-alpha-1 工作台、k-1 知识库）。
+
+## 后记：一次未复现的红灯（2026-09-22，会话归属接线期间）
+
+**现象**：`SMOKE RED (20/21)`，失败步骤是
+`fail-loud: unconfigured workbench names the missing settings loudly — settings form: false`。
+即未配置分支里，侧栏入口存在、点击也成功，但设置面没在 `BROWSER_TIMEOUT` 内出现。
+
+**判定与处置**：
+
+- **同一份代码复跑 GREEN 21/21**，未再复现；
+- 该次运行紧跟在一次全量测试之后，机器高负载 —— 属手册所述
+  **load-sensitive synchronization** 一类；
+- 按测试政策，**不用"放大超时"掩盖**（那正是政策点名的掩盖手法之一），故此处只记录
+  事实与复现条件，不改超时。若再出现，按阶梯复现（单跑 → 并发文件 → 多进程 → 所属门禁）
+  后再定修法。
+
+**已排除**：与夹具端口无关（bare 阶段用 `fixturePort`，不占 4100）；与当时改动无关
+（设置面与云工作空间视图没有共同路径，且同一时刻全量 174 文件 / 1529 用例为绿）。

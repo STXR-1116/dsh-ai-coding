@@ -214,6 +214,10 @@ function demoRemote(): PlatformRemote {
     // crashed the workbench instead of failing an assertion.
     workspaceSessions: {
       ensure: vi.fn(async () => ({ ok: true as const, sessionId: 'session-ws-alpha-1', created: true })),
+      // The chat source the conversation pane renders from. Unusable on purpose: the
+      // shell's conversation assembly is not present in these specs, and the pane is
+      // expected to report that instead of looking like an empty conversation.
+      conversation: vi.fn(() => ({ ok: false as const, message: '会话装配不可用：本 spec 未提供 uiConversation' })),
     },
     teamSkills: {
       account: vi.fn(async () => ({ ok: true, value: demoAccount })),
@@ -711,9 +715,16 @@ describe('AI Coding platform demo', () => {
     expect(remote.workspaceSessions.ensure).toHaveBeenCalledWith(
       expect.objectContaining({ accountId: demoAccount.user.userId }),
     )
-    // The pane reports readiness rather than sitting blank with no explanation.
-    expect(await screen.findByLabelText('工作空间会话状态')).toBeTruthy()
-    expect(screen.getByText(/会话已就绪/u)).toBeTruthy()
+    // The resolved session is then handed to the conversation face, which is what the
+    // session column renders from.
+    await waitFor(() => {
+      expect(remote.workspaceSessions.conversation).toHaveBeenCalledWith('session-ws-alpha-1')
+    })
+    // These specs have no shell conversation assembly, so the pane must say so — an
+    // empty conversation would be a different (and false) statement. Addressed by
+    // label because the view renders other alert panels concurrently.
+    const alert = await screen.findByLabelText('工作空间会话状态')
+    expect(alert.textContent).toContain('会话装配不可用')
   })
 
   it('says why the Workspace session is unavailable instead of showing an empty conversation', async () => {
@@ -739,11 +750,11 @@ describe('AI Coding platform demo', () => {
     // Same precondition as the test above: a selected project produces the
     // Workspace list, and the first Workspace is auto-selected.
     fireEvent.change(await screen.findByLabelText('cloud-workspace-project'), { target: { value: 'orbit-ui' } })
-    const status = await screen.findByLabelText('工作空间会话状态')
     // An archive failure means the session would be visible in the shell's list, so
-    // the reason has to reach the user — an empty pane would hide it.
-    expect(status.textContent).toContain('REVISION_CONFLICT')
-    expect(status.getAttribute('role')).toBe('alert')
+    // the reason has to reach the user — the pane carries it as a labelled alert.
+    const alert = await screen.findByLabelText('工作空间会话状态')
+    expect(alert.textContent).toContain('REVISION_CONFLICT')
+    expect(screen.queryByText('这个工作空间还没有对话内容')).toBeNull()
   })
 
   it('opens from the sidebar entry and closes from the overlay', () => {

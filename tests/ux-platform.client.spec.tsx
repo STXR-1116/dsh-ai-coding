@@ -173,6 +173,9 @@ function demoRemote(): PlatformRemote {
     // workspace-selecting test at runtime.
     workspaceSessions: {
       ensure: vi.fn(async () => ({ ok: true as const, sessionId: 'session-ws-alpha-1', created: true })),
+      // See platform.client.spec.tsx: no shell conversation assembly here, so the pane
+      // is expected to report that instead of rendering an empty conversation.
+      conversation: vi.fn(() => ({ ok: false as const, message: '会话装配不可用：本 spec 未提供 uiConversation' })),
     },
     teamSkills: {
       account: vi.fn(async () => ({ ok: true, value: demoAccount })),

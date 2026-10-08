@@ -33,6 +33,8 @@ import { assetGovernanceLabel, runAssetRows, runAssetSnapshotDrifted } from './r
 import { buildRecoveryCenter } from './recovery-center.ts'
 import { selectPreviewViewer, treeEntryMarkers } from './workspace-markers.ts'
 import type { WorkspaceSessionOutcome } from './workspace-sessions.ts'
+import { ConversationPane } from './ConversationPane.tsx'
+import type { ConversationSourceResult } from './conversation-source.ts'
 import css from './CloudWorkspacesView.module.css'
 
 /** Failure codes that mean the Host account session must be refreshed upstream. */
@@ -434,6 +436,43 @@ export function CloudWorkspacesView({
     // land on the new selection.
     return () => { cancelled = true }
   }, [accountId, selectedId])
+  /**
+   * The session whose conversation the column renders, once one exists.
+   *
+   * `undefined` while the session is still resolving, or when it failed: the pane
+   * then shows the resolver's reason rather than an empty conversation that would
+   * read as "this workspace has nothing to say".
+   */
+  const conversationSessionId = workspaceSession !== undefined && workspaceSession.ok
+    ? String(workspaceSession.sessionId)
+    : undefined
+  /**
+   * The chat snapshot source for that session.
+   *
+   * Memoised on the session id alone. `remote` is a prop object a parent may rebuild
+   * on every render, and the pane subscribes per source identity — recomputing here
+   * would make it resubscribe on each render, and each subscribe activates the chat
+   * target.
+   */
+  const conversation = useMemo(
+    () => (conversationSessionId === undefined
+      ? undefined
+      : remoteRef.current.workspaceSessions.conversation(conversationSessionId)),
+    [conversationSessionId],
+  )
+  /**
+   * What the pane renders from.
+   *
+   * A failed session resolution is reported through the same channel as an
+   * unusable snapshot source, because to the user they are one fact: there is no
+   * conversation, and here is why. Passing `undefined` instead would show the
+   * pane's empty state — "this workspace has no messages" — which is a different
+   * and false statement.
+   */
+  const conversationSource: ConversationSourceResult | undefined =
+    workspaceSession !== undefined && !workspaceSession.ok
+      ? { ok: false, message: `本工作空间的会话不可用：${workspaceSession.message}` }
+      : conversation
   const [repositoriesState, setRepositoriesState] = useState<'loading' | 'ready' | 'empty' | 'failed'>('loading')
   const [loadError, setLoadError] = useState<{ code: string; message: string } | undefined>()
   const [signedOut, setSignedOut] = useState(false)
@@ -1892,26 +1931,17 @@ export function CloudWorkspacesView({
           onKeyDown={onDividerKeyDown}
         />
         <section className={css.centerPane} aria-label="workspace-session">
-          {/* Readiness of this Workspace's own conversation, at the top of the
-              session column where the conversation itself will render. It used to
-              sit inside the 「原生会话」 sub-panel below, which described the wrong
-              thing in the wrong place: that panel is the shell's native session,
-              this line is the Workspace's own session. */}
+          {/* The Workspace's own conversation, at the top of the session column.
+              It replaced a readiness line that said 「会话已就绪：session-…」 — the id
+              was useless on screen (every DSH session id starts with `session-`, so
+              the first eight characters said nothing) and it is not a handle the user
+              acts on. The pane now carries the state itself: content, an empty state,
+              or the reason the conversation is unavailable. */}
           {selectedId !== undefined && (
-            <p
-              className={css.hint}
-              aria-label="工作空间会话状态"
-              role={workspaceSession !== undefined && !workspaceSession.ok ? 'alert' : undefined}
-            >
-              {workspaceSession === undefined
-                ? '正在准备本工作空间的会话…'
-                : workspaceSession.ok
-                  // Readiness only: the conversation itself lands in this pane in
-                  // the next step. The id is shortened because a full SessionId is
-                  // noise on screen, and it is not a handle the user acts on.
-                  ? `本工作空间的会话已就绪：${String(workspaceSession.sessionId).slice(0, 8)}…`
-                  : `本工作空间的会话不可用：${workspaceSession.message}`}
-            </p>
+            <ConversationPane
+              {...(conversationSessionId === undefined ? {} : { sessionId: conversationSessionId })}
+              source={conversationSource}
+            />
           )}
           <section className={css.nativeSessionPane} aria-label="原生会话">
             <div className={css.nativeSessionBar}>

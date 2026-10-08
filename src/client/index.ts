@@ -41,7 +41,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
 import { en, NS, zh, type PlatformKey } from './locales.ts'
-import { WorkspaceSessionsRemote } from './remote/workspace-sessions.ts'
+import { WorkspaceSessionsRemote, type UiConversationFace } from './remote/workspace-sessions.ts'
 import { resolveBrowserStorage } from './cloud-workspaces/workspace-session-store.ts'
 import { PlatformDemoController } from './controller.ts'
 import { PlatformEntry } from './PlatformEntry.tsx'
@@ -162,6 +162,21 @@ function clientFaces(ctx: ClientContext): { sessions: ClientSessionFace; workspa
 }
 
 /**
+ * Read the conversation assembly face, or `undefined` where none is provided.
+ *
+ * `ctx.get` through a narrow cast for the same two reasons as above: a property read
+ * of a non-injected service throws, and the service key's declaration lives in
+ * `@deepseek-ai/dsh-client-ui-conversation`, a package this repository does not
+ * depend on (it is part of the shell's bundle). The face itself is narrowed in
+ * `remote/workspace-sessions.ts`, next to the contract it mirrors.
+ * @param ctx - client plugin context.
+ * @returns the conversation face, or `undefined` when that plugin is not loaded.
+ */
+function readUiConversation(ctx: ClientContext): UiConversationFace | undefined {
+  return (ctx.get as (name: string) => unknown)('uiConversation') as UiConversationFace | undefined
+}
+
+/**
  * Register the sidebar entry, the frame overlay, and the two browser-provided
  * remote namespace services owned by this plugin.
  * @param ctx - client plugin context (the mounting fiber's cordis context).
@@ -200,7 +215,7 @@ export function apply(ctx: ClientContext): void {
       const current = clientFaces(ctx)
       return current.workspaces === undefined
         ? undefined
-        : { sessions: current.sessions, workspaces: current.workspaces }
+        : { sessions: current.sessions, workspaces: current.workspaces, uiConversation: readUiConversation(ctx) }
     },
     storage: resolveBrowserStorage,
   })

@@ -250,6 +250,9 @@ function fakeRemote(overrides: Partial<RemoteCalls> = {}): { remote: ClientRemot
     // and take the whole view down with it.
     workspaceSessions: {
       ensure: vi.fn(async () => ({ ok: true as const, sessionId: 'session-ws-alpha-1', created: true })),
+      // The conversation face. Unusable on purpose: this spec has no shell conversation
+      // assembly, and the pane must report that rather than look like an empty session.
+      conversation: vi.fn(() => ({ ok: false as const, message: '会话装配不可用：本 spec 未提供 uiConversation' })),
     },
   } as unknown as ClientRemote
   return { remote, calls }

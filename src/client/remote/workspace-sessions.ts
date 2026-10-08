@@ -18,6 +18,7 @@
 
 import { ensureWorkspaceSession, type WorkspaceArchiveService, type WorkspaceSessionOutcome, type WorkspaceSessionService } from '../cloud-workspaces/workspace-sessions.ts'
 import { createWorkspaceSessionStore, type StorageLike } from '../cloud-workspaces/workspace-session-store.ts'
+import { readConversationSource, type ConversationSourceResult } from '../cloud-workspaces/conversation-source.ts'
 
 /** Browser-facing face of {@link WorkspaceSessionsRemote}. */
 export interface WorkspaceSessionsFace {
@@ -30,14 +31,37 @@ export interface WorkspaceSessionsFace {
    * @returns the session to render, or a stable failure the caller must show.
    */
   ensure(input: { readonly accountId?: string; readonly cloudWorkspaceId: string }): Promise<WorkspaceSessionOutcome>
+  /**
+   * Resolve this session's chat snapshot source for rendering.
+   *
+   * The returned source is what activates the chat target once subscribed, so it is
+   * handed to the pane rather than subscribed here: the pane owns that lifetime, and
+   * a subscription nobody releases keeps the target active for the rest of the app
+   * session.
+   * @param sessionId - the Workspace's own session.
+   * @returns a usable source, or a stable reason it is unavailable.
+   */
+  conversation(sessionId: string): ConversationSourceResult
 }
 
-/** Supplies the two client service faces; injected so this class stays testable. */
+/** The conversation assembly slice this face reads (`ctx.uiConversation`). */
+export interface UiConversationFace {
+  /**
+   * Resolve one session's Conversation binding.
+   * @param sessionId - session identity.
+   * @returns the binding, whose `target('chat')` is the chat snapshot source.
+   */
+  binding(sessionId: string): { target(target: string): unknown }
+}
+
+/** Supplies the client service faces; injected so this class stays testable. */
 export interface WorkspaceSessionsServices {
   /** Client session controller face (`ctx.sessions`). */
   readonly sessions: WorkspaceSessionService
   /** Client workspace controller face (`ctx.workspaces`). */
   readonly workspaces: WorkspaceArchiveService
+  /** Conversation assembly (`ctx.uiConversation`); absent if that plugin is not loaded. */
+  readonly uiConversation?: UiConversationFace
 }
 
 /** Read-only view of one account's durable mapping, for diagnostics and tests. */
@@ -73,6 +97,33 @@ export class WorkspaceSessionsRemote implements WorkspaceSessionsFace {
    * @param deps - call-time readers for the client services and the storage.
    */
   constructor(private readonly deps: WorkspaceSessionsRemoteDeps) {}
+
+  /**
+   * @param sessionId - the Workspace's own session.
+   * @returns a usable chat snapshot source, or a stable reason it is unavailable.
+   */
+  conversation(sessionId: string): ConversationSourceResult {
+    const services = this.deps.services()
+    if (services === undefined) {
+      return { ok: false, message: '会话服务不可用：客户端未提供 sessions/workspaces 服务' }
+    }
+    const uiConversation = services.uiConversation
+    if (uiConversation === undefined) {
+      // `ctx.get` answers `undefined` for a service nobody provides, so a missing
+      // conversation plugin reads as "unavailable" here instead of throwing inside
+      // the fragment's apply (which is what took the whole browser half down in 0.1.13).
+      return { ok: false, message: '会话装配不可用：客户端未提供 uiConversation 服务' }
+    }
+    let target: unknown
+    try {
+      target = uiConversation.binding(sessionId).target('chat')
+    } catch (error) {
+      // `binding()` rejects ids the session controller does not know — which includes
+      // a session that was never created because `ensure` failed just before.
+      return { ok: false, message: `无法解析会话装配：${error instanceof Error ? error.message : String(error)}` }
+    }
+    return readConversationSource(target)
+  }
 
   /**
    * @param input - the signed-in account and the cloud Workspace.
