@@ -77,6 +77,15 @@ $p = "$env:USERPROFILE\.dsh\profiles\web\node_modules\dsh-ai-coding"
 # 并确认本次改动引入的**新字符串**确实出现在 lib/*.js 里
 ```
 
+**⚠️ build 失败会留下半成品 `lib/`，而 `pack` 照样能打出包。** `build` 脚本**先执行 `clean`
+（删除 `lib/`）**，所以一旦构建中途失败，`lib/` 就是残缺的（实测：缺 `workspace-gateway.js`），
+而 `pnpm pack` **不会因此报错** —— 打出的包装上去后，宿主半边的模块解析直接失败
+（`ERR_MODULE_NOT_FOUND … lib/workspace-gateway.js`）。所以：
+
+- **build 之后必须看 `$LASTEXITCODE`**，非 0 立即停；
+- 打包前**核对 `lib/` 文件齐全**（至少 `client.js`、`index.js`、`workspace-gateway*.js`）；
+- 装完仍以冒烟为准 —— 只有它才会真的加载插件。
+
 ## 验收期间的协作协议（**所有者约定**）
 
 所有者会一边验收一边报问题。**安装会换掉他正在运行的实例所加载的文件**，所以：
