@@ -106,8 +106,18 @@ function fakeRemote(overrides: Record<string, ReturnType<typeof vi.fn>> = {}): {
 
 const useWorkspacesStub = ((selector: (state: { items: unknown[] }) => unknown) => selector({ items: [] })) as never
 
-async function treeRow(text: string): Promise<HTMLElement> {
-  const node = await screen.findByText(text)
+/**
+ * 按名字找到树里的一行（返回其按钮）。
+ *
+ * 注意：文件树现在是 **VS Code 风格**（所有者要求），**行文本是文件名而不是完整路径** ——
+ * `tests/app.spec.ts` 在树里显示为 `app.spec.ts`。这里按**最后一段**查找，
+ * 调用方因此可以继续用完整路径表达"要找哪个文件"，不必关心展示形式。
+ * @param path - 文件路径（工作空间相对）。
+ * @returns 该行的按钮元素。
+ */
+async function treeRow(path: string): Promise<HTMLElement> {
+  const name = path.slice(path.lastIndexOf('/') + 1)
+  const node = await screen.findByText(name)
   return node.closest('button') as HTMLElement
 }
 

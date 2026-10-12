@@ -34,6 +34,7 @@ import { FilePreview } from './FilePreview.tsx'
 import type { WorkspaceSessionOutcome } from './workspace-sessions.ts'
 import { ConversationPane } from './ConversationPane.tsx'
 import { SessionRecords } from './SessionRecords.tsx'
+import { FileTreeView } from './FileTreeView.tsx'
 import type { ConversationSourceResult } from './conversation-source.ts'
 import css from './CloudWorkspacesView.module.css'
 
@@ -1849,57 +1850,16 @@ export function CloudWorkspacesView({
           </ul>
             </details>
           {selected !== undefined && state.directory !== undefined && (
-            <div className={css.fileTree}>
-              <p className={css.paneTitle}>工程目录 {selected.branch}</p>
-              {treePath !== '' && (
-                <button
-                  type="button"
-                  className={css.fileItem}
-                  onClick={() => {
-                    const parent = treePath.includes('/') ? treePath.slice(0, treePath.lastIndexOf('/')) : ''
-                    setTreePath(parent)
-                  }}
-                >
-                  返回上级
-                </button>
-              )}
-              <ul>
-                {state.directory.items.map(item => (
-                  <li key={item.path}>
-                    <button
-                      type="button"
-                      className={css.fileItem}
-                      data-kind={item.kind}
-                      disabled={selected.status !== 'ready'}
-                      title={selected.status !== 'ready' ? '工作空间未就绪' : undefined}
-                      onClick={() => {
-                        if (item.kind === 'directory') {
-                          setTreePath(item.path)
-                          return
-                        }
-                        void openFile(item.path, item.kind)
-                      }}
-                    >
-                      {(() => {
-                        // 工程树标记（§5.2）：Agent 修改/未同步状态来自服务端变更集，
-                        // 测试关联是客户端按路径特征的展示层推断。
-                        const changeEntries = (state.changes?.files ?? []).map(file => ({ path: file.path, change: file.change }))
-                        const entryMarkers = treeEntryMarkers(item.path, changeEntries)
-                        return (
-                          <>
-                            <span>{item.path}</span>
-                            {entryMarkers.change === 'modified' && <span className={css.hint}>Agent 修改·未同步</span>}
-                            {entryMarkers.change === 'added' && <span className={css.hint}>新增·未同步</span>}
-                            {entryMarkers.change === 'deleted' && <span className={css.hint}>已删除·未同步</span>}
-                            {entryMarkers.testAssociated && <span className={css.hint}>测试</span>}
-                          </>
-                        )
-                      })()}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            /* VS Code 风格的文件树（所有者要求）：可展开、按深度缩进、带折叠箭头与类型图标。
+               旧的逐级下钻已被替换 —— 树形让"文件在哪一层"始终可见。 */
+            <FileTreeView
+              remote={remote}
+              workspaceId={selected.workspaceId}
+              rootItems={state.directory.items}
+              disabled={selected.status !== 'ready'}
+              changes={state.changes?.files ?? []}
+              onOpenFile={(path, kind) => { void openFile(path, kind) }}
+            />
           )}
         </aside>
 

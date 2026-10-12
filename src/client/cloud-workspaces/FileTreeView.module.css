@@ -1,0 +1,75 @@
+/* VS Code 风格文件树的样式。
+   尺度接既有 token；行高与缩进由组件内联的 paddingLeft 提供（按深度）。 */
+
+.tree {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* 一行：箭头 + 类型图标 + 文件名（+ 变更标记）。整行可点，宽度撑满便于点中。 */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 2px 6px;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  font: inherit;
+  font-size: var(--dsh-content-font-size, 14px);
+  text-align: left;
+  cursor: pointer;
+}
+
+.row:hover:not(:disabled) { background: var(--dsh-bg-hover); }
+.row:disabled { cursor: default; opacity: 0.5; }
+
+/* 箭头占位固定宽度：文件行因此与同级目录的文件名左边缘对齐（VS Code 也是这样）。 */
+.chevron {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  color: var(--dsh-text-secondary);
+}
+
+.icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+}
+
+.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 变更标记（M/A/D/T）：与旧实现同义，只是收成一个字母，避免把行撑开。 */
+.marker {
+  flex: none;
+  padding: 0 4px;
+  color: var(--dsh-text-tertiary);
+  font-size: var(--dsh-content-font-size-secondary, 12px);
+}
+
+.empty,
+.error {
+  margin: 0;
+  padding: 2px 6px;
+  color: var(--dsh-text-tertiary);
+  font-size: var(--dsh-content-font-size-secondary, 12px);
+}
+
+.error { color: var(--dsh-status-danger-text, #d9534f); }
