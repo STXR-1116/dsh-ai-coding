@@ -335,6 +335,54 @@ Puppeteer 读到的 DOM 节点；由 `build/` 下的脚本启动自己的 `dsh w
 - 内置「文件」面板在同一形态下表现**完全一致**（所有者第一次验收时用的就是内置面板）；
 - 想换回贴靠形态，用**面板工具条上的形态切换控件**；插件侧无需（也无法）改代码。
 
+## 13. 施工计划：最后一块「预览时主会话区让出右半」（**待执行**）
+
+步骤①②已完成：删掉四档预设（0.1.39）、左栏上方加会话记录区（0.1.40）。剩下这一块**必须两步一起做**，
+因为它是**同一个契约变更的两面**。
+
+### 13.1 诊断结论（已坐实，别再重新查）
+
+`vitest.config.ts` 的 jsdom 项目开了 **`css: true`** ⇒ **测试里 CSS 真的生效**；testing-library 的
+`getByRole` 会**跳过可访问性树里被隐藏的元素**。所以"把右栏改成默认不可见"会让
+`Unable to find role="tab" and name /Changes/` 在 **7 个文件、31 条测试**上同时出现 ——
+**不是查询写错，而是那些 tab 真的不可见了**。这也解释了为什么"删预设"单独做没问题
+（不改可见性），而"改网格"一改就红。
+
+### 13.2 步骤 1：网格（`CloudWorkspacesView`）
+
+- `.columns`（`CloudWorkspacesView.module.css`）基础模板最后一轨：`var(--dsh-panel-w, 320px)` → **`0`**
+  （其余四轨不动：`var(--dsh-tree-w,260px) 0 minmax(0,1fr) 0`）；
+- 视图里给 `.columns` 加 `{...(state.preview === undefined ? {} : { 'data-preview-open': '' })}`；
+- CSS 追加两条：
+  - `.columns:not([data-preview-open]) .rightPane, .columns:not([data-preview-open]) .panelDivider[data-panel-divider='right'] { display: none }`
+    —— **必须整栏隐藏**（隐藏元素不释放轨道，0 宽轨道里带内边距的栏会溢出到邻栏，本仓踩过）；
+  - `.columns[data-preview-open] { grid-template-columns: var(--dsh-tree-w,260px) 0 minmax(0,1fr) 0 minmax(0,1fr) }`
+    —— 预览吃掉主会话区的一半（所有者规格）。
+
+### 13.3 步骤 2：同步 7 个 spec 的 31 处（**这是主要工作量**）
+
+契约变更：**右栏默认不存在**，要先"打开一个文件"才有。所以：
+
+1. 在 `tests/` 加一个共享助手（如 `tests/support/open-preview.ts`）：
+   - 让该 spec 的 fake 的 `workspaceFiles` 返回**一个文件**（形状照 `WorkspaceDirectory`：
+     `{ path, revision, items: [{ path, kind: 'file', size, etag }] }`）；
+   - 点它（`fireEvent.click(await screen.findByRole('button', { name: /README\.md/u }))`），
+     并 `await waitFor(() => expect(columns.getAttribute('data-preview-open')).not.toBeNull())`。
+2. 在**每个**使用 Changes/Run/Preview 页签的测试里，**在那次点击之前**插入该助手调用。
+   需要改的文件：跑一次全量、筛 `Unable to find role="tab"` 即可拿到完整清单
+   （首次实测为 7 个文件 / 31 条，含 `cloud-workspaces.client.spec.tsx` 15 条）。
+3. **不要**改回"右栏一直可见"来让测试通过 —— 那正是本条禁止的"把隐藏逻辑改松掩盖问题"
+   （见 `AGENTS.md` 客户端坑一节）。
+
+### 13.4 步骤 3：左栏只留「会话记录 + 文件列表」
+
+所有者规格是左栏两块。当前左栏顺序：**会话记录区（已加）→ 新建 Workspace → 工作空间列表 →
+工程目录（文件树，已在最后）**。第 3 步要决定"新建 / 工作空间列表 / 上下文镜头 / 生命周期动作"去哪：
+
+- 候选一：折进「会话记录区」下方的可折叠区（默认收起）；
+- 候选二：移到主会话区上方的紧凑工具条；
+- **建议先问所有者** —— 这是内容归属问题，不是实现问题。
+
 ## 12. 决策记录：右侧 Sidebar 承载文件预览这条路线**已实施、已验证、随后按所有者要求撤除**
 
 A 段曾把「云文件（目录）」与「预览」注册成官方右栏的两个产品页（0.1.32–0.1.36）。所有者验收后
