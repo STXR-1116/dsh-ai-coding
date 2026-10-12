@@ -89,15 +89,13 @@ describe('2-1 三栏工作空间四种布局预设', () => {
     render(<CloudWorkspacesView remote={remote} useWorkspaces={useWorkspacesStub} projectId="project-alpha" projects={projects} sessionId="sess-1" />)
     await screen.findAllByText('ws-alpha-1')
 
-    const toolbar = screen.getByRole('toolbar', { name: '布局预设' })
-    for (const label of ['标准三栏', '专注会话', '审阅 diff', '监控运行']) {
-      expect(toolbar.textContent).toContain(label)
-    }
-    const standard = within(toolbar).getByRole('button', { name: '标准三栏' })
-    expect(standard.getAttribute('aria-pressed')).toBe('true')
+    // 布局**不再有预设**（所有者规格：只要会话与预览两种形态，布局由栏位自身决定）。
+    // 这条断言拦住"预设又长回来"：工具栏与 data-layout 都不应存在。
+    expect(screen.queryByRole('toolbar', { name: '布局预设' })).toBeNull()
+    expect(document.querySelector('[data-layout]')).toBeNull()
   })
 
-  it('切换布局只改 data-layout 可见性：不重新读取、运行行与状态保持不变', async () => {
+  it('三栏始终挂载：可见性变化不卸载组件、不触发任何重新读取', async () => {
     const { remote, fns } = fakeRemote()
     render(<CloudWorkspacesView remote={remote} useWorkspaces={useWorkspacesStub} projectId="project-alpha" projects={projects} sessionId="sess-1" />)
     await screen.findAllByText('ws-alpha-1')
@@ -106,25 +104,13 @@ describe('2-1 三栏工作空间四种布局预设', () => {
     fireEvent.click(screen.getByRole('tab', { name: /Run/u }))
     const runRowBefore = (await screen.findByText('run-live')).textContent
 
-    const toolbar = screen.getByRole('toolbar', { name: '布局预设' })
-    for (const [label, expectedLayout] of [
-      ['专注会话', 'focus-session'],
-      ['审阅 diff', 'review-diff'],
-      ['监控运行', 'monitor-runs'],
-      ['标准三栏', 'standard'],
-    ] as const) {
-      fireEvent.click(within(toolbar).getByRole('button', { name: label }))
-      await waitFor(() => {
-        const columns = document.querySelector('[data-layout]')!
-        expect(columns.getAttribute('data-layout')).toBe(expectedLayout)
-        // 三栏始终挂载（不卸载组件）：布局只切换可见性。
-        expect(columns.querySelector('[aria-label="workspace-tree"]')).toBeTruthy()
-        expect(columns.querySelector('[aria-label="原生会话"]')).toBeTruthy()
-        expect(columns.querySelector('[aria-label="workspace-panels"]')).toBeTruthy()
-      })
-    }
+    const columns = document.querySelector('[class*="columns"]')!
+    // 三栏（工程树 / 会话 / 面板）都在文档里：布局只切换可见性，从不卸载组件。
+    expect(columns.querySelector('[aria-label="workspace-tree"]')).toBeTruthy()
+    expect(columns.querySelector('[aria-label="workspace-session"]')).toBeTruthy()
+    expect(columns.querySelector('[aria-label="workspace-panels"]')).toBeTruthy()
 
-    // 布局切换不触发任何治理读取（工作台数据在挂载时读取一次）。
+    // 视图层动作不触发任何治理读取（工作台数据在挂载时读取一次）。
     expect(fns.workspaceRuns!.mock.calls.length).toBe(runsBefore)
     expect(fns.workspaces!.mock.calls.length).toBe(1)
 

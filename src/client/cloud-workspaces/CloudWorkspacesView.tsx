@@ -24,7 +24,6 @@ import type {
   RunAssetSnapshot,
 } from '../../types.ts'
 import { IconFolderOpenOutline16, IconRefreshOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
-import { WORKSPACE_LAYOUT_LABELS, WORKSPACE_LAYOUT_PRESETS, type WorkspaceLayoutPreset } from './layout-presets.ts'
 import { evidenceFromFailure, evidenceFromRun } from './operation-evidence.ts'
 import { groupLensLayers, lensEntryStatus, lensMemoryToggles, projectFilesSection } from './context-lens.ts'
 import { buildRunPulse, type PulseReconnect } from './run-pulse.ts'
@@ -1270,7 +1269,6 @@ export function CloudWorkspacesView({
     () => buildRecoveryCenter({ runs: state.runs, changes: state.changes, streamState: streamStatus }),
     [state.runs, state.changes, streamStatus],
   )
-  const [layout, setLayout] = useState<WorkspaceLayoutPreset>('standard')
   const [runCheckpoint, setRunCheckpoint] = useState<RunCheckpointSnapshot | undefined>()
   const [checkpointRunId, setCheckpointRunId] = useState<string | undefined>()
 
@@ -1657,22 +1655,8 @@ export function CloudWorkspacesView({
           <button type="button" onClick={refresh}>重试</button>
         </p>
       )}
-      <div className={css.layoutToolbar} role="toolbar" aria-label="布局预设">
-        {WORKSPACE_LAYOUT_PRESETS.map(preset => (
-          <button
-            key={preset}
-            type="button"
-            className={layout === preset ? css.tabActive : css.tab}
-            aria-pressed={layout === preset}
-            onClick={() => { setLayout(preset) }}
-          >
-            {WORKSPACE_LAYOUT_LABELS[preset]}
-          </button>
-        ))}
-      </div>
       <div
         className={css.columns}
-        data-layout={layout}
         data-drawer={drawer}
         {...(draggingSide === undefined ? {} : { 'data-dragging': '' })}
         style={{ '--dsh-tree-w': `${panelWidths.left}px`, '--dsh-panel-w': `${panelWidths.right}px` } as React.CSSProperties}
