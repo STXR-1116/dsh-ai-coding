@@ -1,0 +1,73 @@
+/* 会话记录区（左栏上方）。尺度接既有 token，不新长一套硬编码。
+   高度**受限**：这块与其下的文件列表区共享左栏，不能让会话记录把文件列表挤没。 */
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 38%;
+  min-height: 0;
+  overflow: auto;
+  padding-bottom: 8px;
+  border-bottom: var(--dsh-cw-divider, 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover)));
+}
+
+.title {
+  margin: 0;
+  font-size: var(--dsh-content-font-size, 14px);
+  font-weight: 600;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item,
+.itemActive {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 6px;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: var(--dsh-cw-radius-control, 6px);
+  font: inherit;
+  font-size: var(--dsh-content-font-size, 14px);
+  text-align: left;
+  cursor: pointer;
+}
+
+.itemActive { background: var(--dsh-bg-hover); }
+.item:hover { background: var(--dsh-bg-hover); }
+
+.itemTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itemTime {
+  flex: none;
+  color: var(--dsh-text-tertiary);
+  font-size: var(--dsh-content-font-size-secondary, 12px);
+}
+
+.pending,
+.empty {
+  margin: 0;
+  color: var(--dsh-text-tertiary);
+  font-size: var(--dsh-content-font-size-secondary, 12px);
+}
+
+/* 缺接口这条要显眼一点：它是"待接通"，不是"没有数据"。**不加 role="status"** ——
+   页面上已有别的 status 元素，再加一个会让按角色查询的断言失效（本仓实测过一次）。 */
+.pending {
+  padding: 6px 8px;
+  border: 1px dashed var(--dsh-border-subtle, var(--dsh-bg-hover));
+  border-radius: var(--dsh-cw-radius-control, 6px);
+}

@@ -33,6 +33,7 @@ import { treeEntryMarkers } from './workspace-markers.ts'
 import { FilePreview } from './FilePreview.tsx'
 import type { WorkspaceSessionOutcome } from './workspace-sessions.ts'
 import { ConversationPane } from './ConversationPane.tsx'
+import { SessionRecords } from './SessionRecords.tsx'
 import type { ConversationSourceResult } from './conversation-source.ts'
 import css from './CloudWorkspacesView.module.css'
 
@@ -1662,6 +1663,10 @@ export function CloudWorkspacesView({
         style={{ '--dsh-tree-w': `${panelWidths.left}px`, '--dsh-panel-w': `${panelWidths.right}px` } as React.CSSProperties}
       >
         <aside className={css.leftPane} aria-label="workspace-tree">
+          {/* 左栏上方 = 会话记录区（所有者规格：上会话、下文件）。数据是**平台返回的会话列表**
+              （B 方案），接口见后端接口要求 §3.1；未接通时显示明确的"待接通"提示，
+              而不是伪装成"没有记录"。 */}
+          <SessionRecords />
           <div className={css.createForm}>
             <p className={css.paneTitle}>新建 Workspace</p>
             {repositoriesState === 'loading' && <p className={css.hint}>正在读取可用代码源…</p>}
