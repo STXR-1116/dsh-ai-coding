@@ -1,11 +1,10 @@
-/* 云文件面板的样式。
-   面板挂在官方右侧 Sidebar 里（宽度由 dockkit 决定，通常窄），所以是**纵向**布局：
-   目录在上、预览在下，各自滚动。尺度一律接本仓既有的 --dsh-cw-* / --dsh-* token，
-   不在面板里再长出一套硬编码（那正是 styles-audit 记的老毛病）。 */
+/* 云文件两个面板（目录 / 预览）共用的样式。
+   面板挂在官方右侧 Sidebar 里（宽度由 dockkit 决定，通常窄），所以是纵向布局、各自滚动。
+   尺度一律接本仓既有的 --dsh-cw-* / --dsh-* token。 */
 
 .pane {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: var(--dsh-cw-gap, 8px);
   height: 100%;
   min-height: 0;
@@ -43,7 +42,6 @@
   padding: 0;
   overflow: auto;
   list-style: none;
-  border-bottom: var(--dsh-cw-divider, 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover)));
 }
 
 .entry {
@@ -54,13 +52,14 @@
   background: transparent;
   border: 0;
   font: inherit;
-  font-size: var(--dsh-content-font-size, 14px);
+  font-size: var(--dsh-content-font-size-default, 13px);
   text-align: left;
   cursor: pointer;
 }
 
 .entry:hover { background: var(--dsh-bg-hover); }
 
+/* 预览面板：只有正文一个滚动区，头部是文件路径。 */
 .preview {
   min-height: 0;
   overflow: auto;
