@@ -69,7 +69,7 @@
   grid-template-columns:
     var(--dsh-tree-w, 260px) 0
     minmax(0, 1fr) 0
-    var(--dsh-panel-w, 320px);
+    0;
   /* One row that fills the workbench: the panes scroll internally
      (`overflow: auto` + `min-height: 0`), so an `auto` row would instead grow to
      their content and push the layout past the viewport. */
@@ -581,6 +581,24 @@
 
 
 
+/* 默认**没有右栏**（所有者规格：右侧是完整的主会话区）。
+   模板最后一轨为 0，这里连栏带分隔条一起隐藏 —— **必须整栏隐藏**：
+   隐藏元素不释放轨道，而 0 宽轨道里带内边距的栏会溢出到邻栏（本仓在「专注会话」上踩过）。
+   ⚠️ 注意 `vitest.config.ts` 的 jsdom 项目开了 `css: true`：这条隐藏**真的会在测试里生效**，
+   于是右栏里的 tab 从可访问性树里消失、按角色查询会失效 —— 相关 spec 必须先打开预览再操作。 */
+.columns:not([data-pane-open]) .rightPane,
+.columns:not([data-pane-open]) .panelDivider[data-panel-divider='right'] {
+  display: none;
+}
+
+/* 打开预览：主会话区让出右半给文件预览（所有者规格），两条分隔条都可用（可拖）。 */
+.columns[data-pane-open] {
+  grid-template-columns:
+    var(--dsh-tree-w, 260px) 0
+    minmax(0, 1fr) 0
+    minmax(0, 1fr);
+}
+
 /* §11.10 审批卡与证据抽屉：字段成组展示，不依赖颜色单独表达状态。 */
 .approvalCard {
   display: grid;
@@ -685,4 +703,18 @@
 .lensGroup {
   display: grid;
   gap: 4px;
+}
+
+/* 左栏的可折叠区（所有者选定候选一）：默认收起，让左栏保持「会话记录 + 文件列表」两块。
+   原生 <details> 自带键盘与语义，不需要额外 ARIA。 */
+.leftCollapsible {
+  padding: 4px 0;
+  border-bottom: var(--dsh-cw-divider, 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover)));
+}
+
+.leftCollapsibleTitle {
+  padding: 2px 0;
+  font-size: var(--dsh-content-font-size, 14px);
+  font-weight: 600;
+  cursor: pointer;
 }

@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { CloudWorkspacesView } from '../src/client/cloud-workspaces/CloudWorkspacesView'
 import type { ClientRemote, TeamSkillProject } from '@deepseek-ai/dsh-api-remotes/client'
+import { openCloudPane } from './helpers/open-cloud-pane.ts'
 
 // 2-4「审批、暂停、接管、恢复与证据抽屉」插件面验收（§11.10 + 蓝图 §2-4）：
 // - 审批卡：影响对象、权限、资产版本、风险、可撤销方式、有效期全部来自服务端
@@ -127,6 +128,8 @@ describe('2-4 审批卡、接管与证据抽屉', () => {
   it('审批卡逐项显示影响对象、权限、资产版本、风险、可撤销方式与有效期', async () => {
     const { remote } = fakeRemote()
     renderView(remote)
+    // 右栏默认不可见（契约见设计 §13）：先打开它再操作它里面的页签。
+    await openCloudPane()
     await screen.findAllByText('ws-alpha-1')
     fireEvent.click(await screen.findByRole('tab', { name: 'Run' }))
 
@@ -146,6 +149,8 @@ describe('2-4 审批卡、接管与证据抽屉', () => {
   it('批准成功 → 证据抽屉：request ID、审计 ID、影响对象、下一步动作、revision', async () => {
     const { remote, fns } = fakeRemote()
     renderView(remote)
+    // 右栏默认不可见（契约见设计 §13）：先打开它再操作它里面的页签。
+    await openCloudPane()
     await screen.findAllByText('ws-alpha-1')
     fireEvent.click(await screen.findByRole('tab', { name: 'Run' }))
 
@@ -165,6 +170,8 @@ describe('2-4 审批卡、接管与证据抽屉', () => {
       decideApproval: vi.fn(async () => failed('REVISION_CONFLICT', '运行 revision 已变化', { requestId: 'req-409-1', httpStatus: 409 })),
     })
     renderView(remote)
+    // 右栏默认不可见（契约见设计 §13）：先打开它再操作它里面的页签。
+    await openCloudPane()
     await screen.findAllByText('ws-alpha-1')
     fireEvent.click(await screen.findByRole('tab', { name: 'Run' }))
 
@@ -181,6 +188,8 @@ describe('2-4 审批卡、接管与证据抽屉', () => {
       decideApproval: vi.fn(async () => failed('FORBIDDEN', '当前账号无权审批该运行', { requestId: 'req-403-1', httpStatus: 403 })),
     })
     renderView(remote)
+    // 右栏默认不可见（契约见设计 §13）：先打开它再操作它里面的页签。
+    await openCloudPane()
     await screen.findAllByText('ws-alpha-1')
     fireEvent.click(await screen.findByRole('tab', { name: 'Run' }))
 
@@ -194,6 +203,8 @@ describe('2-4 审批卡、接管与证据抽屉', () => {
   it('接管：按钮调用接管并打开成功证据抽屉', async () => {
     const { remote, fns } = fakeRemote()
     renderView(remote)
+    // 右栏默认不可见（契约见设计 §13）：先打开它再操作它里面的页签。
+    await openCloudPane()
     await screen.findAllByText('ws-alpha-1')
     fireEvent.click(await screen.findByRole('tab', { name: 'Run' }))
 

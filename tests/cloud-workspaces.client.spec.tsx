@@ -6,6 +6,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { CloudWorkspacesView } from '../src/client/cloud-workspaces/CloudWorkspacesView'
 import type { ClientRemote, TeamSkillProject } from '@deepseek-ai/dsh-api-remotes/client'
 import { WorkspaceHost } from '../src/workspace-host.ts'
+import { openCloudPane } from './helpers/open-cloud-pane.ts'
 
 const projects: readonly TeamSkillProject[] = [
   {
@@ -355,6 +356,8 @@ describe('CloudWorkspacesView', () => {
 
   it('shows the changes diff with baseline and current revision', async () => {
     renderView()
+    // 右栏默认不可见（契约见设计 §13）：先打开它再操作它里面的页签。
+    await openCloudPane()
     fireEvent.click(await screen.findByRole('tab', { name: /Changes/u }))
     expect(await screen.findByText(/基线 5/u)).toBeTruthy()
     expect(await screen.findByText(/src\/app\.json/u)).toBeTruthy()
@@ -395,6 +398,8 @@ describe('CloudWorkspacesView', () => {
         sessionId="sess-1"
       />,
     )
+    // 右栏默认不可见（契约见设计 §13）：先打开它再操作它里面的页签。
+    await openCloudPane()
     fireEvent.click(await screen.findByRole('tab', { name: /Run/u }))
     const start = await screen.findByRole('button', { name: /开始 Run（写入）/u })
     fireEvent.click(start)
@@ -428,6 +433,8 @@ describe('CloudWorkspacesView', () => {
         sessionId="sess-1"
       />,
     )
+    // 右栏默认不可见（契约见设计 §13）：先打开它再操作它里面的页签。
+    await openCloudPane()
     fireEvent.click(await screen.findByRole('tab', { name: /Changes/u }))
     expect(await screen.findByText(/REVISION_CONFLICT/u)).toBeTruthy()
     expect(screen.getByRole('button', { name: /刷新/u })).toBeTruthy()
@@ -465,6 +472,8 @@ describe('CloudWorkspacesView', () => {
         sessionId="sess-1"
       />,
     )
+    // 右栏默认不可见（契约见设计 §13）：先打开它再操作它里面的页签。
+    await openCloudPane()
     await screen.findByRole('button', { name: /打开 Web App/u })
     await waitFor(() => {
       const button = screen.getByRole('button', { name: /打开 Web App/u }) as HTMLButtonElement
@@ -568,6 +577,8 @@ describe('CloudWorkspacesView', () => {
         sessionId="sess-1"
       />,
     )
+    // 右栏默认不可见（契约见设计 §13）：先打开它再操作它里面的页签。
+    await openCloudPane()
     await screen.findAllByText('ws-alpha-1')
     fireEvent.change(screen.getByLabelText('Agent 配置覆盖'), { target: { value: 'apv-2' } })
     fireEvent.click(screen.getByRole('tab', { name: /Run/u }))
@@ -631,6 +642,8 @@ describe('CloudWorkspacesView', () => {
         sessionId="sess-1"
       />,
     )
+    // 右栏默认不可见（契约见设计 §13）：先打开它再操作它里面的页签。
+    await openCloudPane()
     fireEvent.click(screen.getByRole('tab', { name: /Run/u }))
     await screen.findByText('run-fail')
     // 恢复中心的证据明细也会显示该错误码：断言至少出现一次即可。
@@ -2218,6 +2231,8 @@ describe('CloudWorkspacesView 生命周期与变更操作（真实 HTTP fixture�
   fixtureIt('discards changes behind a confirmation and adopts the returned revision', async () => {
     const harness = await bootHarness()
     renderHarness(harness)
+    // 右栏默认不可见（契约见设计 §13）：先打开它再操作它里面的页签。
+    await openCloudPane()
     await screen.findAllByText('ws-alpha-1')
     fireEvent.click(await screen.findByRole('tab', { name: /Changes/u }))
     await screen.findByText(/基线 5/u)
@@ -2241,6 +2256,8 @@ describe('CloudWorkspacesView 生命周期与变更操作（真实 HTTP fixture�
     const harness = await bootHarness()
     harness.hooks.mutateBody = (path, body) => (path.includes('changes:discard') ? { ...body, expected_workspace_revision: 2 } : body)
     renderHarness(harness)
+    // 右栏默认不可见（契约见设计 §13）：先打开它再操作它里面的页签。
+    await openCloudPane()
     await screen.findAllByText('ws-alpha-1')
     fireEvent.click(await screen.findByRole('tab', { name: /Changes/u }))
     await screen.findByText(/基线 5/u)
@@ -2258,6 +2275,8 @@ describe('CloudWorkspacesView 生命周期与变更操作（真实 HTTP fixture�
   fixtureIt('commits the change set with a message at the server revision', async () => {
     const harness = await bootHarness()
     renderHarness(harness)
+    // 右栏默认不可见（契约见设计 §13）：先打开它再操作它里面的页签。
+    await openCloudPane()
     await screen.findAllByText('ws-alpha-1')
     fireEvent.click(await screen.findByRole('tab', { name: /Changes/u }))
     await screen.findByText(/基线 5/u)
@@ -2278,6 +2297,8 @@ describe('CloudWorkspacesView 生命周期与变更操作（真实 HTTP fixture�
     const harness = await bootHarness()
     harness.hooks.mutateBody = (path, body) => (path.includes('git/commit') ? { ...body, expected_workspace_revision: 1 } : body)
     renderHarness(harness)
+    // 右栏默认不可见（契约见设计 §13）：先打开它再操作它里面的页签。
+    await openCloudPane()
     await screen.findAllByText('ws-alpha-1')
     fireEvent.click(await screen.findByRole('tab', { name: /Changes/u }))
     await screen.findByText(/基线 5/u)
@@ -2294,6 +2315,8 @@ describe('CloudWorkspacesView 生命周期与变更操作（真实 HTTP fixture�
   fixtureIt('creates a pull request from the change set and reports the server id', async () => {
     const harness = await bootHarness()
     renderHarness(harness)
+    // 右栏默认不可见（契约见设计 §13）：先打开它再操作它里面的页签。
+    await openCloudPane()
     await screen.findAllByText('ws-alpha-1')
     fireEvent.click(await screen.findByRole('tab', { name: /Changes/u }))
     await screen.findByText(/基线 5/u)
@@ -2314,6 +2337,8 @@ describe('CloudWorkspacesView 生命周期与变更操作（真实 HTTP fixture�
     const harness = await bootHarness()
     harness.hooks.mutateBody = (path, body) => (path.includes('git/pull-request') ? { ...body, expected_workspace_revision: 3 } : body)
     renderHarness(harness)
+    // 右栏默认不可见（契约见设计 §13）：先打开它再操作它里面的页签。
+    await openCloudPane()
     await screen.findAllByText('ws-alpha-1')
     fireEvent.click(await screen.findByRole('tab', { name: /Changes/u }))
     await screen.findByText(/基线 5/u)
@@ -2330,6 +2355,8 @@ describe('CloudWorkspacesView 生命周期与变更操作（真实 HTTP fixture�
   fixtureIt('reports WORKSPACE_BUSY from the service when a write run already holds the lease', async () => {
     const harness = await bootHarness()
     renderHarness(harness)
+    // 右栏默认不可见（契约见设计 §13）：先打开它再操作它里面的页签。
+    await openCloudPane()
     await screen.findAllByText('ws-alpha-1')
     await waitForStatus('ready')
     fireEvent.click(await screen.findByRole('tab', { name: /Run/u }))
@@ -2376,6 +2403,8 @@ describe('CloudWorkspacesView 生命周期与变更操作（真实 HTTP fixture�
   fixtureIt('marks an archived workspace read-only with an explicit notice', async () => {
     const harness = await bootHarness()
     renderHarness(harness)
+    // 右栏默认不可见（契约见设计 §13）：先打开它再操作它里面的页签。
+    await openCloudPane()
     await screen.findAllByText('ws-alpha-1')
     await waitForStatus(/main · ready · rev 7/u)
 
@@ -2425,6 +2454,8 @@ describe('UX-06/07 创建向导与预览过期', () => {
       workspacePreviewUrl: vi.fn().mockResolvedValue(ready({ url: 'https://workspace-app.fixture.internal/ws-alpha-1/p/abc', expiresAt: '2000-01-01T00:00:00Z', workspaceId: 'ws-alpha-1' })),
     })
     render(<CloudWorkspacesView remote={remote} useWorkspaces={useWorkspacesStub} projectId="project-alpha" projects={projects} sessionId="sess-1" />)
+    // 右栏默认不可见（契约见设计 §13）：先打开它再操作它里面的页签。
+    await openCloudPane()
     await screen.findAllByText('ws-alpha-1')
     fireEvent.click(await screen.findByRole('button', { name: '打开 Web App（签发短期 URL）' }))
     const reissue = await screen.findByRole('button', { name: '重新获取预览' })

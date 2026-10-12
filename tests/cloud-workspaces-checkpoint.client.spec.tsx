@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { CloudWorkspacesView } from '../src/client/cloud-workspaces/CloudWorkspacesView'
 import type { ClientRemote, TeamSkillProject } from '@deepseek-ai/dsh-api-remotes/client'
+import { openCloudPane } from './helpers/open-cloud-pane.ts'
 
 // 1-3「检查点与恢复」插件面验收：活跃运行可暂停；暂停后自动读取检查点并
 // 渲染恢复预览（将重用 / 将重新执行）；恢复显式选择 continue | replay。
@@ -114,6 +115,8 @@ describe('1-3 检查点与恢复插件面', () => {
   it('活跃运行可暂停；暂停后渲染恢复预览（将重用 / 将重新执行）', async () => {
     const { remote, fns } = fakeRemote([runningRun])
     render(<CloudWorkspacesView remote={remote} useWorkspaces={useWorkspacesStub} projectId="project-alpha" projects={projects} sessionId="sess-1" />)
+    // 右栏默认不可见（契约见设计 §13）：先打开它再操作它里面的页签。
+    await openCloudPane()
     fireEvent.click(await screen.findByRole('tab', { name: /Run/u }))
     await screen.findByText('run-live')
 
@@ -141,6 +144,8 @@ describe('1-3 检查点与恢复插件面', () => {
   it('paused 运行自动展示检查点恢复预览', async () => {
     const { remote, fns } = fakeRemote([pausedRun])
     render(<CloudWorkspacesView remote={remote} useWorkspaces={useWorkspacesStub} projectId="project-alpha" projects={projects} sessionId="sess-1" />)
+    // 右栏默认不可见（契约见设计 §13）：先打开它再操作它里面的页签。
+    await openCloudPane()
     fireEvent.click(await screen.findByRole('tab', { name: /Run/u }))
     await screen.findByText('run-live')
 

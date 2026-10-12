@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { CloudWorkspacesView } from '../src/client/cloud-workspaces/CloudWorkspacesView'
 import type { ClientRemote, TeamSkillProject } from '@deepseek-ai/dsh-api-remotes/client'
+import { openCloudPane } from './helpers/open-cloud-pane.ts'
 
 // 1-1「Plan 实体」插件面验收：用户可编辑计划（创建/编辑/确认），编辑形成事件
 // （变更摘要进入编辑历史并在界面可见），draft 归属明确（确认后冻结、运行只从
@@ -188,6 +189,8 @@ async function waitForCall(fns: Fns, name: string): Promise<unknown> {
 }
 
 async function openRunPane(): Promise<void> {
+  // 右栏默认不可见（契约见设计 §13）：先打开它再操作它里面的页签。
+  await openCloudPane()
   await screen.findAllByText('ws-alpha-1')
   fireEvent.click(screen.getByRole('tab', { name: 'Run' }))
   await screen.findByText('新建计划')

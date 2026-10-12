@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { CloudWorkspacesView } from '../src/client/cloud-workspaces/CloudWorkspacesView'
 import type { ClientRemote, TeamSkillProject } from '@deepseek-ai/dsh-api-remotes/client'
+import { openCloudPane } from './helpers/open-cloud-pane.ts'
 
 // 2-5「运行脉搏与时间旅行」插件面验收（蓝图 §2-5，§11.11）：
 // - 脉搏时间线：状态转移/审批/工具调用/测试结果/检查点条目可点击呈现，
@@ -127,6 +128,8 @@ describe('2-5 运行脉搏与当时视图', () => {
   it('脉搏条目可点击呈现，未知类型显式呈现，动效容器标注 data-motion="gated"', async () => {
     const { remote, fns } = fakeRemote()
     render(<CloudWorkspacesView remote={remote} useWorkspaces={useWorkspacesStub} projectId="project-alpha" projects={projects} sessionId="sess-1" />)
+    // 右栏默认不可见（契约见设计 §13）：先打开它再操作它里面的页签。
+    await openCloudPane()
     await screen.findAllByText('ws-alpha-1')
     fireEvent.click(await screen.findByRole('tab', { name: 'Run' }))
     fireEvent.click(await screen.findByRole('button', { name: '脉搏' }))
@@ -146,6 +149,8 @@ describe('2-5 运行脉搏与当时视图', () => {
   it('点击检查点条目打开当时视图：六类状态只读呈现，不发起运行写调用', async () => {
     const { remote, fns } = fakeRemote()
     render(<CloudWorkspacesView remote={remote} useWorkspaces={useWorkspacesStub} projectId="project-alpha" projects={projects} sessionId="sess-1" />)
+    // 右栏默认不可见（契约见设计 §13）：先打开它再操作它里面的页签。
+    await openCloudPane()
     await screen.findAllByText('ws-alpha-1')
     fireEvent.click(await screen.findByRole('tab', { name: 'Run' }))
     fireEvent.click(await screen.findByRole('button', { name: '脉搏' }))

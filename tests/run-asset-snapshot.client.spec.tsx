@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { CloudWorkspacesView } from '../src/client/cloud-workspaces/CloudWorkspacesView'
 import type { ClientRemote, TeamSkillProject } from '@deepseek-ai/dsh-api-remotes/client'
+import { openCloudPane } from './helpers/open-cloud-pane.ts'
 
 // 3-5「运行资产版本快照」插件面验收（§11.18 A）：
 // - 资产快照按需读取（不进入运行面板不取数）；
@@ -105,6 +106,8 @@ describe('3-5 运行资产版本快照插件面', () => {
   it('按需读取：绑定时刻事实与读取时刻状态分别呈现，变化项说明本运行不受影响', async () => {
     const { remote, fns } = fakeRemote()
     render(<CloudWorkspacesView remote={remote} useWorkspaces={useWorkspacesStub} projectId="project-alpha" projects={projects} sessionId="sess-1" />)
+    // 右栏默认不可见（契约见设计 §13）：先打开它再操作它里面的页签。
+    await openCloudPane()
     fireEvent.click(await screen.findByRole('tab', { name: /Run/u }))
     await screen.findByText('run-live')
 

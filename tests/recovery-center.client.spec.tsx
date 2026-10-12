@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { CloudWorkspacesView } from '../src/client/cloud-workspaces/CloudWorkspacesView'
 import type { ClientRemote, TeamSkillProject } from '@deepseek-ai/dsh-api-remotes/client'
+import { openCloudPane } from './helpers/open-cloud-pane.ts'
 
 // 1-6「恢复中心」插件面验收：失败运行、挂起审批、事件流 stale 与未同步变更
 // 集中呈现，每项归入四类动作并携带证据；每项可跳到带证据的明细
@@ -97,6 +98,8 @@ describe('1-6 恢复中心插件面', () => {
   it('集中呈现失败运行、挂起审批、stale 与未同步变更，并按四类动作呈现', async () => {
     const { remote, fns } = fakeRemote([failedTimeout, failedAuth, pausedRun])
     render(<CloudWorkspacesView remote={remote} useWorkspaces={useWorkspacesStub} projectId="project-alpha" projects={projects} sessionId="sess-1" />)
+    // 右栏默认不可见（契约见设计 §13）：先打开它再操作它里面的页签。
+    await openCloudPane()
     fireEvent.click(await screen.findByRole('tab', { name: /Run/u }))
 
     expect(await screen.findByText('恢复中心')).toBeTruthy()
@@ -120,6 +123,8 @@ describe('1-6 恢复中心插件面', () => {
   it('安全重试可执行（重试运行）且每项可跳到带证据的明细', async () => {
     const { remote, fns } = fakeRemote([failedTimeout, failedAuth, pausedRun])
     render(<CloudWorkspacesView remote={remote} useWorkspaces={useWorkspacesStub} projectId="project-alpha" projects={projects} sessionId="sess-1" />)
+    // 右栏默认不可见（契约见设计 §13）：先打开它再操作它里面的页签。
+    await openCloudPane()
     fireEvent.click(await screen.findByRole('tab', { name: /Run/u }))
 
     const timeoutItem = (await screen.findByText('失败运行 run-timeout')).closest('li') as HTMLElement

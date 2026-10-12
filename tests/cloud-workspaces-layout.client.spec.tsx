@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { CloudWorkspacesView } from '../src/client/cloud-workspaces/CloudWorkspacesView'
 import type { ClientRemote, TeamSkillProject } from '@deepseek-ai/dsh-api-remotes/client'
+import { openCloudPane } from './helpers/open-cloud-pane.ts'
 
 // 2-1「三栏工作空间与四种布局」插件面验收：四种布局预设切换只改变三栏可见性
 // （data-layout + CSS 隐藏，不卸载组件），不得触发重新读取、不得改变运行状态
@@ -98,6 +99,8 @@ describe('2-1 三栏工作空间四种布局预设', () => {
   it('三栏始终挂载：可见性变化不卸载组件、不触发任何重新读取', async () => {
     const { remote, fns } = fakeRemote()
     render(<CloudWorkspacesView remote={remote} useWorkspaces={useWorkspacesStub} projectId="project-alpha" projects={projects} sessionId="sess-1" />)
+    // 右栏默认不可见（契约见设计 §13）：先打开它再操作它里面的页签。
+    await openCloudPane()
     await screen.findAllByText('ws-alpha-1')
 
     const runsBefore = fns.workspaceRuns!.mock.calls.length

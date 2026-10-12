@@ -355,6 +355,9 @@ export function CloudWorkspacesView({
   const [selectedId, setSelectedId] = useState<string | undefined>()
   const [openPath, setOpenPath] = useState<string | undefined>()
   const [pane, setPane] = useState<Pane>('preview')
+  // 右栏是否已打开。**与"是否有预览"分开**：打开文件会让右栏出现（并显示预览），
+  // 而「变更 / 运行」也要能独立打开 —— 否则那两个面板没有任何入口。
+  const [paneOpen, setPaneOpen] = useState(false)
   const [drawer, setDrawer] = useState<'none' | 'left' | 'right'>('none')
   const [conflictMessage, setConflictMessage] = useState<string | undefined>()
   const [streamStatus, setStreamStatus] = useState<WorkspaceStreamState>({ status: 'idle' })
@@ -1019,6 +1022,7 @@ export function CloudWorkspacesView({
     if (selectedId === undefined || kind !== 'file') return
     setOpenPath(path)
     setPane('preview')
+    setPaneOpen(true)
     const workspaceId = selectedId
     const generationValue = ++previewGeneration.current
     const result = unwrap(await remote.cloudWorkspaces.workspacePreview(workspaceId, path))
@@ -1658,6 +1662,10 @@ export function CloudWorkspacesView({
       )}
       <div
         className={css.columns}
+        /* 打开预览时主会话区让出右半；未打开时右栏整栏隐藏（所有者规格）。
+           注意：这条可见性变化在测试里**真的生效**（jsdom 项目开了 css: true），
+           所以点右栏页签的 spec 必须先打开预览 —— 见 docs/cloud-workspace-reuse-design.md §13。 */
+        {...((paneOpen || state.preview !== undefined) ? { 'data-pane-open': '' } : {})}
         data-drawer={drawer}
         {...(draggingSide === undefined ? {} : { 'data-dragging': '' })}
         style={{ '--dsh-tree-w': `${panelWidths.left}px`, '--dsh-panel-w': `${panelWidths.right}px` } as React.CSSProperties}
@@ -1667,7 +1675,12 @@ export function CloudWorkspacesView({
               （B 方案），接口见后端接口要求 §3.1；未接通时显示明确的"待接通"提示，
               而不是伪装成"没有记录"。 */}
           <SessionRecords />
-          <div className={css.createForm}>
+          {/* 「新建 Workspace / 工作空间列表」折进可折叠区（所有者选定候选一）：左栏只留
+              「会话记录 + 文件列表」两块，这些操作默认收起。用原生 <details> —— 默认收起、
+              键盘可达、不必自己管展开状态。注意：收起时内容会从可访问性树里移除（见 AGENTS.md）。 */}
+          <details className={css.leftCollapsible}>
+            <summary className={css.leftCollapsibleTitle}>工作空间与操作</summary>
+            <div className={css.createForm}>
             <p className={css.paneTitle}>新建 Workspace</p>
             {repositoriesState === 'loading' && <p className={css.hint}>正在读取可用代码源…</p>}
             {repositoriesState === 'empty' && (
@@ -1834,6 +1847,7 @@ export function CloudWorkspacesView({
               </li>
             ))}
           </ul>
+            </details>
           {selected !== undefined && state.directory !== undefined && (
             <div className={css.fileTree}>
               <p className={css.paneTitle}>工程目录 {selected.branch}</p>
@@ -1943,6 +1957,17 @@ export function CloudWorkspacesView({
               >
                 新建会话
               </button>
+            {/* 面板的**显式入口**：右栏默认不存在（所有者规格：右侧是完整的主会话区），
+                所以「变更 / 运行」需要一个入口 —— 打开文件时自动出现，也可以从这里直接打开。
+                没有这个按钮，那两个面板就没有任何入口（实现右栏隐藏时发现的真实缺口）。 */}
+            <button
+              type="button"
+              className={css.actionButton}
+              aria-label="打开变更与运行面板"
+              onClick={() => { setPaneOpen(true) }}
+            >
+              变更 / 运行
+            </button>
             </div>
             {/* The 「工作台已让出中栏…」 hint lived here. It described the docked
                 layout, in which this workbench sat beside the shell's conversation
