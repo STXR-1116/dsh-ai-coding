@@ -1,21 +1,30 @@
-/* 预览查看器的样式。
-   这三条规则**从 `CloudWorkspacesView.module.css` 搬来**（视图里对应的三条要删掉）——
-   预览实现只有一份，样式也只有一份。尺度全部接既有 token。 */
+/* 预览查看器的样式 —— **只有这一份**（原先长在 `CloudWorkspacesView.module.css` 里，
+   已搬来并删掉原件）。尺寸按"填满面板、内容自身滚动"来做，尺度一律接既有 token。 */
 
 .frame {
+  /* **填满面板**，而不是固定 260px 的小盒子 —— 后者自带一层滚动条，看起来又挤又丑。 */
+  flex: 1 1 auto;
+  box-sizing: border-box;
   width: 100%;
-  min-height: 260px;
+  min-height: 0;
   border: 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover));
   border-radius: var(--dsh-cw-radius-control, 6px);
-  background: var(--dsh-bg-surface);
+  /* 被预览的是**文档**：白色是它的常态，写死比让深色主题透进去更自然。 */
+  background: #fff;
 }
 
 .image {
+  /* 等比缩放装进容器：既不撑破面板，也不产生双向滚动条。 */
   max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
   border-radius: var(--dsh-cw-radius-control, 6px);
 }
 
 .text {
+  flex: 1 1 auto;
+  box-sizing: border-box;
+  min-height: 0;
   margin: 0;
   padding: 8px;
   overflow: auto;
@@ -28,6 +37,7 @@
 /* 代码正文由官方 `CodeBlock` 自己绘制（语言表头 + 行号 + 复制按钮），
    这里只负责让它在这个滚动容器里占满并自身滚动。 */
 .code {
+  flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
 }

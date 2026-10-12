@@ -2162,9 +2162,13 @@ export function CloudWorkspacesView({
             ))}
           </div>
           {pane === 'preview' && (
-            <div className={css.panelBody}>
+            <div className={css.panelBody} {...(state.preview === undefined ? {} : { 'data-preview': '' })}>
               {openPath === undefined && <p className={css.hint}>在左侧目录中选择文件。</p>}
-              {state.preview !== undefined && <FilePreview preview={state.preview} />}
+              {/* 预览自己占满面板、内容在内部滚动（对齐原生的观感）；
+                  `data-preview` 让面板体在预览时不再套一层滚动条。 */}
+              <div className={css.previewHost}>
+                {state.preview !== undefined && <FilePreview preview={state.preview} />}
+              </div>
               <div className={css.webAppRow}>
                 <button
                   type="button"

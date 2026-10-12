@@ -263,6 +263,8 @@
   margin: 0;
   font-size: var(--dsh-content-font-size, 14px);
   opacity: 0.7;
+  /* 签发出来的 URL 是一长串不可断的字符：不换行就会撑出横向滚动条。 */
+  overflow-wrap: anywhere;
 }
 
 .errorBanner,
@@ -410,6 +412,30 @@
   gap: 8px;
   min-height: 0;
   overflow: auto;
+}
+
+/* 有预览时面板体不再自己滚动：预览填满可用高度，内容在它内部滚动 ——
+   否则会出现"面板一层滚动条 + 预览一层滚动条"的套叠（所有者反馈"样式很丑"的直接原因之一）。 */
+.panelBody[data-preview] {
+  overflow: hidden;
+}
+
+/* 预览的宿主：吃掉剩余高度，让官方 `CodeBlock` / iframe 填满面板。 */
+.previewHost {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Web App 那一行原先**没有任何样式**：长 URL 会把面板撑出横向滚动条。
+   现在允许换行，并让 URL 可断行（见 .hint 的 overflow-wrap）。 */
+.webAppRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .diffText {
