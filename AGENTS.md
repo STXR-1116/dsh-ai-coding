@@ -138,6 +138,16 @@ ctx.get('workspaces')          // ✓ 缺服务时返回 undefined
   或直接看已有消费者的解析（`CloudWorkspacesView` 里那棵能用的文件树）；
 - **每个非 `ready` 分支都要显式显示原因**（`signed-out` / `not-ready` 不是"空列表"）。
 
+**CSS 在测试里是真的生效的（`vitest.config.ts` 的 jsdom 项目开了 `css: true`）。**
+
+所以"用 CSS 隐藏某块界面"会**连带改变按角色查询的结果**：testing-library 的 `getByRole` 跳过可访问性
+树里被隐藏（`display: none` 等）的元素。实测事故：把右栏改为默认隐藏（网格最后一轨置 0 +
+`display: none`）后，**31 条客户端测试**同时报 `Unable to find role="tab" and name /Changes/` ——
+不是查询写错，而是那些 tab 真的不可见了。
+
+规矩：**改动"某块默认是否可见"时，要预期按角色的查询会失效**，并同步更新那些 spec
+（让它们先打开该块再操作），而不是回头把隐藏逻辑改松掩盖问题。
+
 ## 仓库定位
 
 `dsh-ai-coding` —— DSH 的 AI Coding 平台插件，双半结构（host `src/*.ts` + browser `src/client/*`）。
