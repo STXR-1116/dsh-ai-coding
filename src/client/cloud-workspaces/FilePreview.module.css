@@ -24,3 +24,10 @@
   border-radius: var(--dsh-cw-radius-control, 6px);
   background: var(--dsh-bg-hover);
 }
+
+/* 代码正文由官方 `CodeBlock` 自己绘制（语言表头 + 行号 + 复制按钮），
+   这里只负责让它在这个滚动容器里占满并自身滚动。 */
+.code {
+  min-height: 0;
+  overflow: auto;
+}

@@ -143,7 +143,10 @@ export function CloudFilesPane({ remote }: CloudFilesPaneProps) {
   return (
     <div className={css.pane}>
       <div className={css.bar}>
-        <span className={css.path} title={workspaceId}>{path === '' ? '/' : path}</span>
+        {/* 打开文件后头部显示**该文件的路径**（与原生预览的定位方式一致），否则显示当前目录。 */}
+        <span className={css.path} title={`${workspaceId}/${preview?.path ?? path}`}>
+          {preview?.path ?? (path === '' ? '/' : path)}
+        </span>
         <button type="button" className={css.action} onClick={() => { void loadDirectory(path) }}>刷新</button>
       </div>
       {error !== undefined && <p className={css.error} role="alert">{error}</p>}
