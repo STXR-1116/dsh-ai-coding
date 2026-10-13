@@ -1856,9 +1856,15 @@ export function CloudWorkspacesView({
               remote={remote}
               workspaceId={selected.workspaceId}
               rootItems={state.directory.items}
+
+              branch={selected.branch}
+
+              selectedPath={openPath}
               disabled={selected.status !== 'ready'}
               changes={state.changes?.files ?? []}
               onOpenFile={(path, kind) => { void openFile(path, kind) }}
+
+              onRefresh={() => { void loadDirectory(selected.workspaceId, '') }}
             />
           )}
         </aside>

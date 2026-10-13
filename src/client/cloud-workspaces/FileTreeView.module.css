@@ -8,6 +8,38 @@
   overflow: auto;
 }
 
+/* 标题栏（VS Code 的根节点行）：分支名在左，控件在右。 */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 0 4px;
+}
+
+.headerTitle {
+  flex: 1 1 auto;
+  overflow: hidden;
+  font-size: var(--dsh-content-font-size, 14px);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.headerAction {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  color: var(--dsh-text-secondary);
+  background: transparent;
+  border: 0;
+  border-radius: var(--dsh-cw-radius-control, 6px);
+  cursor: pointer;
+}
+
+.headerAction:hover { background: var(--dsh-bg-hover); }
+
 .list {
   margin: 0;
   padding: 0;
@@ -32,6 +64,22 @@
 
 .row:hover:not(:disabled) { background: var(--dsh-bg-hover); }
 .row:disabled { cursor: default; opacity: 0.5; }
+
+/* 当前打开的文件：整行高亮（VS Code 的选中态）。 */
+.rowActive {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 2px 6px;
+  color: inherit;
+  background: var(--dsh-bg-active, var(--dsh-bg-hover));
+  border: 0;
+  font: inherit;
+  font-size: var(--dsh-content-font-size, 14px);
+  text-align: left;
+  cursor: pointer;
+}
 
 /* 箭头占位固定宽度：文件行因此与同级目录的文件名左边缘对齐（VS Code 也是这样）。 */
 .chevron {
