@@ -1024,6 +1024,9 @@ export function CloudWorkspacesView({
     setOpenPath(path)
     setPane('preview')
     setPaneOpen(true)
+    // 同一个文件**已经取过就直接复用**：重复开合右栏不该再打一次服务端，也不该重渲染整块预览。
+    // （所有者报过"越点越慢"；jsdom 侧测出 React 逻辑耗时是持平的，所以把这类重复劳动先去掉。）
+    if (state.preview?.path === path) return
     const workspaceId = selectedId
     const generationValue = ++previewGeneration.current
     const result = unwrap(await remote.cloudWorkspaces.workspacePreview(workspaceId, path))
@@ -1039,7 +1042,7 @@ export function CloudWorkspacesView({
       return
     }
     setState(previous => ({ ...previous, preview }))
-  }, [applyResult, remote, selectedId])
+  }, [applyResult, remote, selectedId, state.preview])
 
   const issueWebApp = useCallback(async (): Promise<void> => {
     if (selectedId === undefined) return
