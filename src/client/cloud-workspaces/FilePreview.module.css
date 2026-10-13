@@ -21,6 +21,34 @@
   border-radius: var(--dsh-cw-radius-control, 6px);
 }
 
+/* 图片区域：透明底格 + 边框，让"这里有一张图"始终看得出来 ——
+   1×1 或全透明的图因此不再是"一片空白"（所有者报过这个歧义）。 */
+.imageWrap {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+  min-height: 0;
+  margin: 0;
+  padding: 8px;
+  border: 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover));
+  border-radius: var(--dsh-cw-radius-control, 6px);
+  background-image:
+    linear-gradient(45deg, var(--dsh-bg-hover) 25%, transparent 25%, transparent 75%, var(--dsh-bg-hover) 75%),
+    linear-gradient(45deg, var(--dsh-bg-hover) 25%, transparent 25%, transparent 75%, var(--dsh-bg-hover) 75%);
+  background-position: 0 0, 8px 8px;
+  background-size: 16px 16px;
+  overflow: auto;
+}
+
+/* 图片说明：路径（+ 加载后的尺寸）。1×1 会直接写出来，省得再猜"是不是没渲染"。 */
+.imageNote {
+  margin: 0;
+  color: var(--dsh-text-secondary);
+  font-size: var(--dsh-content-font-size-secondary, 12px);
+}
+
 .text {
   flex: 1 1 auto;
   box-sizing: border-box;

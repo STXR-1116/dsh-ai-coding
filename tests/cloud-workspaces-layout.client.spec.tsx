@@ -56,7 +56,11 @@ function fakeRemote(): { readonly remote: ClientRemote; readonly fns: Record<str
     workspaceRuns: vi.fn(async () => ready([runningRun])),
     agentProfiles: vi.fn(async () => ready([profile])),
     workspacePlans: vi.fn(async () => ready([])),
-    workspaceFiles: vi.fn(async () => ready({ path: '', kind: 'directory', items: [] })),
+    workspaceFiles: vi.fn(async () => ready({
+      path: '', kind: 'directory',
+      // 放一个文件：右栏"打开文件出现 / 关闭"两条路径都要能走。
+      items: [{ path: 'README.md', kind: 'file', size: 12, etag: 'e1' }],
+    })),
     streamState: vi.fn(async () => ({ status: 'live', lastEventId: 'evt-000001' })),
     startStream: vi.fn(async () => ({ subscriptionId: 'sub-1', state: { status: 'connecting' } })),
     stopStream: vi.fn(async () => ({ status: 'idle' })),
@@ -121,7 +125,7 @@ describe('2-1 三栏工作空间四种布局预设', () => {
     expect((await screen.findByText('run-live')).textContent).toBe(runRowBefore)
   })
 
-  it('右栏可开可关：头部入口打开、× 关闭（对标原生标签页的关闭）', async () => {
+  it('右栏可开可关：打开文件或点头部入口都出现，× 关闭（对标原生标签页的关闭）', async () => {
     const { remote, fns } = fakeRemote()
     render(<CloudWorkspacesView remote={remote} useWorkspaces={useWorkspacesStub} projectId="project-alpha" projects={projects} sessionId="sess-1" />)
     await screen.findAllByText('ws-alpha-1')
@@ -130,10 +134,16 @@ describe('2-1 三栏工作空间四种布局预设', () => {
     // 默认没有右栏（所有者规格：右侧是完整的主会话区）。
     expect(columns.getAttribute('data-pane-open')).toBeNull()
 
+    // 路径一：点头部入口。
     fireEvent.click(await screen.findByRole('button', { name: '打开变更与运行面板' }))
     await waitFor(() => { expect(columns.getAttribute('data-pane-open')).not.toBeNull() })
+    fireEvent.click(screen.getByRole('button', { name: '关闭面板' }))
+    await waitFor(() => { expect(columns.getAttribute('data-pane-open')).toBeNull() })
 
-    // 关闭控件：没有它，面板一旦打开就关不掉（实现右栏隐藏时漏掉的一环）。
+    // 路径二：**打开文件**（这条是回归点）——有预览时关闭必须也生效。
+    // 曾经的判据是 `paneOpen || 有预览`，于是有预览时关闭被抵消、点 × 毫无反应（所有者实测）。
+    fireEvent.click(await screen.findByRole('button', { name: 'README.md' }))
+    await waitFor(() => { expect(columns.getAttribute('data-pane-open')).not.toBeNull() })
     fireEvent.click(screen.getByRole('button', { name: '关闭面板' }))
     await waitFor(() => { expect(columns.getAttribute('data-pane-open')).toBeNull() })
 

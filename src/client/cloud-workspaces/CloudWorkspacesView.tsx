@@ -1663,10 +1663,11 @@ export function CloudWorkspacesView({
       )}
       <div
         className={css.columns}
-        /* 打开预览时主会话区让出右半；未打开时右栏整栏隐藏（所有者规格）。
+        /* 右栏是否显示**只看 paneOpen**（打开文件时由 openFile 置真）。
+           曾把"有预览"也算进来，结果有预览时关闭被抵消、点 × 毫无反应 —— 一个状态只能有一个判据。
            注意：这条可见性变化在测试里**真的生效**（jsdom 项目开了 css: true），
            所以点右栏页签的 spec 必须先打开预览 —— 见 docs/cloud-workspace-reuse-design.md §13。 */
-        {...((paneOpen || state.preview !== undefined) ? { 'data-pane-open': '' } : {})}
+        {...(paneOpen ? { 'data-pane-open': '' } : {})}
         data-drawer={drawer}
         {...(draggingSide === undefined ? {} : { 'data-dragging': '' })}
         style={{ '--dsh-tree-w': `${panelWidths.left}px`, '--dsh-panel-w': `${panelWidths.right}px` } as React.CSSProperties}

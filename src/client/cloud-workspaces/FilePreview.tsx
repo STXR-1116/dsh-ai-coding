@@ -23,6 +23,7 @@
  * @module dsh-ai-coding/client/cloud-workspaces/FilePreview
  */
 
+import { useState } from 'react'
 import { CodeBlock, MarkdownText, fileExtension } from '@deepseek-ai/dsh-client-ui-primitives'
 
 import type { WorkspacePreview } from '../../workspace-types.ts'
@@ -43,6 +44,47 @@ const MARKDOWN_LABELS = {
 
 /** 复制按钮的两段文案（`CodeBlock` 由调用方提供本地化，该包本身不含文案）。 */
 const COPY_LABELS = { copyLabel: '复制', copiedLabel: '已复制' } as const
+
+/**
+ * 图片查看器。
+ *
+ * 所有者报过「图片展示不出来」——实测夹具里 `assets/logo.png` 是**1×1 全透明** PNG
+ * （夹具源码注释写明「so the image preview path carries real bytes」）。图确实渲染了，
+ * 但**一像素、全透明、又没有边框**，界面上看不出任何东西。
+ *
+ * 所以这里做三件让人能判断的事：**透明底格**（一眼看出这是图片区域，透明处不再是"空白"）、
+ * **尺寸与字节说明**（1×1 会直接写出来）、**加载失败提示**（不再静默）。
+ * @param props - 预览负载。
+ * @returns 图片与说明。
+ */
+function ImageViewer({ preview }: { readonly preview: WorkspacePreview }) {
+  const [size, setSize] = useState<{ width: number; height: number } | undefined>()
+  const [failed, setFailed] = useState(false)
+  const hasBytes = (preview.contentBase64 ?? '').length > 0
+  return (
+    <figure className={css.imageWrap}>
+      {failed || !hasBytes
+        ? <p className={css.imageNote} role="alert">
+          {failed ? `图片加载失败：${preview.path}` : `服务端未返回图片字节：${preview.path}`}
+        </p>
+        : (
+          <img
+            className={css.image}
+            alt={preview.path}
+            src={`data:${preview.contentType};base64,${preview.contentBase64 ?? ''}`}
+            onLoad={event => {
+              const image = event.currentTarget
+              setSize({ width: image.naturalWidth, height: image.naturalHeight })
+            }}
+            onError={() => { setFailed(true) }}
+          />
+        )}
+      <figcaption className={css.imageNote}>
+        {preview.path}{size === undefined ? '' : ` · ${size.width}×${size.height}`}
+      </figcaption>
+    </figure>
+  )
+}
 
 /** 预览 props。 */
 export interface FilePreviewProps {
@@ -70,15 +112,7 @@ export function FilePreview({ preview }: FilePreviewProps) {
       />
     )
   }
-  if (viewer === 'image') {
-    return (
-      <img
-        className={css.image}
-        alt={preview.path}
-        src={`data:${preview.contentType};base64,${preview.contentBase64 ?? ''}`}
-      />
-    )
-  }
+  if (viewer === 'image') return <ImageViewer preview={preview} />
   if (viewer === 'markdown') {
     return (
       <div className={css.text} data-viewer="markdown">
