@@ -494,6 +494,20 @@ export interface WorkspacePlanEdit {
  * The editable execution plan (blueprint §4.1). `draft` belongs to the plan:
  * only a `confirmed` plan may be referenced by a run, and confirming freezes edits.
  */
+/**
+ * 一条**平台会话记录**（后端接口要求 §3.1：会话身份 + 展示标题 + 服务端时间）。
+ *
+ * 与 DSH 本地会话无关 —— 这是"这个云工作空间在服务端有哪些会话"的只读列表。
+ */
+export interface WorkspaceSessionRecord {
+  /** 服务端返回的稳定、不透明标识。 */
+  readonly sessionId: string
+  /** 展示用标题（服务端给，不由前端拼）。 */
+  readonly title: string
+  /** 最近活动时间（服务端时间为准）。 */
+  readonly updatedAt: string
+}
+
 export interface WorkspacePlan {
   readonly planId: string
   readonly projectId: string

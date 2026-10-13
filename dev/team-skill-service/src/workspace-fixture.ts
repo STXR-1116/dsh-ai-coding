@@ -821,6 +821,13 @@ export class WorkspaceFixture {
           return
         }
         break
+      case 'sessions':
+        // 会话记录：只读列表（后端接口要求 §3.1）。没有子路径，GET 即返回全部。
+        if (method === 'GET' && parts[4] === undefined) {
+          this.sendJson(response, 200, requestId, { items: sessionRecordDtos(advanced.workspaceId) })
+          return
+        }
+        break
       case 'plans': {
         if (parts[4] === undefined) {
           if (method === 'GET') {
@@ -5293,6 +5300,21 @@ function toCheckpointDto(checkpoint: RunCheckpoint): Record<string, unknown> {
     },
     fixture_only: true,
   }
+}
+
+/**
+ * 一个工作空间的**平台会话记录**（后端接口要求 §3.1）。
+ *
+ * 夹具就是那一节的可执行参考实现：**确定性** —— 每个工作空间两条，id 由工作空间 id 派生，
+ * 时间写死，因此任何测试都可以对它做精确断言。
+ * @param workspaceId - 工作空间 id。
+ * @returns 会话记录 DTO 列表。
+ */
+function sessionRecordDtos(workspaceId: string): readonly Record<string, unknown>[] {
+  return [
+    { session_id: `sess-${workspaceId}-1`, title: '联调记录：云工作空间状态序列', updated_at: '2026-09-22T09:10:00Z' },
+    { session_id: `sess-${workspaceId}-2`, title: '初始化与依赖安装', updated_at: '2026-09-21T18:40:00Z' },
+  ]
 }
 
 function toPlanDto(plan: PlanRecord): Record<string, unknown> {

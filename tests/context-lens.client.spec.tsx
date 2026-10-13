@@ -93,6 +93,7 @@ function fakeRemote(): { readonly remote: ClientRemote; readonly fns: Record<str
     workspaceRuns: vi.fn(async () => ready([runSnapshot])),
     agentProfiles: vi.fn(async () => ready([profile])),
     workspacePlans: vi.fn(async () => ready([])),
+    workspaceSessionRecords: vi.fn(async () => ready([])),
     workspaceFiles: vi.fn(async () => ready({ path: '', kind: 'directory', items: [] })),
     contextLens: vi.fn(async () => ready(lensSnapshot)),
     suppressContextLensMemory: vi.fn(async () => ready(suppressedLensSnapshot)),

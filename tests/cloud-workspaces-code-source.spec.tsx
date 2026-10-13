@@ -78,6 +78,7 @@ function fakeRemote(codeSources: readonly unknown[], onCreate: (input: CreateCal
       workspaceChanges: () => wrap(Promise.resolve(ready({ workspaceId: 'ws-a1', baselineRevision: 0, revision: 7, files: [] }))),
       workspaceRuns: () => wrap(Promise.resolve(ready([]))),
       workspacePlans: () => wrap(Promise.resolve(ready([]))),
+      workspaceSessionRecords: () => wrap(Promise.resolve(ready([]))),
       agentProfiles: () => wrap(Promise.resolve(ready([profile]))),
       codeSources: () => wrap(Promise.resolve(ready(codeSources))),
       workspacePreview: () => wrap(Promise.resolve(ready({ path: 'a', revision: 1, etag: 'e', kind: 'text', contentType: 'text/plain', content: '' }))),

@@ -88,6 +88,7 @@ function fakeRemote(overrides: Record<string, ReturnType<typeof vi.fn>> = {}): {
     workspaceRuns: vi.fn(async () => ready([approvalRun])),
     agentProfiles: vi.fn(async () => ready([profile])),
     workspacePlans: vi.fn(async () => ready([])),
+    workspaceSessionRecords: vi.fn(async () => ready([])),
     workspaceFiles: vi.fn(async () => ready({ path: '', kind: 'directory', items: [] })),
     runApproval: vi.fn(async () => ready(approvalEntity)),
     decideApproval: vi.fn(async () => ready(approvedRun)),

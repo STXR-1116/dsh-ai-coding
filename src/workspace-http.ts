@@ -56,6 +56,7 @@ import type {
   WorkspaceFileEntry,
   WorkspaceLifecycleStatus,
   WorkspacePlan,
+  WorkspaceSessionRecord,
   WorkspacePlanStep,
   RunApprovalSnapshot,
   RunCheckpointSnapshot,
@@ -1199,6 +1200,20 @@ function parsePlanSteps(value: unknown, field: string): readonly WorkspacePlanSt
  * @param value - Raw service payload.
  * @returns the frozen plan snapshot.
  */
+/**
+ * Parses one platform session record (backend requirements §3.1).
+ * @param value - Raw service payload.
+ * @returns the frozen record.
+ */
+export function parseSessionRecord(value: unknown): WorkspaceSessionRecord {
+  const record = requireRecord(value, 'session record')
+  return Object.freeze({
+    sessionId: requireString(record.session_id, 'session_id'),
+    title: requireString(record.title, 'title'),
+    updatedAt: requireString(record.updated_at, 'updated_at'),
+  })
+}
+
 export function parsePlan(value: unknown): WorkspacePlan {
   const record = requireRecord(value, 'plan')
   const confirmedBy = optionalString(record.confirmed_by)

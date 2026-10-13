@@ -94,6 +94,7 @@ function fakeRemote(overrides: Record<string, ReturnType<typeof vi.fn>> = {}): {
     workspaceRuns: vi.fn(async () => ready([run])),
     agentProfiles: vi.fn(async () => ready([profile])),
     workspacePlans: vi.fn(async () => ready([])),
+    workspaceSessionRecords: vi.fn(async () => ready([])),
     workspaceFiles: vi.fn(async () => ready({ path: '', kind: 'directory', items: [] })),
     runApproval: vi.fn(async () => ready({ approvalId: 'appr-1', runId: 'run-appr-1', action: 'apply_workspace_changes', summary: '写入运行需审批', affected: [], permission: { code: 'workspace.write', allowed: true, reason: '授权', policyVersion: 'perm-policy@1' }, assetVersions: [], risk: { level: 'high', reason: '写入' }, revocable: { revocable: true, how: '取消运行' }, expiresAt: '2026-09-10T00:15:00Z', createdAt: '2026-09-10T00:00:00Z' })),
     runPulse: vi.fn(async () => ready({ runId: 'run-appr-1', items: pulseEntries })),

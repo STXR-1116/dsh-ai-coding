@@ -176,6 +176,15 @@ export class CloudWorkspacesRemoteService extends Service implements CloudWorksp
     return this.call(() => this.host().workspacePlans(workspaceId))
   }
 
+  /**
+   * 读取该工作空间的平台会话记录（后端接口要求 §3.1）。
+   * @param workspaceId - 工作空间 id。
+   * @returns 会话记录列表的结果封装。
+   */
+  async workspaceSessionRecords(workspaceId: string): FaceReturn<CloudWorkspacesFace, 'workspaceSessionRecords'> {
+    return this.call(() => this.host().workspaceSessionRecords(workspaceId))
+  }
+
   async plan(workspaceId: string, planId: string): FaceReturn<CloudWorkspacesFace, 'plan'> {
     return this.call(() => this.host().plan(workspaceId, planId))
   }

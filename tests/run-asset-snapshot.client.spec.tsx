@@ -81,6 +81,7 @@ function fakeRemote(): { readonly remote: ClientRemote; readonly fns: Record<str
     workspaceRuns: vi.fn(async () => ready([runningRun])),
     agentProfiles: vi.fn(async () => ready([profile])),
     workspacePlans: vi.fn(async () => ready([])),
+    workspaceSessionRecords: vi.fn(async () => ready([])),
     workspaceFiles: vi.fn(async () => ready({ path: '', kind: 'directory', items: [] })),
     runAssetSnapshot: vi.fn(async () => ready(assetSnapshotDto)),
     streamState: vi.fn(async () => ({ status: 'live', lastEventId: 'evt-000001' })),

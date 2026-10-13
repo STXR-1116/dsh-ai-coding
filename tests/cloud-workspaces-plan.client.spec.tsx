@@ -127,6 +127,7 @@ function fakeRemote(
     workspaceRuns: vi.fn().mockResolvedValue(ready([])),
     agentProfiles: vi.fn().mockResolvedValue(ready([profile])),
     workspacePlans: vi.fn().mockResolvedValue(ready(plans)),
+    workspaceSessionRecords: vi.fn(async () => ready([])),
     plan: vi.fn().mockResolvedValue(ready(draftPlan)),
     createPlan: vi.fn().mockImplementation(async (input: { goal: string }) =>
       ready({ ...draftPlan, planId: 'plan-new', goal: input.goal, status: 'draft', revision: 1, edits: [] })),

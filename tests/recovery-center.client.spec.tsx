@@ -71,6 +71,7 @@ function fakeRemote(initialRuns: unknown[]): { readonly remote: ClientRemote; re
     workspaceRuns: vi.fn(async () => ready(initialRuns)),
     agentProfiles: vi.fn(async () => ready([profile])),
     workspacePlans: vi.fn(async () => ready([])),
+    workspaceSessionRecords: vi.fn(async () => ready([])),
     workspaceFiles: vi.fn(async () => ready({ path: '', kind: 'directory', items: [] })),
     runCheckpoint: vi.fn(async () => ready(checkpointDto)),
     run: vi.fn(async () => ready({ ...failedAuth, timeline: [{ status: 'failed', at: '2026-09-16T00:01:00Z', reason: '超时', operator: 'system', policyVersion: 'apv-1', revision: 2, traceId: 'trace-1' }] })),

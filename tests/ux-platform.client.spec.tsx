@@ -250,6 +250,7 @@ function demoRemote(): PlatformRemote {
     },
     cloudWorkspaces: {
       workspacePlans: vi.fn(async () => ({ ok: true as const, value: { status: 'ready' as const, fixtureOnly: true, value: [] } })),
+      workspaceSessionRecords: vi.fn(async () => ready([])),
       agentProfiles: vi.fn(async () => ({
         ok: true as const,
         value: {

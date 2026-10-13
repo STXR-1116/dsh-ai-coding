@@ -115,6 +115,7 @@ function fakeRemote(overrides: Overrides = {}): ClientRemote {
   return {
     cloudWorkspaces: {
       workspacePlans: vi.fn().mockResolvedValue({ ok: true as const, value: { status: 'ready' as const, value: [], fixtureOnly: true } }),
+      workspaceSessionRecords: () => wrap(Promise.resolve(ready([]))),
       plan: vi.fn(),
       createPlan: vi.fn(),
       updatePlan: vi.fn(),

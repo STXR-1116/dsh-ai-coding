@@ -12,6 +12,7 @@ import {
   parseDirectory,
   parseFileContent,
   parsePlan,
+  parseSessionRecord,
   parseRunCheckpoint,
   parsePreview,
   parsePreviewUrlGrant,
@@ -42,6 +43,7 @@ import type {
   WorkspaceFailure,
   WorkspaceFileContent,
   WorkspacePlan,
+  WorkspaceSessionRecord,
   WorkspacePreview,
   WorkspacePreviewUrlGrant,
   WorkspaceQueryResult,
@@ -837,6 +839,18 @@ export class WorkspaceHost {
     return this.authorizedQuery(async (client, accessToken) => {
       const payload = await client.request(`/v1/workspaces/${encodeURIComponent(workspaceId)}/plans`, {}, accessToken)
       return Object.freeze(listItems(payload, 'plans items').map(parsePlan))
+    })
+  }
+
+  /**
+   * Reads the workspace's platform session records (backend requirements §3.1).
+   * @param workspaceId - Opaque workspace id.
+   * @returns the query result with session records.
+   */
+  workspaceSessionRecords(workspaceId: string): Promise<WorkspaceQueryResult<readonly WorkspaceSessionRecord[]>> {
+    return this.authorizedQuery(async (client, accessToken) => {
+      const payload = await client.request(`/v1/workspaces/${encodeURIComponent(workspaceId)}/sessions`, {}, accessToken)
+      return Object.freeze(listItems(payload, 'sessions items').map(parseSessionRecord))
     })
   }
 

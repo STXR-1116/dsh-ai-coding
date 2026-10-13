@@ -108,6 +108,7 @@ interface RemoteCalls {
   readonly cancelRun: FakeFn
   readonly workspaceRuns: FakeFn
   readonly workspacePlans: FakeFn
+  readonly workspaceSessionRecords: FakeFn
   readonly plan: FakeFn
   readonly createPlan: FakeFn
   readonly updatePlan: FakeFn
@@ -183,6 +184,7 @@ function fakeRemote(overrides: Partial<RemoteCalls> = {}): { remote: ClientRemot
     workspaceRuns: vi.fn().mockResolvedValue(ready([])),
     // 1-1 计划面：契约随 §11.6 冻结，fake 必须携带新 Remote 方法。
     workspacePlans: vi.fn().mockResolvedValue(ready([])),
+    workspaceSessionRecords: vi.fn(async () => ready([])),
     plan: vi.fn(async () => ready(null)),
     createPlan: vi.fn(async () => ready(null)),
     updatePlan: vi.fn(async () => ready(null)),
@@ -230,6 +232,7 @@ function fakeRemote(overrides: Partial<RemoteCalls> = {}): { remote: ClientRemot
       cancelRun: wrap(calls.cancelRun),
       workspaceRuns: wrap(calls.workspaceRuns),
       workspacePlans: wrap(calls.workspacePlans),
+  workspaceSessionRecords: wrap(calls.workspaceSessionRecords),
       plan: wrap(calls.plan),
       createPlan: wrap(calls.createPlan),
       updatePlan: wrap(calls.updatePlan),
@@ -1740,6 +1743,7 @@ async function bootHarness(): Promise<Harness> {
       createRun: (input: Parameters<WorkspaceHost['createRun']>[0]) => envelope(host.createRun(input)),
       workspaceRuns: (workspaceId: string) => envelope(host.workspaceRuns(workspaceId)),
       workspacePlans: (workspaceId: string) => envelope(host.workspacePlans(workspaceId)),
+  workspaceSessionRecords: (workspaceId: string) => envelope(host.workspaceSessionRecords(workspaceId)),
       plan: (workspaceId: string, planId: string) => envelope(host.plan(workspaceId, planId)),
       createPlan: (input: Parameters<WorkspaceHost['createPlan']>[0]) => envelope(host.createPlan(input)),
       updatePlan: (input: Parameters<WorkspaceHost['updatePlan']>[0]) => envelope(host.updatePlan(input)),

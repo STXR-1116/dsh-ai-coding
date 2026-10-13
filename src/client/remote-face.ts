@@ -121,6 +121,7 @@ import type {
   WorkspaceFileEntry,
   WorkspaceLifecycleStatus,
   WorkspacePlan,
+  WorkspaceSessionRecord,
   WorkspacePlanEdit,
   WorkspacePlanStep,
   WorkspacePreview,
@@ -196,6 +197,8 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
     gitCommit: (workspaceId: string, message: string, expectedRevision: number) => Promise<RemoteResult<WorkspaceQueryResult<{ readonly revision: number; }>>>
     createRun: (input: { readonly workspaceId: string; readonly sessionId: string; readonly writeMode: 'read_only' | 'write'; readonly expectedWorkspaceRevision: number; readonly agentProfileVersionId?: string; readonly planId?: string; }) => Promise<RemoteResult<WorkspaceQueryResult<AgentRunSnapshot>>>
     workspacePlans: (workspaceId: string) => Promise<RemoteResult<WorkspaceQueryResult<readonly WorkspacePlan[]>>>
+    /** 该工作空间的**平台会话记录**（后端接口要求 §3.1）。 */
+    workspaceSessionRecords: (workspaceId: string) => Promise<RemoteResult<WorkspaceQueryResult<readonly WorkspaceSessionRecord[]>>>
     plan: (workspaceId: string, planId: string) => Promise<RemoteResult<WorkspaceQueryResult<WorkspacePlan>>>
     createPlan: (input: { readonly workspaceId: string; readonly goal: string; readonly steps: readonly { readonly title: string; readonly dependsOn?: readonly number[]; }[]; readonly agentProfileVersionId: string; readonly assetVersionIds?: readonly string[]; }) => Promise<RemoteResult<WorkspaceQueryResult<WorkspacePlan>>>
     updatePlan: (input: { readonly workspaceId: string; readonly planId: string; readonly goal?: string; readonly steps?: readonly { readonly title: string; readonly dependsOn?: readonly number[]; }[]; readonly agentProfileVersionId?: string; readonly assetVersionIds?: readonly string[]; readonly expectedRevision: number; readonly changeSummary: string; }) => Promise<RemoteResult<WorkspaceQueryResult<WorkspacePlan>>>

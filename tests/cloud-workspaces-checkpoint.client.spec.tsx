@@ -81,6 +81,7 @@ function fakeRemote(initialRuns: unknown[]): { readonly remote: ClientRemote; re
     workspaceRuns: vi.fn(async () => ready(initialRuns)),
     agentProfiles: vi.fn(async () => ready([profile])),
     workspacePlans: vi.fn(async () => ready([])),
+    workspaceSessionRecords: vi.fn(async () => ready([])),
     workspaceFiles: vi.fn(async () => ready({ path: '', kind: 'directory', items: [] })),
     pauseRun: vi.fn(async () => ready({ ...pausedRun })),
     resumeRun: vi.fn(async () => ready({ ...runningRun })),

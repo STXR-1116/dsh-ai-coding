@@ -22,6 +22,7 @@ import type {
   WorkspaceDirectory,
   WorkspaceFileContent,
   WorkspacePlan,
+  WorkspaceSessionRecord,
   RunCheckpointSnapshot,
   WorkspacePreview,
   WorkspacePreviewUrlGrant,
@@ -484,6 +485,16 @@ export class WorkspaceGateway extends TypertRemoteService {
   @Remote
   async workspacePlans(workspaceId: string): Promise<WorkspaceQueryResult<readonly WorkspacePlan[]>> {
     return this.host.workspacePlans(workspaceId)
+  }
+
+  /**
+   * Reads the workspace's platform session records (backend requirements §3.1).
+   * @param workspaceId - Opaque workspace id.
+   * @returns the query result with session records.
+   */
+  @Remote
+  async workspaceSessionRecords(workspaceId: string): Promise<WorkspaceQueryResult<readonly WorkspaceSessionRecord[]>> {
+    return this.host.workspaceSessionRecords(workspaceId)
   }
 
 
