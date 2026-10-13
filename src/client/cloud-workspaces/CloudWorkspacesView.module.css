@@ -718,3 +718,26 @@
   font-weight: 600;
   cursor: pointer;
 }
+
+/* 右栏的标签条那一行：标签在左、关闭在右（对标原生标签页的 ×）。 */
+.tabBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.paneClose {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  color: var(--dsh-text-secondary);
+  background: transparent;
+  border: 0;
+  border-radius: var(--dsh-cw-radius-control, 6px);
+  cursor: pointer;
+}
+
+.paneClose:hover { background: var(--dsh-bg-hover); }

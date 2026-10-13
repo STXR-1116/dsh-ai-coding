@@ -120,4 +120,24 @@ describe('2-1 三栏工作空间四种布局预设', () => {
     // 运行状态不受布局影响：同一运行行、同一状态文字。
     expect((await screen.findByText('run-live')).textContent).toBe(runRowBefore)
   })
+
+  it('右栏可开可关：头部入口打开、× 关闭（对标原生标签页的关闭）', async () => {
+    const { remote, fns } = fakeRemote()
+    render(<CloudWorkspacesView remote={remote} useWorkspaces={useWorkspacesStub} projectId="project-alpha" projects={projects} sessionId="sess-1" />)
+    await screen.findAllByText('ws-alpha-1')
+
+    const columns = document.querySelector('[class*="columns"]')!
+    // 默认没有右栏（所有者规格：右侧是完整的主会话区）。
+    expect(columns.getAttribute('data-pane-open')).toBeNull()
+
+    fireEvent.click(await screen.findByRole('button', { name: '打开变更与运行面板' }))
+    await waitFor(() => { expect(columns.getAttribute('data-pane-open')).not.toBeNull() })
+
+    // 关闭控件：没有它，面板一旦打开就关不掉（实现右栏隐藏时漏掉的一环）。
+    fireEvent.click(screen.getByRole('button', { name: '关闭面板' }))
+    await waitFor(() => { expect(columns.getAttribute('data-pane-open')).toBeNull() })
+
+    // 开关过程不触发任何治理读取。
+    expect(fns.workspaces!.mock.calls.length).toBe(1)
+  })
 })

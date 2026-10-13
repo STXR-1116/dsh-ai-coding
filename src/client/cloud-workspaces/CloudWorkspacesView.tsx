@@ -23,7 +23,7 @@ import type {
   ContextLensSnapshot,
   RunAssetSnapshot,
 } from '../../types.ts'
-import { IconFolderOpenOutline16, IconRefreshOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconCloseOutline16, IconFolderOpenOutline16, IconRefreshOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { evidenceFromFailure, evidenceFromRun } from './operation-evidence.ts'
 import { groupLensLayers, lensEntryStatus, lensMemoryToggles, projectFilesSection } from './context-lens.ts'
 import { buildRunPulse, type PulseReconnect } from './run-pulse.ts'
@@ -1930,7 +1930,7 @@ export function CloudWorkspacesView({
               type="button"
               className={css.actionButton}
               aria-label="打开变更与运行面板"
-              onClick={() => { setPaneOpen(true) }}
+              onClick={() => { setPaneOpen(open => !open) }}
             >
               变更 / 运行
             </button>
@@ -2125,7 +2125,8 @@ export function CloudWorkspacesView({
           onPointerCancel={endDividerDrag}
         />
         <aside className={css.rightPane} aria-label="workspace-panels">
-          <div role="tablist" className={css.tabs}>
+          <div className={css.tabBar}>
+            <div role="tablist" className={css.tabs}>
             {(['preview', 'changes', 'run'] as const).map(name => (
               <button
                 key={name}
@@ -2140,6 +2141,17 @@ export function CloudWorkspacesView({
                 {name === 'run' && 'Run'}
               </button>
             ))}
+            </div>
+            {/* 关闭右栏：对标原生标签页的 ×（没有它，面板一旦打开就关不掉）。 */}
+            <button
+              type="button"
+              className={css.paneClose}
+              aria-label="关闭面板"
+              title="关闭"
+              onClick={() => { setPaneOpen(false) }}
+            >
+              <IconCloseOutline16 size={16} />
+            </button>
           </div>
           {pane === 'preview' && (
             <div className={css.panelBody} {...(state.preview === undefined ? {} : { 'data-preview': '' })}>
