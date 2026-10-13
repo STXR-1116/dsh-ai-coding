@@ -23,7 +23,7 @@
  * @module dsh-ai-coding/client/cloud-workspaces/FilePreview
  */
 
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { CodeBlock, MarkdownText, fileExtension } from '@deepseek-ai/dsh-client-ui-primitives'
 
 import type { WorkspacePreview } from '../../workspace-types.ts'
@@ -97,7 +97,7 @@ export interface FilePreviewProps {
  * @param props - 预览负载。
  * @returns 对应的查看器。
  */
-export function FilePreview({ preview }: FilePreviewProps) {
+function FilePreviewBody({ preview }: FilePreviewProps) {
   const viewer = selectPreviewViewer(preview.kind, preview.contentType, preview.path)
 
   if (viewer === 'sandbox') {
@@ -148,3 +148,9 @@ export function FilePreview({ preview }: FilePreviewProps) {
     </div>
   )
 }
+
+/**
+ * 预览的对外出口：**memo 过** —— 同一个预览负载不应因右栏开合而重新渲染
+ * （重型查看器都挂在它下面：高亮代码块、HTML iframe）。
+ */
+export const FilePreview = memo(FilePreviewBody)

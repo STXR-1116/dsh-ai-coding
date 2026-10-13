@@ -30,7 +30,7 @@
  * @module dsh-ai-coding/client/cloud-workspaces/FileTreeView
  */
 
-import { useCallback, useEffect, useState } from 'react'
+import { memo, useCallback, useEffect, useState } from 'react'
 import {
   FileTypeIcon,
   IconChevronDownOutline14,
@@ -115,7 +115,7 @@ function orderForDisplay(items: readonly WorkspaceFileEntry[]): readonly Workspa
  * @param props - 远程面、工作空间、根条目与回调。
  * @returns 标题栏 + 树。
  */
-export function FileTreeView({
+function FileTreeViewBody({
   remote, workspaceId, rootItems, branch, disabled, selectedPath, changes = [], onOpenFile, onRefresh,
 }: FileTreeViewProps) {
   const [children, setChildren] = useState<ReadonlyMap<string, readonly WorkspaceFileEntry[]>>(new Map())
@@ -235,3 +235,9 @@ export function FileTreeView({
     </div>
   )
 }
+
+/**
+ * 文件树的对外出口：**memo 过** —— 右栏开合不该让整棵树重渲染（树可能很大）。
+ * 调用方需保证 rootItems / changes / 回调是稳定引用（见视图里的 useCallback 与 NO_TREE_CHANGES）。
+ */
+export const FileTreeView = memo(FileTreeViewBody)

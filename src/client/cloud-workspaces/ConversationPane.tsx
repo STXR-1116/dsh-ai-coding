@@ -10,7 +10,7 @@
  * @module dsh-ai-coding/client/cloud-workspaces/ConversationPane
  */
 
-import { useEffect, useRef, useState } from 'react'
+import {useEffect, useRef, useState, memo } from 'react'
 
 import { toConversationRows, type ChatSnapshotView, type ConversationRow } from './conversation-model.ts'
 import type { ConversationSourceResult } from './conversation-source.ts'
@@ -64,7 +64,7 @@ function renderRow(row: ConversationRow) {
  * @param props - the session identity and its resolved snapshot source.
  * @returns the pane, its empty state, or the reason the source is unusable.
  */
-export function ConversationPane({ sessionId, source }: ConversationPaneProps) {
+function ConversationPaneBody({ sessionId, source }: ConversationPaneProps) {
   const [snapshot, setSnapshot] = useState<ChatSnapshotView | undefined>()
   const sourceRef = useRef(source)
   sourceRef.current = source
@@ -115,3 +115,13 @@ export function ConversationPane({ sessionId, source }: ConversationPaneProps) {
     </div>
   )
 }
+
+/**
+ * 会话面板的对外出口：**memo 过**。
+ *
+ * 为什么：右栏开合只改可见性，不该让整段对话重渲染 —— 所有者页面上对话很长，
+ * 每次开合都重渲染它，于是越用越卡。props（sessionId / source）在正常路径下是稳定引用，
+ * 因此 memo 生效；source 不可用那条失败路径会每次新建对象，但那是异常分支，
+ * 不值得为它破坏既有契约。
+ */
+export const ConversationPane = memo(ConversationPaneBody)

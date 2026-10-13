@@ -361,6 +361,57 @@ async function browserPhase(token) {
     ).then(() => true).catch(() => false)
     check('browser: knowledge view renders fixture seed k-1', knowledgeRendered,
       knowledgeRendered ? 'k-1 visible in the knowledge view' : summarizeConsole(consoleLines))
+
+    // --perf：量右栏开合的**真实浏览器**开销。
+    //
+    // 为什么要有它：jsdom 里量不出布局/绘制（实测 8 轮开合耗时持平），而所有者报的现象是
+    // "点 × / 点变更运行 会卡" —— 那只能是浏览器侧的开销。这里在点击后**强制一次同步布局**
+    // （读 offsetHeight），把样式计算 + 布局的代价算进去。
+    if (process.argv.includes('--perf')) {
+      await clickNav(page, '云工作空间')
+      const hasButton = await page.waitForFunction(
+        () => [...document.querySelectorAll('button')].some(button => (button.textContent ?? '').includes('变更 / 运行')),
+        { timeout: BROWSER_TIMEOUT_MS },
+      ).then(() => true).catch(() => false)
+      console.log(`  perf: 找到「变更 / 运行」按钮 = ${hasButton}`)
+      if (hasButton) {
+        for (let round = 1; round <= 6; round += 1) {
+          const cycle = await page.evaluate(async () => {
+            const byText = (text) => [...document.querySelectorAll('button')]
+              .find((button) => (button.textContent ?? '').includes(text))
+            const columns = () => document.querySelector('[class*="columns"]')
+            // React 是异步提交的：点击后必须**等它提交完**（两帧 + 一个宏任务）再量，
+            // 否则量到的是"还没发生"（第一版就是这样，全部 0ms，属于无效测量）。
+            const settle = () => new Promise((resolve) => {
+              requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(resolve, 0)))
+            })
+            const started = performance.now()
+            byText('变更 / 运行')?.click()
+            await settle()
+            const openLayout = performance.now()
+            void document.body.offsetHeight
+            const openDone = performance.now()
+            const opened = columns()?.hasAttribute('data-pane-open') === true
+            byText('关闭面板')?.click()
+            await settle()
+            void document.body.offsetHeight
+            const closeDone = performance.now()
+            const closed = columns()?.hasAttribute('data-pane-open') === false
+            return {
+              opened,
+              closed,
+              openMs: Math.round(openDone - openLayout),
+              submitMs: Math.round(openLayout - started),
+              closeMs: Math.round(closeDone - openDone),
+              domNodes: document.querySelectorAll('*').length,
+            }
+          })
+          console.log(`  perf: 第 ${round} 轮 open=${cycle.opened} close=${cycle.closed}`
+            + ` 提交=${cycle.submitMs}ms 开(布局)=${cycle.openMs}ms 关+布局=${cycle.closeMs}ms`
+            + ` DOM=${cycle.domNodes}`)
+        }
+      }
+    }
   } finally {
     await browser?.close()
   }

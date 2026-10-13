@@ -35,6 +35,9 @@ import type { WorkspaceSessionOutcome } from './workspace-sessions.ts'
 import { ConversationPane } from './ConversationPane.tsx'
 import { SessionRecords } from './SessionRecords.tsx'
 import { FileTreeView } from './FileTreeView.tsx'
+
+/** 树没有变更数据时的**稳定空数组**：每次新建对象会让 memo 失效。 */
+const NO_TREE_CHANGES: readonly { readonly path: string; readonly change: string }[] = []
 import type { ConversationSourceResult } from './conversation-source.ts'
 import css from './CloudWorkspacesView.module.css'
 
@@ -1044,6 +1047,17 @@ export function CloudWorkspacesView({
     setState(previous => ({ ...previous, preview }))
   }, [applyResult, remote, selectedId, state.preview])
 
+  /** 传给树的稳定回调（memo 需要）：打开一个文件。 */
+  const handleOpenTreeFile = useCallback((path: string, kind: string): void => {
+    void openFile(path, kind)
+  }, [openFile])
+
+  /** 传给树的稳定回调（memo 需要）：重新读取根目录（错误仍走视图自己的通道）。 */
+  const handleRefreshTree = useCallback((): void => {
+    if (selectedId === undefined) return
+    void loadDirectory(selectedId, '')
+  }, [loadDirectory, selectedId])
+
   const issueWebApp = useCallback(async (): Promise<void> => {
     if (selectedId === undefined) return
     const workspaceId = selectedId
@@ -1865,10 +1879,9 @@ export function CloudWorkspacesView({
 
               selectedPath={openPath}
               disabled={selected.status !== 'ready'}
-              changes={state.changes?.files ?? []}
-              onOpenFile={(path, kind) => { void openFile(path, kind) }}
-
-              onRefresh={() => { void loadDirectory(selected.workspaceId, '') }}
+              changes={state.changes?.files ?? NO_TREE_CHANGES}
+              onOpenFile={handleOpenTreeFile}
+              onRefresh={handleRefreshTree}
             />
           )}
         </aside>
