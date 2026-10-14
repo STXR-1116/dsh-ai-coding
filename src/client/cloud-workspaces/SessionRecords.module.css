@@ -71,3 +71,13 @@
   border: 1px dashed var(--dsh-border-subtle, var(--dsh-bg-hover));
   border-radius: var(--dsh-cw-radius-control, 6px);
 }
+
+/* 读取失败的原因：就地显示，不冒充"没有记录"，也不顶成页面横幅。 */
+.failed {
+  margin: 0;
+  padding: 6px 8px;
+  color: var(--dsh-status-danger-text, #d9534f);
+  border: var(--dsh-cw-divider, 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover)));
+  border-radius: var(--dsh-cw-radius-control, 6px);
+  font-size: var(--dsh-content-font-size-secondary, 12px);
+}

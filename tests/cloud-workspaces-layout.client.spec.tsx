@@ -166,4 +166,22 @@ describe('2-1 三栏工作空间四种布局预设', () => {
     // 开关过程不触发任何治理读取。
     expect(fns.workspaces!.mock.calls.length).toBe(1)
   })
+
+  it('会话记录读失败就地显示：不顶成页面横幅，也不拖垮整页', async () => {
+    const { remote, fns } = fakeRemote()
+    // 传输层失败（信封 ok:false）。以前这次读取走 unwrap，会**抛错** ⇒ 整个工作台加载失败 ——
+    // 真后端尚未实现该端点时正是这种情形（所有者实测到页面顶着一整条红横幅）。
+    fns.workspaceSessionRecords!.mockRejectedValue(new Error('服务端未实现该端点'))
+    render(<CloudWorkspacesView remote={remote} useWorkspaces={useWorkspacesStub} projectId="project-alpha" projects={projects} sessionId="sess-1" />)
+
+    // 页面照常渲染（工作空间与左栏都在）。
+    await screen.findAllByText('ws-alpha-1')
+    expect(screen.getByLabelText('workspace-tree')).toBeTruthy()
+
+    // 原因**就地**显示在会话记录区里，而不是变成页面级横幅。
+    const pane = await screen.findByLabelText('会话记录区')
+    const alert = await within(pane).findByRole('alert')
+    expect(alert.textContent).toContain('REMOTE_INVOKE_FAILED')
+    expect(screen.queryByText(/REMOTE_INVOKE_FAILED.*重试/u)).toBeNull()
+  })
 })

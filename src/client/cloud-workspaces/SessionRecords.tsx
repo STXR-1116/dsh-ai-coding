@@ -42,6 +42,13 @@ export interface SessionRecordsProps {
   readonly onSelect?: (sessionId: string) => void
   /** 当前选中的会话。 */
   readonly selectedSessionId?: string
+  /**
+   * 读取失败的原因（就地显示）。
+   *
+   * 该读取是**次要面板**的数据：失败只影响这一块，不该顶成页面级错误横幅 ——
+   * 那会盖住页面上真正重要的错误，而且真后端可能尚未实现该端点。
+   */
+  readonly error?: string
 }
 
 /**
@@ -49,11 +56,12 @@ export interface SessionRecordsProps {
  * @param props - 会话记录与选择回调。
  * @returns 会话记录区。
  */
-export function SessionRecords({ sessions, onSelect, selectedSessionId }: SessionRecordsProps) {
+export function SessionRecords({ sessions, onSelect, selectedSessionId, error }: SessionRecordsProps) {
   return (
     <section className={css.pane} aria-label="会话记录区">
       <p className={css.title}>会话记录</p>
-      {sessions === undefined && (
+      {error !== undefined && <p className={css.failed} role="alert">{error}</p>}
+      {error === undefined && sessions === undefined && (
         <p className={css.pending}>
           等待服务端提供平台会话列表接口（见 <code>docs/backend-api-requirements.md</code> §3.1）。
         </p>
