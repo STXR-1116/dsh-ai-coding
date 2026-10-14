@@ -204,9 +204,11 @@ describe('平台插件入口注册契约', () => {
     // 浮层是插件自己的管理台（登录、配置、完整工作台）——关掉它之后就是方案 A 的画面：
     // 中央是外壳的原生会话区，右栏是我们的三个 pane。
     expect(overlay.controller.getSnapshot()).toBe(true)
-    // 关键：入口**不**占用中央列（不 selectPanel），也不开右栏（右栏由用户自己的 ＋ 控制）。
+    // **同时**打开右栏的「云工作空间」面板：产品面住在右栏，而浮层盖着它 ——
+    // 不顺手打开的话，用户关掉浮层也**没有路径发现**那些面板（所有者验收时就是这样找不到 Tab 条的）。
+    expect(fake.openedPanes).toEqual([CLOUD_WORKSPACE_TAB_KIND])
+    // 但仍然**不占中央列**（不 selectPanel）：中央永远是外壳的原生会话区。
     expect(fake.selectedPanels).toEqual([])
-    expect(fake.openedPanes).toEqual([])
   })
 
   it('浮层拿到的 remote 面就是自提供的两个服务实例，会话目标接在所声明的服务上', () => {

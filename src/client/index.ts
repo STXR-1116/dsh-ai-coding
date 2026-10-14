@@ -236,8 +236,12 @@ export function apply(ctx: ClientContext): void {
     inject: (): { onOpen: () => void } => ({
       // 入口打开**浮层**：登录、配置与完整工作台都在那个面里（`PlatformSurfaceEntry` 是浮层席位的
       // 占用者，需要该席位的 runtime props，不能在右栏 pane 里当普通组件渲染）。
-      // 关掉浮层之后就是方案 A 的画面：中央是外壳的原生会话区，右栏是我们的三个 pane。
-      onOpen: controller.open,
+      // 同时展开右栏并选中「云工作空间」面板 —— 我们的产品面住在右栏，而这层浮层盖着它；
+      // 不顺手打开的话，用户关掉浮层也**没有路径发现**那些面板（实测：所有者验收时找不到 Tab 条）。
+      onOpen: () => {
+        controller.open()
+        openRightPane(ctx, CLOUD_WORKSPACE_TAB_KIND)
+      },
     }),
   }, PlatformEntry))
 
@@ -353,15 +357,20 @@ function registerCloudFilePanes(ctx: ClientContext, remote: PlatformRemote): voi
  * 打开（或聚焦）官方右侧 Sidebar 里我们自己的某个面板。
  *
  * 官方契约：写操作需要**已挂载的会话面**，没有时抛错而不是写进没人绘制的面。
+ * 收起态的右栏也会吞掉这个调用，所以先按需展开一次。
  * @param ctx - 客户端插件上下文。
  * @param kind - 我们的 tab kind。
  */
 export function openRightPane(ctx: ClientContext, kind: string): void {
   const sidebarRight = (ctx.get as (name: string) => unknown)('sidebarRight') as undefined | {
     openTab?: (kind: string) => unknown
+    isExpanded?: () => boolean
+    toggleExpanded?: () => unknown
   }
   try {
     // 带接收者调用（同上）。
+    // 收起态下 openTab 无处可画：先展开，再打开 —— 否则表现为"点了没反应"。
+    if (sidebarRight?.isExpanded?.() === false) sidebarRight.toggleExpanded?.()
     sidebarRight?.openTab?.(kind)
   } catch (error) {
     console.warn('[dsh-ai-coding] 打开右栏面板失败（可能当前没有挂载的会话面）：', error)
