@@ -471,6 +471,38 @@ export function CloudWorkspacesView({
     workspaceSession !== undefined && !workspaceSession.ok
       ? { ok: false, message: `本工作空间的会话不可用：${workspaceSession.message}` }
       : conversation
+
+  // ── A1：把"当前工作空间 → 会话"这件事告诉外壳 ──
+  //
+  // 外壳渲染的是**当前会话**（`useSessions(s => s.current)`，经 props 的 `sessionId` 进来），
+  // 所以选中工作空间之后要把映射到的会话告诉它。
+  //
+  // 两个坑都是实测踩出来的（0.1.51 因为第二条**卡死**）：
+  //  1. 外壳可能不接受这次切换（我们映射的会话是归档的，不在它的列表里）⇒ 按目标去重，别反复重试；
+  //  2. `openSession` 每次父渲染都是新闭包 ⇒ 若"恢复"写在依赖它的 effect 里，清理函数每次渲染都跑，
+  //     于是"恢复 → 渲染 → 再恢复"死循环。所以用 ref 持有它，让清理**只依赖挂载**（空依赖数组）。
+  const openSessionRef = useRef(openSession)
+  openSessionRef.current = openSession
+  const restoreSessionRef = useRef<string | undefined>(undefined)
+  const switchAttemptedRef = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    const open = openSessionRef.current
+    if (open === undefined || conversationSessionId === undefined) return
+    if (sessionId !== undefined && sessionId !== conversationSessionId && restoreSessionRef.current === undefined) {
+      restoreSessionRef.current = sessionId
+    }
+    if (sessionId === conversationSessionId) return
+    if (switchAttemptedRef.current === conversationSessionId) return
+    switchAttemptedRef.current = conversationSessionId
+    open(conversationSessionId)
+    // 只依赖这两个值：`openSession` 的身份变化不该重新触发切换。
+  }, [conversationSessionId, sessionId])
+  // 恢复**只发生在卸载**：进入云工作空间不该永久夺走用户的会话。
+  useEffect(() => () => {
+    const previous = restoreSessionRef.current
+    if (previous !== undefined) openSessionRef.current?.(previous)
+  }, [])
+
   const [repositoriesState, setRepositoriesState] = useState<'loading' | 'ready' | 'empty' | 'failed'>('loading')
   const [loadError, setLoadError] = useState<{ code: string; message: string } | undefined>()
   const [signedOut, setSignedOut] = useState(false)
