@@ -15,6 +15,7 @@ import type {
   WorkspaceDirectory,
   WorkspaceFailure,
   WorkspacePlan,
+  WorkspaceSessionRecord,
   RunCheckpointSnapshot,
   WorkspacePreview,
   WorkspaceQueryResult,
@@ -93,6 +94,8 @@ interface WorkspaceState {
   readonly preview?: WorkspacePreview | undefined
   readonly runs: readonly AgentRunSnapshot[]
   readonly plans: readonly WorkspacePlan[]
+  /** 平台会话记录（后端接口要求 §3.1）；undefined 表示尚未读到，与"确实没有"不同。 */
+  readonly sessionRecords?: readonly WorkspaceSessionRecord[] | undefined
 }
 
 const READY = <T,>(result: WorkspaceQueryResult<T>): T | undefined => (result.status === 'ready' ? result.value : undefined)
@@ -599,6 +602,7 @@ export function CloudWorkspacesView({
       remote.cloudWorkspaces.workspaceRuns(workspaceId),
       projectId === undefined ? Promise.resolve(undefined) : remote.cloudWorkspaces.agentProfiles(projectId),
       remote.cloudWorkspaces.workspacePlans(workspaceId),
+      remote.cloudWorkspaces.workspaceSessionRecords(workspaceId),
     ])
     const lift = (index: number): RemoteEnvelope<unknown> => {
       const outcome = outcomes[index] as PromiseSettledResult<unknown>
@@ -613,6 +617,7 @@ export function CloudWorkspacesView({
       ? undefined
       : unwrap(lift(3) as RemoteEnvelope<WorkspaceQueryResult<readonly AgentProfileSummary[]>>)
     const plans = unwrap(lift(4) as RemoteEnvelope<WorkspaceQueryResult<readonly WorkspacePlan[]>>)
+    const sessionRecords = unwrap(lift(5) as RemoteEnvelope<WorkspaceQueryResult<readonly WorkspaceSessionRecord[]>>)
     if (!current()) return
     const snapshotValue = snapshot.status === 'ready' ? snapshot.value : undefined
     setState((previous) => {
@@ -636,13 +641,14 @@ export function CloudWorkspacesView({
         changes: READY(changes),
         runs: READY(runs) ?? [],
         plans: READY(plans) ?? [],
+  sessionRecords: READY(sessionRecords),
       }
     })
     if (snapshot.status !== 'ready') applyResult(snapshot)
     // A failed companion read is a result to show, never an empty pane: each
     // non-ready envelope reports its own status, and authorization codes sign
     // the account out through the shared path.
-    for (const envelope of [profiles, changes, runs, plans]) {
+    for (const envelope of [profiles, changes, runs, plans, sessionRecords]) {
       if (envelope !== undefined && envelope.status !== 'ready') {
         if (envelope.status === 'failed' && envelope.code === 'REVISION_CONFLICT') {
           setConflictMessage(envelope.message)
@@ -1693,7 +1699,7 @@ export function CloudWorkspacesView({
           {/* 左栏上方 = 会话记录区（所有者规格：上会话、下文件）。数据是**平台返回的会话列表**
               （B 方案），接口见后端接口要求 §3.1；未接通时显示明确的"待接通"提示，
               而不是伪装成"没有记录"。 */}
-          <SessionRecords />
+          <SessionRecords sessions={state.sessionRecords} />
           {/* 「新建 Workspace / 工作空间列表」折进可折叠区（所有者选定候选一）：左栏只留
               「会话记录 + 文件列表」两块，这些操作默认收起。用原生 <details> —— 默认收起、
               键盘可达、不必自己管展开状态。注意：收起时内容会从可访问性树里移除（见 AGENTS.md）。 */}

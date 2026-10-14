@@ -56,6 +56,7 @@ function fakeRemote(): { readonly remote: ClientRemote; readonly fns: Record<str
     workspaceRuns: vi.fn(async () => ready([runningRun])),
     agentProfiles: vi.fn(async () => ready([profile])),
     workspacePlans: vi.fn(async () => ready([])),
+    workspaceSessionRecords: vi.fn(async () => ready([])),
     workspaceFiles: vi.fn(async () => ready({
       path: '', kind: 'directory',
       // 放一个文件：右栏"打开文件出现 / 关闭"两条路径都要能走。
@@ -123,6 +124,21 @@ describe('2-1 三栏工作空间四种布局预设', () => {
 
     // 运行状态不受布局影响：同一运行行、同一状态文字。
     expect((await screen.findByText('run-live')).textContent).toBe(runRowBefore)
+  })
+
+  it('会话记录区渲染平台返回的记录，并取代待接通提示', async () => {
+    const { remote, fns } = fakeRemote()
+    fns.workspaceSessionRecords!.mockResolvedValue(ready([
+      { sessionId: 'sess-alpha-1', title: '联调记录：云工作空间状态序列', updatedAt: '2026-09-22T09:10:00Z' },
+    ]))
+    render(<CloudWorkspacesView remote={remote} useWorkspaces={useWorkspacesStub} projectId="project-alpha" projects={projects} sessionId="sess-1" />)
+    await screen.findAllByText('ws-alpha-1')
+
+    // 记录来自服务端：标题原样呈现（不由前端拼），位置在左栏「会话记录区」。
+    const pane = await screen.findByLabelText('会话记录区')
+    expect(await within(pane).findByText('联调记录：云工作空间状态序列')).toBeTruthy()
+    // 拿到数据后，"等待服务端提供…" 这条待接通提示必须消失 —— 两种状态不能同时出现。
+    expect(within(pane).queryByText(/等待服务端提供/u)).toBeNull()
   })
 
   it('右栏可开可关：打开文件或点头部入口都出现，× 关闭（对标原生标签页的关闭）', async () => {

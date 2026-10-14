@@ -1131,6 +1131,15 @@ class WorkspaceHttpFixture {
       this.sendJson(response, 200, requestId, { items: [] })
       return
     }
+    // 平台会话记录（后端接口要求 §3.1）：服务桩返回固定一条，供"会话记录区"断言。
+    // 不补这条会 404，而 404 会被视图的错误横幅显示成 RESOURCE_NOT_FOUND，
+    // 盖住这些测试真正关心的错误码（实测：一条 404 让 15 条生命周期测试集体失败）。
+    if (method === 'GET' && action === 'sessions') {
+      this.sendJson(response, 200, requestId, {
+        items: [{ session_id: 'sess-stub-1', title: '桩会话记录', updated_at: '2026-09-22T09:10:00Z' }],
+      })
+      return
+    }
     if (method === 'GET' && action === 'runs') {
       const items = [...this.runs.values()].filter(run => run.workspace_id === advanced.workspaceId)
       this.sendJson(response, 200, requestId, { items })
