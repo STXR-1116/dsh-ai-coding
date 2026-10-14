@@ -172,8 +172,9 @@ function FileTreeViewBody({
               <button
                 type="button"
                 className={item.path === selectedPath ? css.rowActive : css.row}
-                // 缩进按深度；箭头占位保证同级文件名左边缘对齐。
-                style={{ paddingLeft: `${6 + depth * 14}px` }}
+                // 行内缩进由**参考线**提供（每层 14px）：paddingLeft 固定，箭头占位保证
+                // 同级文件名左边缘对齐。
+                style={{ paddingLeft: '6px' }}
                 disabled={disabled}
                 title={disabled ? '工作空间未就绪' : item.path}
                 aria-current={item.path === selectedPath ? 'true' : undefined}
@@ -183,6 +184,10 @@ function FileTreeViewBody({
                   onOpenFile(item.path, item.kind)
                 }}
               >
+                {/* 缩进参考线：**一个 span** 承载整段缩进，线由 CSS 渐变画出（每 14px 一条）。 */}
+                {depth > 0 && (
+                  <span className={css.guides} style={{ width: `${depth * 14}px` }} aria-hidden="true" />
+                )}
                 <span className={css.chevron} aria-hidden="true">
                   {isDirectory
                     ? (isOpen ? <IconChevronDownOutline14 size={14} /> : <IconChevronRightOutline14 size={14} />)

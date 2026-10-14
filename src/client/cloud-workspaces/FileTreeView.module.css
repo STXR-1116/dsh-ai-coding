@@ -121,3 +121,16 @@
 }
 
 .error { color: var(--dsh-status-danger-text, #d9534f); }
+
+
+/* 缩进参考线：一个 span 承载整段缩进，线由重复渐变画出（每 14px 一条，与缩进步长一致）。
+   上一版每层一个 span，实测让一条既有测试稳定超时；这一版 DOM 更少。 */
+.guides {
+  flex: none;
+  align-self: stretch;
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--dsh-border-subtle, var(--dsh-bg-hover)) 0 1px,
+    transparent 1px 14px
+  );
+}
