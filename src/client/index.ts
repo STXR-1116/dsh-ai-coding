@@ -44,10 +44,10 @@ import { en, NS, zh, type PlatformKey } from './locales.ts'
 import { WorkspaceSessionsRemote, type UiConversationFace } from './remote/workspace-sessions.ts'
 import { CloudFilesTree } from './cloud-workspaces/CloudFilesTree.tsx'
 import { CloudPreviewPane } from './cloud-workspaces/CloudPreviewPane.tsx'
+import { CloudWorkspacePane } from './CloudWorkspacePane.tsx'
 import { resolveBrowserStorage } from './cloud-workspaces/workspace-session-store.ts'
 import { PlatformDemoController } from './controller.ts'
 import { PlatformEntry } from './PlatformEntry.tsx'
-import { CodingPanelIcon } from './CodingPanelIcon.tsx'
 import { PlatformSurfaceEntry } from './PlatformSurfaceEntry.tsx'
 import type { PlatformSurfaceProps } from './PlatformSurface.tsx'
 import { PlatformClientConfigSchema, resolvePlatformClientConfig } from './remote/config.ts'
@@ -234,8 +234,10 @@ export function apply(ctx: ClientContext): void {
     order: 30,
     locale: NS,
     inject: (): { onOpen: () => void } => ({
-      // A3：入口不再是"打开浮层"，而是选中我们的**主面板**（中央列）。
-      onOpen: () => { selectCodingPanel(ctx) },
+      // 入口打开**浮层**：登录、配置与完整工作台都在那个面里（`PlatformSurfaceEntry` 是浮层席位的
+      // 占用者，需要该席位的 runtime props，不能在右栏 pane 里当普通组件渲染）。
+      // 关掉浮层之后就是方案 A 的画面：中央是外壳的原生会话区，右栏是我们的三个 pane。
+      onOpen: controller.open,
     }),
   }, PlatformEntry))
 
@@ -262,16 +264,8 @@ export function apply(ctx: ClientContext): void {
     }),
   }, PlatformSurfaceEntry))
 
-  // A3：主面板（中央列）。正文复用浮层里那个组件 —— 同一套界面，位置从"盖住窗口"变成"占中央列"。
-  registerCodingPanel(ctx, {
-    controller,
-    remote,
-    layout: ctx.layout,
-    openSession: (sessionId) => { faces.sessions.open(sessionId) },
-    startSession: () => { faces.sessions.create() },
-  })
-
-  // A2：把云文件目录与预览注册成官方右栏的两个产品页（面板正文见本文件末尾）。
+  // 方案 A：产品面全部落在**右栏的 pane**（云工作空间 / 云文件 / 预览），中央列不再归我们 ——
+  // 那里永远是外壳的原生会话区。因此原 A3 的 `main` 主面板注册已撤除（见设计 §16.4 A3）。
   registerCloudFilePanes(ctx, remote)
 
 }
@@ -310,6 +304,7 @@ function registerCloudFilePanes(ctx: ClientContext, remote: PlatformRemote): voi
     }) => unknown
   }
   for (const [id, kind, title] of [
+    [CLOUD_WORKSPACE_TAB_ID, CLOUD_WORKSPACE_TAB_KIND, '云工作空间'],
     [CLOUD_FILES_TAB_ID, CLOUD_FILES_TAB_KIND, '云文件'],
     [CLOUD_PREVIEW_TAB_ID, CLOUD_PREVIEW_TAB_KIND, '预览'],
   ] as const) {
@@ -345,6 +340,13 @@ function registerCloudFilePanes(ctx: ClientContext, remote: PlatformRemote): voi
     locale: NS,
     inject: (): { remote: PlatformRemote } => ({ remote }),
   }, CloudPreviewPane))
+  // 方案 A 的第三个 pane：产品面（工作空间列表 / 生命周期 / 运行与审批 / 会话记录）。
+  slots.inject('sidebar.right.pane.tab', () => slots.register({
+    name: 'sidebar.right.pane.tab',
+    key: CLOUD_WORKSPACE_TAB_ID,
+    locale: NS,
+    inject: (): { remote: PlatformRemote } => ({ remote }),
+  }, CloudWorkspacePane))
 }
 
 /**
@@ -367,64 +369,14 @@ export function openRightPane(ctx: ClientContext, kind: string): void {
 }
 
 /**
- * 我们的主面板 id。它必须**同时**是：
- *  - `sidebar.panellist` 列表项的 `id`（侧栏用它渲染 rail 按钮）；
- *  - `main` 席位的 `key`（正文按它寻址）；
- *  - `ctx.layout.selectPanel(...)` 的参数。
- * 三者不一致的后果是"图标点了没反应"或"面板空白"，所以只在这里定义一次。
- */
-export const CODING_PANEL_ID = 'ai-coding-workbench' as MainPanelId
-
-/**
- * 把工作台注册成官方主面板：`main` 的正文 + `sidebar.panellist` 的 rail 图标。
- * @param ctx - 客户端插件上下文。
- * @param props - 与浮层注册完全相同的那组 props（正文就是同一个组件）。
- */
-function registerCodingPanel(
-  ctx: ClientContext,
-  props: Pick<PlatformSurfaceProps, 'controller' | 'remote' | 'layout' | 'openSession' | 'startSession'> &
-  { readonly remote: PlatformRemote },
-): void {
-  // `main` 与 `sidebar.right.pane.tab` 都用类型窄化：这两个席位由装不上的官方包声明，
-  // 名字不在 `ctx.slots.inject` 的联合里，值仍是真实的 slots 服务（因此接收者不丢）。
-  const slots = ctx.slots as unknown as {
-    inject: (name: string, register: () => unknown) => unknown
-    register: (registration: Record<string, unknown>, component: unknown) => unknown
-  }
-  slots.inject('main', () => slots.register({
-    name: 'main',
-    key: CODING_PANEL_ID,
-    locale: NS,
-    inject: () => ({
-      controller: props.controller,
-      remote: props.remote,
-      layout: props.layout,
-      openSession: props.openSession,
-      startSession: props.startSession,
-      // 主面板呈现：同一套界面，但不受浮层开合闸门约束、也不接管 Esc（见 PlatformSurfaceProps）。
-      presentation: 'panel' as const,
-    }),
-  }, PlatformSurfaceEntry))
-  slots.inject('sidebar.panellist', () => slots.register({
-    name: 'sidebar.panellist',
-    id: CODING_PANEL_ID,
-    order: 30,
-    locale: NS,
-    inject: () => ({}),
-  }, CodingPanelIcon))
-}
-
-/**
- * 选中我们的主面板（侧栏入口与将来的其它入口都用它）。
+ * 「云工作空间」面板（方案 A 的产品面落点）：管理列，与「云文件」「预览」并列在官方右栏。
  *
- * 官方语义：未注册的 key 会**抛错**并保持当前选择，所以这里必须兜住 —— 一个图标点了没反应，
- * 总好过整个界面被一次点击打崩。
- * @param ctx - 客户端插件上下文。
+ * 它与另两个 pane 一起构成方案 A 的落点分配：**中央列永远是外壳的原生会话区**，
+ * 插件的产品面全部在右栏。原先 A3 把工作台注册成 `main` 主面板（占中央列），
+ * 所有者对照效果图后选定 A ⇒ 该注册已撤除。
  */
-export function selectCodingPanel(ctx: ClientContext): void {
-  try {
-    ctx.layout.selectPanel(CODING_PANEL_ID)
-  } catch (error) {
-    console.warn('[dsh-ai-coding] 选中主面板失败（可能尚未注册）：', error)
-  }
-}
+export const CLOUD_WORKSPACE_TAB_ID = '@dsh-ai-coding/cloud-workspace'
+
+/** 「云工作空间」面板的 kind。 */
+export const CLOUD_WORKSPACE_TAB_KIND = 'ai-coding-cloud-workspace'
+

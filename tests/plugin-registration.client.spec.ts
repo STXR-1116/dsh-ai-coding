@@ -9,7 +9,7 @@
 import { describe, expect, it } from 'vitest'
 import * as entry from '../src/client/index.ts'
 import { apply, inject } from '../src/client/index.ts'
-import { CLOUD_FILES_TAB_ID, CLOUD_PREVIEW_TAB_ID, CODING_PANEL_ID } from '../src/client/index.ts'
+import { CLOUD_FILES_TAB_ID, CLOUD_PREVIEW_TAB_ID, CLOUD_WORKSPACE_TAB_ID, CLOUD_WORKSPACE_TAB_KIND } from '../src/client/index.ts'
 import { NS } from '../src/client/locales.ts'
 
 /** Fixture bearer value for the fake backend; it authorizes nothing anywhere. */
@@ -31,6 +31,8 @@ function fakeContext() {
   const openedSessions: string[] = []
   // A3：入口改为选中主面板，这里记录 selectPanel 的调用。
   const selectedPanels: string[] = []
+  // 方案 A：入口改为打开右栏面板，这里记录 openTab 的调用。
+  const openedPanes: string[] = []
   let startedSessions = 0
   const ctx = {
     effect: (run: () => () => void) => {
@@ -56,6 +58,8 @@ function fakeContext() {
     },
     remote: { marker: 'remote' },
     layout: { marker: 'layout', selectPanel: (panelId: string) => { selectedPanels.push(panelId) } },
+    // 方案 A 的入口走右栏：`openRightPane` 通过 `ctx.get('sidebarRight').openTab(kind)` 打开面板。
+    sidebarRight: { marker: 'sidebarRight', openTab: (kind: string) => { openedPanes.push(kind) } },
     sessions: {
       open: (sessionId: string) => {
         openedSessions.push(sessionId)
@@ -77,7 +81,14 @@ function fakeContext() {
      * @param name - service key being read.
      * @returns the fake service, or `undefined` for anything not provided here.
      */
-    get: (name: string): unknown => (name === 'workspaces' ? ctx.workspaces : undefined),
+    // 可选服务一律经 `ctx.get`（本仓硬规则：未 inject 的属性访问会抛错）——
+    // `openRightPane` 读 `sidebarRight`、`registerCloudFilePanes` 读 `sidebarRightTabs`，
+    // 所以这个假表必须把它们供上，否则那些注册会被静默跳过（测试看似通过、其实什么都没验）。
+    get: (name: string): unknown => (name === 'workspaces'
+      ? ctx.workspaces
+      : name === 'sidebarRight'
+        ? ctx.sidebarRight
+        : undefined),
   }
   return {
     ctx,
@@ -87,6 +98,7 @@ function fakeContext() {
     provided,
     openedSessions,
     selectedPanels,
+    openedPanes,
     startedSessionCount: () => startedSessions,
   }
 }
@@ -152,12 +164,12 @@ describe('平台插件入口注册契约', () => {
     expect(Object.keys(fake.dictionaries[0]?.en as object)).toEqual(['platform.name', 'platform.shortName', 'platform.open', 'platform.close', 'platform.demo', 'platform.offline'])
   })
 
-  it('注册侧栏动作、浮层、主面板与 rail 图标，归属 id 与顺序稳定', () => {
+  it('注册侧栏动作、浮层与右栏三个 pane，归属 id 与顺序稳定；不占中央列', () => {
     const fake = fakeContext()
 
     apply(fake.ctx as never)
 
-    // 本插件自己的扩展点：侧栏动作 + 浮层（A3 起浮层暂时保留但入口不再指向它）。
+    // 本插件自己的扩展点：侧栏动作 + 浮层（浮层保留但入口不再指向它）。
     const entries = fake.registrations.filter(registration =>
       registration.name !== 'sidebar.right.pane.tab' && registration.name !== 'main' && registration.name !== 'sidebar.panellist')
     expect(entries.map(registration => registration.name)).toEqual(['sidebar.footer.action', 'shell.overlay'])
@@ -165,22 +177,22 @@ describe('平台插件入口注册契约', () => {
     expect(entries.map(registration => registration.order)).toEqual([30, 30])
     expect(entries.every(registration => registration.locale === NS)).toBe(true)
 
-    // A2：官方右栏的两个产品页（目录 / 预览）。断言的是**我们的实现身份**，因为正文席位按 key 关联 ——
-    // key 漂移会让面板正文挂到别处，而界面看起来只是"面板空了"。
+    // 方案 A：官方右栏的三个产品页（工作空间 / 目录 / 预览）。断言的是**我们的实现身份**，
+    // 因为正文席位按 key 关联 —— key 漂移会让面板正文挂到别处，而界面看起来只是"面板空了"。
     const panes = fake.registrations.filter(registration => registration.name === 'sidebar.right.pane.tab')
+    // 顺序 = 注册顺序（目录 → 预览 → 工作空间）。页面类型本身按 kind 索引，列表顺序只影响
+    // 「＋」菜单里的排列，所以这里钉住它只是为了"顺序变了看得见"。
     expect(panes.map(registration => (registration as unknown as { key: string }).key))
-      .toEqual([CLOUD_FILES_TAB_ID, CLOUD_PREVIEW_TAB_ID])
+      .toEqual([CLOUD_FILES_TAB_ID, CLOUD_PREVIEW_TAB_ID, CLOUD_WORKSPACE_TAB_ID])
 
-    // A3：主面板正文（`main` 的 key）与 rail 图标（`sidebar.panellist` 的 id）**必须是同一个值** ——
-    // 官方契约是「list id addresses the matching main panel」，两者不一致的后果是
-    // "图标点了没反应"或"面板空白"，都不报错。
-    const main = fake.registrations.filter(registration => registration.name === 'main')
-    const rail = fake.registrations.filter(registration => registration.name === 'sidebar.panellist')
-    expect(main.map(registration => (registration as unknown as { key: string }).key)).toEqual([CODING_PANEL_ID])
-    expect(rail.map(registration => (registration as unknown as { id: string }).id)).toEqual([CODING_PANEL_ID])
+    // **我们不再占用中央列**：`main` 主面板与 `sidebar.panellist` rail 图标都已撤除
+    // （A3 曾用它们把工作台放进中央列，所有者对照效果图后选定 A ⇒ 中央列永远属于外壳的会话区）。
+    // 这条断言是那个决定的门禁：谁再把产品面塞进中央列，这里会红。
+    expect(fake.registrations.filter(registration => registration.name === 'main')).toHaveLength(0)
+    expect(fake.registrations.filter(registration => registration.name === 'sidebar.panellist')).toHaveLength(0)
   })
 
-  it('侧栏动作选中的是我们的主面板，而不是打开浮层（A3）', () => {
+  it('侧栏动作打开浮层（登录/配置/完整工作台在那里）；我们不占中央列（方案 A）', () => {
     const fake = fakeContext()
     apply(fake.ctx as never)
 
@@ -189,9 +201,12 @@ describe('平台插件入口注册契约', () => {
 
     expect(overlay.controller.getSnapshot()).toBe(false)
     entry.onOpen()
-    // 入口不再打开浮层：它把中心列切到我们的主面板（外壳的 Conversation 因此不被盖住）。
-    expect(fake.selectedPanels).toEqual([CODING_PANEL_ID])
-    expect(overlay.controller.getSnapshot()).toBe(false)
+    // 浮层是插件自己的管理台（登录、配置、完整工作台）——关掉它之后就是方案 A 的画面：
+    // 中央是外壳的原生会话区，右栏是我们的三个 pane。
+    expect(overlay.controller.getSnapshot()).toBe(true)
+    // 关键：入口**不**占用中央列（不 selectPanel），也不开右栏（右栏由用户自己的 ＋ 控制）。
+    expect(fake.selectedPanels).toEqual([])
+    expect(fake.openedPanes).toEqual([])
   })
 
   it('浮层拿到的 remote 面就是自提供的两个服务实例，会话目标接在所声明的服务上', () => {

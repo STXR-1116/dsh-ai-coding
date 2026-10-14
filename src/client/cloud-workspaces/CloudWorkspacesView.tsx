@@ -65,6 +65,12 @@ export interface CloudWorkspacesViewProps {
   readonly onProjectSelect?: (projectId: string) => void
   /** Current DSH session id bound into every Run request. */
   readonly sessionId?: string
+  /**
+   * 呈现方式（方案 A）：
+   *  - `full`（默认）：三列齐全（管理 / 会话 / 预览）；
+   *  - `management`：官方右栏 pane 里的呈现 —— **只显示管理列**，中央列永远留给外壳的会话区。
+   */
+  readonly presentation?: 'full' | 'management'
   /** Native session rows the center-pane switcher offers. */
   readonly nativeSessions?: NativeSessionRow
   /** Select the current native session from the workbench switcher. */
@@ -354,6 +360,7 @@ export function CloudWorkspacesView({
   projects,
   onProjectSelect,
   sessionId,
+  presentation = 'full',
   nativeSessions,
   openSession,
   startSession,
@@ -1741,6 +1748,8 @@ export function CloudWorkspacesView({
            注意：这条可见性变化在测试里**真的生效**（jsdom 项目开了 css: true），
            所以点右栏页签的 spec 必须先打开预览 —— 见 docs/cloud-workspace-reuse-design.md §13。 */
         {...(paneOpen ? { 'data-pane-open': '' } : {})}
+        /* 管理面呈现（方案 A）：在官方右栏的 pane 里只显示管理列 —— 中央列永远留给外壳的会话区。 */
+        {...(presentation === 'management' ? { 'data-presentation': 'management' } : {})}
         data-drawer={drawer}
         {...(draggingSide === undefined ? {} : { 'data-dragging': '' })}
         style={{ '--dsh-tree-w': `${panelWidths.left}px`, '--dsh-panel-w': `${panelWidths.right}px` } as React.CSSProperties}

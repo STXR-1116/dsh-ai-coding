@@ -741,3 +741,14 @@
 }
 
 .paneClose:hover { background: var(--dsh-bg-hover); }
+
+/* 管理面呈现（方案 A）：在官方右栏的 pane 里只显示管理列。
+   中央列永远属于外壳的原生会话区，所以这个组件在那里不渲染会话列与预览列 ——
+   用 CSS 而不是条件渲染，是为了两处 JSX 保持一份（少一处会漂移的分支）。 */
+.columns[data-presentation='management'] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.columns[data-presentation='management'] > :not(.leftPane) {
+  display: none;
+}
