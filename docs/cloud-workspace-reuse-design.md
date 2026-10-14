@@ -459,6 +459,62 @@ A 段曾把「云文件（目录）」与「预览」注册成官方右栏的两
 2. `ConversationPane` 继续用官方 `binding()` 快照渲染 —— 它已经是这条路径，后端到位即可显示真实内容；
 3. 若届时仍想要外壳的完整聊天 UI，再**一次性**做 A，并把「预览位置」「浮层去留」两个取舍一起定。
 
+## 16. 「功能完全一致」的受支持路径（2026-09-22，按所有者要求重读官方手册后）
+
+所有者要求「会话区域与原生的会话区在功能与样式上**完全一致**」。重读官方手册（`develop/*` 与
+`reference/subsystems/*`）后，结论**明确且唯一**：**必须让外壳的 Chat view 渲染我们的会话（方案 A）**。
+证据分三层：
+
+### 16.1 手册原文（`reference/subsystems/conversation`）
+
+> 「Conversation 是 Client SessionEventLikeEntry window 与浏览器 view 之间的 **target-neutral assembly 层**。」
+> 「`ui-conversation` 拥有 event 与 **view registry**、identity-stable binding、Turn/Step Location、
+> 增量 Context assembly、**target source、共享 shell 与输入编排**。**`ui-chat` 和 `ui-trajectory`
+> 等 target 包拥有各自的 Definition、最终 snapshot 与渲染。**」
+> 「**shell 拥有 View 选择**，并在 binding 创建、被选为 current 或 View roster 变化时，于渲染前
+> 解析已注册的偏好 View 或 **Chat fallback**」「**第三方 View 使用相同的选择与激活操作。**」
+
+即：**输入编排（composer）与 View 选择都属于外壳**，Chat 只是"注册进 view registry 的一个 view"，
+由外壳按当前会话选出来渲染 —— 这不是绕路，而是**设计意图**。
+
+### 16.2 包导出清单（`dsh-client-ui-chat/client` 的完整导出，36 行）
+
+`apply` / `inject`，**仅类型**（`conversation-nodes/*`、`ChatSnapshot`、`ChatNodeViewProps`…），
+`isRunningTool` / `isSettledTool` / `EMPTY_CHAT_SNAPSHOT`，以及供第三方贡献**数据**的
+`ChatNodeDataMap` 合并面 —— **没有任何组件导出** ⇒ 官方聊天渲染器在浮层里**调用不到**（硬证据）。
+
+### 16.3 于是 A 是唯一路径，此前那条反对意见在 A 下自动消解
+
+- 我们能做的：注册**第三方 View**（在 `conversation.view` 席位渲染**自己的**内容）；
+- 我们不能做的：在插件自己的面板里拿到官方 Chat 的渲染器；
+- 因此"功能完全一致" = **让外壳用 Chat view 渲染本工作空间的会话** ⇒ 中央必须是外壳的会话面
+  ⇒ **不能再有全屏浮层盖住它**。
+
+**此前那条反对（0.1.37「预览要出现在插件界面中」）针对的是**：官方右栏以"全屏"形态**浮在我们的
+浮层之上**，看起来像"原生界面盖住了插件"。A 之下**没有浮层**，外壳右栏是**同一个界面的停靠列**
+（普通展开态贴靠右栏、带宽度拖拽区）—— 观感与"浮在上面"完全不同。
+
+### 16.4 A 的目标形态与实施顺序（每步独立可验）
+
+```
+[ 外壳左栏：会话/工作区浏览（可加我们的入口） ] [ 外壳 Chat view：渲染本工作空间的会话 ] [ 官方右栏：我们的文件树 / 文件预览 pane ]
+```
+
+| 步 | 内容 | 验证 |
+| --- | --- | --- |
+| A1 | 进入云工作空间时 `sessions.open(本工作空间会话)`；离开恢复原会话 | 真机：外壳会话区显示我们的会话、输入器可用 |
+| A2 | 把「文件树 / 文件预览」注册为官方右栏的两个 pane（**0.1.32–0.1.36 做过并撤除**，`git log` 有完整实现：`CloudFilesTree` / `CloudPreviewPane` / `cloud-files-state`） | 真机：右栏**贴靠**显示目录与预览（非浮层形态） |
+| A3 | 浮层不再全屏：只保留外壳没有的产品面（工作空间列表/生命周期/运行与审批），或整体退役 | 真机：会话区、右栏与插件面**同屏且互不覆盖** |
+| A4 | 退役自建会话面板（`ConversationPane` 及其适配层），会话内容完全由外壳渲染 | 全量 + 真机 |
+| A5 | 左栏「会话记录区」改为平台会话列表**入口**：点一条 → `sessions.open(对应会话)` | 真机 |
+
+### 16.5 这一步会翻转三个既有决定（**需所有者确认后才动手**）
+
+1. **全屏浮层**（0.1.12 起）→ 退役或缩权；
+2. **预览在插件界面中**（0.1.37）→ 改为官方右栏的**停靠** pane；
+3. §15 的「保留浮层 = 现状即上限」→ 被本次「要功能完全一致」取代。
+
+
 
 
 
