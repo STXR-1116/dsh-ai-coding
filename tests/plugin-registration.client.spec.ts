@@ -9,6 +9,7 @@
 import { describe, expect, it } from 'vitest'
 import * as entry from '../src/client/index.ts'
 import { apply, inject } from '../src/client/index.ts'
+import { CLOUD_FILES_TAB_ID, CLOUD_PREVIEW_TAB_ID } from '../src/client/index.ts'
 import { NS } from '../src/client/locales.ts'
 
 /** Fixture bearer value for the fake backend; it authorizes nothing anywhere. */
@@ -153,10 +154,18 @@ describe('平台插件入口注册契约', () => {
 
     apply(fake.ctx as never)
 
-    expect(fake.registrations.map(registration => registration.name)).toEqual(['sidebar.footer.action', 'shell.overlay'])
-    expect(fake.registrations.map(registration => registration.id)).toEqual(['ai-coding-platform-entry', 'ai-coding-platform-surface'])
-    expect(fake.registrations.map(registration => registration.order)).toEqual([30, 30])
-    expect(fake.registrations.every(registration => registration.locale === NS)).toBe(true)
+    // 本插件自己的两个扩展点：侧栏动作与浮层。（右栏的两个 pane 单独断言，见下。）
+    const entries = fake.registrations.filter(registration => registration.name !== 'sidebar.right.pane.tab')
+    expect(entries.map(registration => registration.name)).toEqual(['sidebar.footer.action', 'shell.overlay'])
+    expect(entries.map(registration => registration.id)).toEqual(['ai-coding-platform-entry', 'ai-coding-platform-surface'])
+    expect(entries.map(registration => registration.order)).toEqual([30, 30])
+    expect(entries.every(registration => registration.locale === NS)).toBe(true)
+
+    // A2：官方右栏的两个产品页（目录 / 预览）。断言的是**我们的实现身份**，因为正文席位按 key 关联 ——
+    // key 漂移会让面板正文挂到别处，而界面看起来只是"面板空了"。
+    const panes = fake.registrations.filter(registration => registration.name === 'sidebar.right.pane.tab')
+    expect(panes.map(registration => (registration as unknown as { key: string }).key))
+      .toEqual([CLOUD_FILES_TAB_ID, CLOUD_PREVIEW_TAB_ID])
   })
 
   it('侧栏动作与浮层共用同一个控制器实例', () => {

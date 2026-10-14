@@ -471,6 +471,25 @@ export function CloudWorkspacesView({
     workspaceSession !== undefined && !workspaceSession.ok
       ? { ok: false, message: `本工作空间的会话不可用：${workspaceSession.message}` }
       : conversation
+  // ── A1：把"当前工作空间 → 会话"这件事告诉外壳 ──
+  //
+  // 外壳渲染的是**当前会话**（`useSessions(s => s.current)`，经 props 的 `sessionId` 传进来）。
+  // 所以选择工作空间之后必须把外壳切到该工作空间映射的会话，否则外壳显示的仍是上一个会话。
+  // 首次切换前记下外壳原本的会话，视图卸载时恢复 —— 进入云工作空间不该永久夺走用户的会话。
+  const restoreSessionRef = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    if (openSession === undefined || conversationSessionId === undefined) return
+    if (sessionId !== undefined && sessionId !== conversationSessionId && restoreSessionRef.current === undefined) {
+      restoreSessionRef.current = sessionId
+    }
+    // 已是目标会话就不再调用：重复 open 同一个会话是空转，也让"谁改的"难以追查。
+    if (sessionId === conversationSessionId) return
+    openSession(conversationSessionId)
+  }, [conversationSessionId, openSession, sessionId])
+  useEffect(() => () => {
+    const previous = restoreSessionRef.current
+    if (previous !== undefined) openSession?.(previous)
+  }, [openSession])
   const [repositoriesState, setRepositoriesState] = useState<'loading' | 'ready' | 'empty' | 'failed'>('loading')
   const [loadError, setLoadError] = useState<{ code: string; message: string } | undefined>()
   const [signedOut, setSignedOut] = useState(false)

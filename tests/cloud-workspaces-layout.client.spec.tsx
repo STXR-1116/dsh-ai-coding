@@ -126,6 +126,35 @@ describe('2-1 三栏工作空间四种布局预设', () => {
     expect((await screen.findByText('run-live')).textContent).toBe(runRowBefore)
   })
 
+  it('A1：选择工作空间时把外壳切到该工作空间的会话，离开时恢复', async () => {
+    const { remote } = fakeRemote()
+    const opened: string[] = []
+    // 会话映射：工作空间 → 会话（真实实现由 WorkspaceSessionsRemote 提供，这里只给结果）。
+    ;(remote as { workspaceSessions?: unknown }).workspaceSessions = {
+      ensure: async () => ({ ok: true as const, sessionId: 'sess-mapped' }),
+      conversation: () => ({ ok: false as const, message: '测试：不渲染会话内容' }),
+    }
+    const view = render(
+      <CloudWorkspacesView
+        remote={remote}
+        useWorkspaces={useWorkspacesStub}
+        projectId="project-alpha"
+        projects={projects}
+        sessionId="sess-shell"
+        // 账号必须给：映射效果刻意等到账号就位（否则会落进匿名桶、重复建会话且客户端删不掉）。
+        accountId="member-1"
+        openSession={(sessionId) => { opened.push(sessionId) }}
+      />,
+    )
+    await screen.findAllByText('ws-alpha-1')
+
+    // 外壳渲染的是"当前会话"，所以选中工作空间必须把映射到的会话告诉外壳。
+    await waitFor(() => { expect(opened).toContain('sess-mapped') })
+    // 恢复点记的是**进入前**的那个会话，不是映射结果。
+    view.unmount()
+    await waitFor(() => { expect(opened[opened.length - 1]).toBe('sess-shell') })
+  })
+
   it('会话记录区渲染平台返回的记录，并取代待接通提示', async () => {
     const { remote, fns } = fakeRemote()
     fns.workspaceSessionRecords!.mockResolvedValue(ready([

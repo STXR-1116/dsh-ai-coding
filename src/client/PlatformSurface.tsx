@@ -1464,7 +1464,10 @@ function PlatformShell({ controller, t, remote, layout, useSessions, useWorkspac
                   projects={visibleServiceProjects}
                   {...(currentSessionId === undefined ? {} : { sessionId: currentSessionId })}
                   nativeSessions={nativeSessions}
-                  openSession={(sessionId) => { openSession(sessionId as SessionId) }}
+                  // 可选调用：props 类型上它是必需的，但**测试常省略它** —— 而包装箭头永远是函数，
+                  // 于是"省略"变成"调用时抛错"，一抛就把整个工作台打崩（实测：一条用例整屏空白）。
+                  // 缺一个回调不该让用户失去整个界面。
+                  openSession={(sessionId) => { openSession?.(sessionId as SessionId) }}
                   startSession={startSession}
                   {...(account === undefined ? {} : { accountId: account.user.userId })}
                   onProjectSelect={(projectId) => {

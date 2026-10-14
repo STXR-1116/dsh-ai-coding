@@ -42,6 +42,8 @@ import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
 import { en, NS, zh, type PlatformKey } from './locales.ts'
 import { WorkspaceSessionsRemote, type UiConversationFace } from './remote/workspace-sessions.ts'
+import { CloudFilesTree } from './cloud-workspaces/CloudFilesTree.tsx'
+import { CloudPreviewPane } from './cloud-workspaces/CloudPreviewPane.tsx'
 import { resolveBrowserStorage } from './cloud-workspaces/workspace-session-store.ts'
 import { PlatformDemoController } from './controller.ts'
 import { PlatformEntry } from './PlatformEntry.tsx'
@@ -258,5 +260,97 @@ export function apply(ctx: ClientContext): void {
     }),
   }, PlatformSurfaceEntry))
 
+  // A2：把云文件目录与预览注册成官方右栏的两个产品页（面板正文见本文件末尾）。
+  registerCloudFilePanes(ctx, remote)
+
 }
 
+
+/** 云文件**目录**面板在官方 tab 系统里的实现身份（同时是正文席位的 key）。 */
+export const CLOUD_FILES_TAB_ID = '@dsh-ai-coding/cloud-files'
+
+/** 云文件目录面板的 kind：页面类型，按 kind 打开、不认地址。 */
+export const CLOUD_FILES_TAB_KIND = 'ai-coding-cloud-files'
+
+/** 云文件**预览**面板的实现身份。 */
+export const CLOUD_PREVIEW_TAB_ID = '@dsh-ai-coding/cloud-preview'
+
+/** 云文件预览面板的 kind。 */
+export const CLOUD_PREVIEW_TAB_KIND = 'ai-coding-cloud-preview'
+
+/**
+ * 把「云文件」注册成官方右侧 Sidebar 的**两个**产品页：目录与预览。
+ *
+ * 为什么是两个而不是一个：所有者对照原生后指出「面板上会一直有文件列表，原生的直接是文件预览」。
+ * 官方本身就是分开的 —— 内置 `files` 与 `text` 是两个 tab 类型。合成一个面板，等于让预览永远被
+ * 目录压着一半。
+ *
+ * 两处都必须**带接收者**调用：注册表用私有字段（`this.ids`），把方法摘下来调用会丢 `this` 并抛
+ * `Cannot read properties of undefined (reading 'ids')` —— 本仓在探针里踩过一次，白跑两轮。
+ * @param ctx - 客户端插件上下文。
+ * @param remote - 本插件的浏览器侧远程面，供面板正文读取云文件。
+ */
+function registerCloudFilePanes(ctx: ClientContext, remote: PlatformRemote): void {
+  const tabs = (ctx.get as (name: string) => unknown)('sidebarRightTabs') as undefined | {
+    register?: (definition: {
+      readonly id: string
+      readonly kind: string
+      readonly title: (address: string) => string
+    }) => unknown
+  }
+  for (const [id, kind, title] of [
+    [CLOUD_FILES_TAB_ID, CLOUD_FILES_TAB_KIND, '云文件'],
+    [CLOUD_PREVIEW_TAB_ID, CLOUD_PREVIEW_TAB_KIND, '预览'],
+  ] as const) {
+    try {
+      // 省略 `patterns` ⇒ 页面类型：只按 kind 打开，不认 `dsh-resource://` 地址。
+      tabs?.register?.({ id, kind, title: () => title })
+    } catch (error) {
+      // 重复注册等接线错误按官方语义是错误；这里只记录，不让它拖垮整个片段。
+      console.warn(`[dsh-ai-coding] tab 类型注册失败（${id}）：`, error)
+    }
+  }
+
+  // `sidebar.right.pane.tab` 由 `dsh-client-ui-sidebar-right` 声明，而本仓**装不上**那个包
+  // （registry 不可达；它只随 DSH 安装存在），所以 `ctx.slots.inject` 的名字联合里没有这个席位。
+  // 这里只把**类型**窄化，值仍是真实的 slots 服务 —— 因此接收者不丢。
+  const slots = ctx.slots as unknown as {
+    inject: (name: string, register: () => unknown) => unknown
+    register: (registration: Record<string, unknown>, component: unknown) => unknown
+  }
+  slots.inject('sidebar.right.pane.tab', () => slots.register({
+    name: 'sidebar.right.pane.tab',
+    key: CLOUD_FILES_TAB_ID,
+    locale: NS,
+    inject: (): { remote: PlatformRemote; openPreview: () => void } => ({
+      remote,
+      // 点目录里的文件时打开/聚焦预览面板（带接收者调用）。
+      openPreview: () => { openRightPane(ctx, CLOUD_PREVIEW_TAB_KIND) },
+    }),
+  }, CloudFilesTree))
+  slots.inject('sidebar.right.pane.tab', () => slots.register({
+    name: 'sidebar.right.pane.tab',
+    key: CLOUD_PREVIEW_TAB_ID,
+    locale: NS,
+    inject: (): { remote: PlatformRemote } => ({ remote }),
+  }, CloudPreviewPane))
+}
+
+/**
+ * 打开（或聚焦）官方右侧 Sidebar 里我们自己的某个面板。
+ *
+ * 官方契约：写操作需要**已挂载的会话面**，没有时抛错而不是写进没人绘制的面。
+ * @param ctx - 客户端插件上下文。
+ * @param kind - 我们的 tab kind。
+ */
+export function openRightPane(ctx: ClientContext, kind: string): void {
+  const sidebarRight = (ctx.get as (name: string) => unknown)('sidebarRight') as undefined | {
+    openTab?: (kind: string) => unknown
+  }
+  try {
+    // 带接收者调用（同上）。
+    sidebarRight?.openTab?.(kind)
+  } catch (error) {
+    console.warn('[dsh-ai-coding] 打开右栏面板失败（可能当前没有挂载的会话面）：', error)
+  }
+}
