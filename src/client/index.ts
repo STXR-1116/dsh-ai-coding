@@ -30,7 +30,7 @@ import type {} from './remote-face.ts'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 // Type-only: `ctx.slots` and its slot registries are declared by the renderer.
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
-import type { ILayout } from '@deepseek-ai/dsh-client-ui-layout/client'
+import type { ILayout, MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 // Type-only: `useSessions` / `useWorkspaces` are contributed to the slot
 // framework's merge-extensible `GlobalStandardProps` by these two client UI
@@ -47,6 +47,7 @@ import { CloudPreviewPane } from './cloud-workspaces/CloudPreviewPane.tsx'
 import { resolveBrowserStorage } from './cloud-workspaces/workspace-session-store.ts'
 import { PlatformDemoController } from './controller.ts'
 import { PlatformEntry } from './PlatformEntry.tsx'
+import { CodingPanelIcon } from './CodingPanelIcon.tsx'
 import { PlatformSurfaceEntry } from './PlatformSurfaceEntry.tsx'
 import type { PlatformSurfaceProps } from './PlatformSurface.tsx'
 import { PlatformClientConfigSchema, resolvePlatformClientConfig } from './remote/config.ts'
@@ -233,7 +234,8 @@ export function apply(ctx: ClientContext): void {
     order: 30,
     locale: NS,
     inject: (): { onOpen: () => void } => ({
-      onOpen: controller.open,
+      // A3：入口不再是"打开浮层"，而是选中我们的**主面板**（中央列）。
+      onOpen: () => { selectCodingPanel(ctx) },
     }),
   }, PlatformEntry))
 
@@ -259,6 +261,15 @@ export function apply(ctx: ClientContext): void {
       startSession: () => { faces.sessions.create() },
     }),
   }, PlatformSurfaceEntry))
+
+  // A3：主面板（中央列）。正文复用浮层里那个组件 —— 同一套界面，位置从"盖住窗口"变成"占中央列"。
+  registerCodingPanel(ctx, {
+    controller,
+    remote,
+    layout: ctx.layout,
+    openSession: (sessionId) => { faces.sessions.open(sessionId) },
+    startSession: () => { faces.sessions.create() },
+  })
 
   // A2：把云文件目录与预览注册成官方右栏的两个产品页（面板正文见本文件末尾）。
   registerCloudFilePanes(ctx, remote)
@@ -352,5 +363,68 @@ export function openRightPane(ctx: ClientContext, kind: string): void {
     sidebarRight?.openTab?.(kind)
   } catch (error) {
     console.warn('[dsh-ai-coding] 打开右栏面板失败（可能当前没有挂载的会话面）：', error)
+  }
+}
+
+/**
+ * 我们的主面板 id。它必须**同时**是：
+ *  - `sidebar.panellist` 列表项的 `id`（侧栏用它渲染 rail 按钮）；
+ *  - `main` 席位的 `key`（正文按它寻址）；
+ *  - `ctx.layout.selectPanel(...)` 的参数。
+ * 三者不一致的后果是"图标点了没反应"或"面板空白"，所以只在这里定义一次。
+ */
+export const CODING_PANEL_ID = 'ai-coding-workbench' as MainPanelId
+
+/**
+ * 把工作台注册成官方主面板：`main` 的正文 + `sidebar.panellist` 的 rail 图标。
+ * @param ctx - 客户端插件上下文。
+ * @param props - 与浮层注册完全相同的那组 props（正文就是同一个组件）。
+ */
+function registerCodingPanel(
+  ctx: ClientContext,
+  props: Pick<PlatformSurfaceProps, 'controller' | 'remote' | 'layout' | 'openSession' | 'startSession'> &
+  { readonly remote: PlatformRemote },
+): void {
+  // `main` 与 `sidebar.right.pane.tab` 都用类型窄化：这两个席位由装不上的官方包声明，
+  // 名字不在 `ctx.slots.inject` 的联合里，值仍是真实的 slots 服务（因此接收者不丢）。
+  const slots = ctx.slots as unknown as {
+    inject: (name: string, register: () => unknown) => unknown
+    register: (registration: Record<string, unknown>, component: unknown) => unknown
+  }
+  slots.inject('main', () => slots.register({
+    name: 'main',
+    key: CODING_PANEL_ID,
+    locale: NS,
+    inject: () => ({
+      controller: props.controller,
+      remote: props.remote,
+      layout: props.layout,
+      openSession: props.openSession,
+      startSession: props.startSession,
+      // 主面板呈现：同一套界面，但不受浮层开合闸门约束、也不接管 Esc（见 PlatformSurfaceProps）。
+      presentation: 'panel' as const,
+    }),
+  }, PlatformSurfaceEntry))
+  slots.inject('sidebar.panellist', () => slots.register({
+    name: 'sidebar.panellist',
+    id: CODING_PANEL_ID,
+    order: 30,
+    locale: NS,
+    inject: () => ({}),
+  }, CodingPanelIcon))
+}
+
+/**
+ * 选中我们的主面板（侧栏入口与将来的其它入口都用它）。
+ *
+ * 官方语义：未注册的 key 会**抛错**并保持当前选择，所以这里必须兜住 —— 一个图标点了没反应，
+ * 总好过整个界面被一次点击打崩。
+ * @param ctx - 客户端插件上下文。
+ */
+export function selectCodingPanel(ctx: ClientContext): void {
+  try {
+    ctx.layout.selectPanel(CODING_PANEL_ID)
+  } catch (error) {
+    console.warn('[dsh-ai-coding] 选中主面板失败（可能尚未注册）：', error)
   }
 }

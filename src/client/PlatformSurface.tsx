@@ -61,6 +61,13 @@ export type PlatformSurfaceProps = PropsRuntime<'shell.overlay'> &
     openSession: (sessionId: SessionId) => void
     /** The native New Session flow (creates/reuses a blank session). */
     startSession: () => void
+    /**
+     * 同一套界面的**呈现方式**（A3）：
+     *  - `overlay`（默认）：浮层，按 `controller` 开合，有 Esc 关闭；
+     *  - `panel`：官方主面板的正文，由外壳在选择该面板时挂载 —— 没有"开合"这回事，
+     *    也不接管 Esc（面板里按 Esc 不该去关一个并不存在的浮层）。
+     */
+    presentation?: 'overlay' | 'panel'
   }
 
 type ViewId = 'overview' | 'projects' | 'skills' | 'cloud-workspaces' | 'knowledge' | 'memory' | 'collector' | 'agent-config'
@@ -144,11 +151,16 @@ const LOCAL_ENVIRONMENT: TeamSkillEnvironment = {
 
 /** Root overlay: listens to the local controller and mounts the demo shell. */
 export function PlatformSurface(props: PlatformSurfaceProps) {
-  const { controller, t, remote, layout, useSessions, useWorkspaces, openSession, startSession } = props
-  const open = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot)
+  const { controller, t, remote, layout, useSessions, useWorkspaces, openSession, startSession, presentation } = props
+  const overlayOpen = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot)
+  // A3：同一个人界面有两种呈现 —— `overlay`（浮层，按 controller 开合）与 `panel`（官方主面板的正文，
+  // 由外壳在选择该面板时挂载，没有"开合"这回事）。hook 必须**无条件**调用，所以只用布尔把闸门并起来。
+  const panel = presentation === 'panel'
+  const open = panel || overlayOpen
 
   useEffect(() => {
-    if (!open) return
+    // Esc 只属于浮层：面板里按 Esc 不该"关掉"一个并不存在的浮层。
+    if (!open || panel) return
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') controller.close()
     }
@@ -156,11 +168,12 @@ export function PlatformSurface(props: PlatformSurfaceProps) {
     return () => {
       document.removeEventListener('keydown', onKeyDown)
     }
-  }, [controller, open])
+  }, [controller, open, panel])
 
   if (!open) return null
   return (
     <PlatformShell
+      presentation={presentation ?? 'overlay'}
       controller={controller}
       t={t}
       remote={remote}
@@ -173,7 +186,7 @@ export function PlatformSurface(props: PlatformSurfaceProps) {
   )
 }
 
-function PlatformShell({ controller, t, remote, layout, useSessions, useWorkspaces, openSession, startSession }: Pick<PlatformSurfaceProps, 'controller' | 't' | 'remote' | 'layout' | 'useSessions' | 'useWorkspaces' | 'openSession' | 'startSession'>) {
+function PlatformShell({ controller, t, remote, layout, useSessions, useWorkspaces, openSession, startSession, presentation }: Pick<PlatformSurfaceProps, 'controller' | 't' | 'remote' | 'layout' | 'useSessions' | 'useWorkspaces' | 'openSession' | 'startSession' | 'presentation'>) {
   const [view, setView] = useState<ViewId>('overview')
   // Appearance (theme/density), rail collapse, and focus mode are visual-only
   // state: none of them reorder content or touch business requests (spec §8).
@@ -1332,9 +1345,13 @@ function PlatformShell({ controller, t, remote, layout, useSessions, useWorkspac
                 </fieldset>
               </div>
             )}
-            <button type="button" className={css.closeButton} aria-label={t('platform.close')} title={t('platform.close')} onClick={controller.close}>
-              <IconCloseOutline16 size={16} />
-            </button>
+            {/* 浮层的关闭按钮只属于浮层：主面板里它是"存在但无意义"的控件（关的是一个没打开的浮层），
+                留着只会让人以为面板能关掉 —— 面板由外壳的 rail 图标切换。 */}
+            {presentation !== 'panel' && (
+              <button type="button" className={css.closeButton} aria-label={t('platform.close')} title={t('platform.close')} onClick={controller.close}>
+                <IconCloseOutline16 size={16} />
+              </button>
+            )}
           </div>
         </header>
 
