@@ -85,9 +85,15 @@ export function createCloudMode(ctx: ClientContext, deps: CloudModeDeps): CloudM
   const controller: CloudModeController = {
     enter: () => {
       if (disposers !== undefined) return
-      const registered: unknown[] = [
+      // 把两处注册放进 `ctx.effect`：
+      //  - 注册因此归属**片段的 effect**（官方：「通过 Cordis API 建立的注册属于 effect，
+      //    会在所属插件卸载时撤销」）；
+      //  - 同时探测 effect 的**返回值**：若可调用，那就是"按需撤销"的入口（存下来给 exit 用）。
+      const effectResult = (ctx as unknown as {
+        effect: (body: () => () => void) => unknown
+      }).effect(() => {
         // 左栏：遮蔽官方占用者（只替换渲染者，声明仍归 ui-workspace）。
-        slots.register({
+        const left = slots.register({
           name: WORKSPACES_SLOT,
           priority: SHADOW_PRIORITY,
           locale: NS,
@@ -95,27 +101,28 @@ export function createCloudMode(ctx: ClientContext, deps: CloudModeDeps): CloudM
             remote: deps.remote,
             onExit: () => { controller.exit() },
           }),
-        }, CloudSidebarSlot),
+        }, CloudSidebarSlot)
         // 会话标题栏右侧：接管标志。
-        slots.register({
+        const badge = slots.register({
           name: HEADER_ACTIONS_SLOT,
           locale: NS,
           inject: () => ({}),
-        }, CloudModeBadge),
-      ]
-      disposers = registered
-        .filter((value): value is () => void => typeof value === 'function')
-        .map(dispose => dispose)
-      // 撤销靠 `register` 的返回值。若它没有返回可调用的 disposer（客户端 runner 的服务代理
-      // 有可能不透传返回值），`disposers` 会是空的 —— 那"退出即还原"就只剩片段卸载这一条路。
-      // 真机已验证：**接管本身成功**（左栏换成会话记录 + 文件列表 + 退出）；退出这一环待定，
-      // 见分支说明与设计稿 §8「风险与回退」。
+        }, CloudModeBadge)
+        // 子 disposer：`register` 的返回值不一定可调用（客户端 runner 的服务代理可能不透传），
+        // 所以逐个判类型再调 —— 不假装成功。
+        return () => {
+          for (const value of [left, badge]) {
+            if (typeof value === 'function') (value as () => void)()
+          }
+        }
+      })
+      disposers = typeof effectResult === 'function' ? [effectResult as () => void] : []
       deps.onEnter?.()
     },
     exit: () => {
       const current = disposers
       disposers = undefined
-      // 逐个撤销：撤销后官方占用者重新胜出（这就是"退出即还原"）。
+      // 先尽力按需撤销（若哪条路能用上，就不必走下面那条粗的）。
       for (const dispose of current ?? []) {
         try {
           dispose()
@@ -124,6 +131,21 @@ export function createCloudMode(ctx: ClientContext, deps: CloudModeDeps): CloudM
         }
       }
       deps.onExit?.()
+      // **兜底：重载页面。**
+      //
+      // 实测结论（三条路都试过，真机验证）：
+      //  1. 放进 `ctx.plugin(...)` 子插件的注册，**渲染器看不到**（左栏毫无变化）；
+      //  2. 从片段 ctx 注册 —— 渲染器**能看到**（接管生效），但 `register` 的返回值
+      //     （注册表自己的 disposer）在客户端 runner 的服务代理下**拿不到**；
+      //  3. 用 `ctx.effect` 承载时，它的返回值**也不可调用**。
+      // ⇒ 目前没有可用的"按需撤销"入口。而所有者的要求是**结果**：退出后官方界面原样回来。
+      // 片段重新装载即回到未接管状态，所以这里用重载收口 —— 代价是一次刷新（用户主动点按钮，
+      // 不在热路径上）。拿到真正的撤销入口后应替换掉这一行（见设计稿 §8）。
+      // 兜底重载。`window` 可能不存在（非浏览器环境、单测）—— 那时**什么都不做**，
+      // 也绝不抛错：退出按钮在任何环境都不能把界面搞崩。
+      if (typeof window !== 'undefined' && typeof window.location?.reload === 'function') {
+        window.location.reload()
+      }
     },
     isActive: () => disposers !== undefined,
   }
