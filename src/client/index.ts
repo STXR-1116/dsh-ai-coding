@@ -236,11 +236,13 @@ export function apply(ctx: ClientContext): void {
     inject: (): { onOpen: () => void } => ({
       // 入口打开**浮层**：登录、配置与完整工作台都在那个面里（`PlatformSurfaceEntry` 是浮层席位的
       // 占用者，需要该席位的 runtime props，不能在右栏 pane 里当普通组件渲染）。
-      // 同时展开右栏并选中「云工作空间」面板 —— 我们的产品面住在右栏，而这层浮层盖着它；
+      // 同时展开右栏并选中**云文件**面板 —— 我们的产品面住在右栏，而这层浮层盖着它；
       // 不顺手打开的话，用户关掉浮层也**没有路径发现**那些面板（实测：所有者验收时找不到 Tab 条）。
+      // 落点选「云文件」而不是「云工作空间」：效果图里右栏就是文件树 + 预览 ——
+      // 关掉浮层后应当看到**文件**，而不是把管理面压在预览的位置上（所有者对照后指出）。
       onOpen: () => {
         controller.open()
-        openRightPane(ctx, CLOUD_WORKSPACE_TAB_KIND)
+        openRightPane(ctx, CLOUD_FILES_TAB_KIND)
       },
     }),
   }, PlatformEntry))

@@ -62,6 +62,10 @@ export function CloudWorkspacePane({ remote }: { readonly remote: PlatformRemote
         useWorkspaces={NO_WORKSPACES as never}
         projects={projects}
         presentation="management"
+        // 面板是独立的一格，没有外壳的项目上下文可继承 —— 默认取列表里的第一个项目，
+        // 否则视图会停在「选择项目后展示服务端授权的 Workspace」的空状态（实测就是这个画面）。
+        {...(projects[0] === undefined ? {} : { projectId: projects[0].projectId })}
+        onProjectSelect={() => { /* 面板内不再做项目切换：项目上下文由外壳的产物选择器负责 */ }}
         {...(accountId === undefined ? {} : { accountId })}
       />
     </div>

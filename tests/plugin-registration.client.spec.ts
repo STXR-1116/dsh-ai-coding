@@ -9,7 +9,13 @@
 import { describe, expect, it } from 'vitest'
 import * as entry from '../src/client/index.ts'
 import { apply, inject } from '../src/client/index.ts'
-import { CLOUD_FILES_TAB_ID, CLOUD_PREVIEW_TAB_ID, CLOUD_WORKSPACE_TAB_ID, CLOUD_WORKSPACE_TAB_KIND } from '../src/client/index.ts'
+import {
+  CLOUD_FILES_TAB_ID,
+  CLOUD_FILES_TAB_KIND,
+  CLOUD_PREVIEW_TAB_ID,
+  CLOUD_WORKSPACE_TAB_ID,
+  CLOUD_WORKSPACE_TAB_KIND,
+} from '../src/client/index.ts'
 import { NS } from '../src/client/locales.ts'
 
 /** Fixture bearer value for the fake backend; it authorizes nothing anywhere. */
@@ -204,9 +210,9 @@ describe('平台插件入口注册契约', () => {
     // 浮层是插件自己的管理台（登录、配置、完整工作台）——关掉它之后就是方案 A 的画面：
     // 中央是外壳的原生会话区，右栏是我们的三个 pane。
     expect(overlay.controller.getSnapshot()).toBe(true)
-    // **同时**打开右栏的「云工作空间」面板：产品面住在右栏，而浮层盖着它 ——
+    // **同时**打开右栏的「云文件」面板：产品面住在右栏，而浮层盖着它 ——
     // 不顺手打开的话，用户关掉浮层也**没有路径发现**那些面板（所有者验收时就是这样找不到 Tab 条的）。
-    expect(fake.openedPanes).toEqual([CLOUD_WORKSPACE_TAB_KIND])
+    expect(fake.openedPanes).toEqual([CLOUD_FILES_TAB_KIND])
     // 但仍然**不占中央列**（不 selectPanel）：中央永远是外壳的原生会话区。
     expect(fake.selectedPanels).toEqual([])
   })
