@@ -86,7 +86,6 @@ export function createCloudMode(ctx: ClientContext, deps: CloudModeDeps): CloudM
      * @param child - 子插件上下文。
      */
     apply(child: ClientContext): void {
-      console.log('[dsh-ai-coding][probe] takeover.apply 开始')
       const childSlots = child.slots as unknown as SlotFace
       // 左栏：以 priority 遮蔽官方占用者，只替换渲染者。
       childSlots.inject(WORKSPACES_SLOT, () => childSlots.register({
@@ -98,7 +97,6 @@ export function createCloudMode(ctx: ClientContext, deps: CloudModeDeps): CloudM
           onExit: () => { controller.exit() },
         }),
       }, CloudSidebar))
-      console.log('[dsh-ai-coding][probe] 左栏遮蔽已注册', WORKSPACES_SLOT)
       // 会话标题栏右侧：接管标志。
       childSlots.inject(HEADER_ACTIONS_SLOT, () => childSlots.register({
         name: HEADER_ACTIONS_SLOT,
@@ -110,10 +108,8 @@ export function createCloudMode(ctx: ClientContext, deps: CloudModeDeps): CloudM
 
   const controller: CloudModeController = {
     enter: () => {
-      console.log('[dsh-ai-coding][probe] enter 被调用，fiber 已存在 =', fiber !== undefined)
       if (fiber !== undefined) return
       fiber = ctx.plugin(takeover) as unknown as { dispose: () => unknown }
-      console.log('[dsh-ai-coding][probe] 子插件已装载')
       deps.onEnter?.()
     },
     exit: () => {
