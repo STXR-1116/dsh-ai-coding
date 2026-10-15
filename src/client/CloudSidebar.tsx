@@ -4,6 +4,7 @@ import type { WorkspaceFileEntry, WorkspaceSessionRecord } from '../types.ts'
 import { readSelection, subscribeSelection } from './cloud-workspaces/cloud-files-state.ts'
 import { SessionRecords } from './cloud-workspaces/SessionRecords.tsx'
 import { FileTreeView } from './cloud-workspaces/FileTreeView.tsx'
+import { SlotBoundary } from './slot-boundary.tsx'
 import css from './CloudSidebar.module.css'
 
 /**
@@ -40,7 +41,6 @@ export interface CloudSidebarProps extends CloudSidebarOwnerProps {
  * @returns 会话记录 + 文件列表 + 退出。
  */
 export function CloudSidebar({ remote, onExit, wide = true, expandSidebar }: CloudSidebarProps) {
-  // 当前工作空间：复用视图写入的共享选择（localStorage 通道），并订阅它的变更。
   const [workspaceId, setWorkspaceId] = useState<string | undefined>(() => readSelection()?.workspaceId)
   useEffect(() => subscribeSelection(() => { setWorkspaceId(readSelection()?.workspaceId) }), [])
 
@@ -129,5 +129,31 @@ export function CloudSidebar({ remote, onExit, wide = true, expandSidebar }: Clo
         <button type="button" className={css.exit} onClick={() => { onExit?.() }}>退出云工作空间</button>
       </div>
     </div>
+  )
+}
+
+/**
+ * 注册用的占用者：把左栏正文包进**错误边界**。
+ *
+ * 为什么必须有这一层（实测教训）：左栏正文一旦抛错，会让**整条注册条目弃权** ——
+ * 注册表的 `abdicated`（WeakSet）由崩溃上报驱动，条目在本次注册生命期内不再进入
+ * `entriesOfSlot` 投影，于是**官方占用者继续渲染**：界面上看不到任何变化、控制台也没有 React 报错
+ * （上报走 slot runtime 自己的 logger），排查时极易误判成"遮蔽没生效"。
+ * 有边界之后：错误被接住、不上报 ⇒ 不弃权；同时把失败**显示出来**而不是静默。
+ * @param props - 与 {@link CloudSidebar} 相同。
+ * @returns 带边界的左栏。
+ */
+export function CloudSidebarSlot(props: CloudSidebarProps) {
+  return (
+    <SlotBoundary
+      slot="sidebar.workspaces"
+      fallback={(
+        <p className={css.failed} role="alert">
+          云工作空间左栏渲染失败 —— 详见控制台里 <code>[dsh-ai-coding]</code> 的错误。
+        </p>
+      )}
+    >
+      <CloudSidebar {...props} />
+    </SlotBoundary>
   )
 }

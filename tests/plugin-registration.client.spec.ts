@@ -33,7 +33,9 @@ function fakeContext() {
   // 方案 A：入口改为打开右栏面板，这里记录 openTab 的调用。
   const openedPanes: string[] = []
   let startedSessions = 0
-  /** 被 dispose 掉的子插件数（接管模式"退出即还原"的判据）。 */
+  /** 被 dispose 掉的注册数（接管模式"退出即还原"的判据）。 */
+  let disposedRegistrations = 0
+  /** 被 dispose 掉的子插件数（旧机制的判据，保留以免历史断言无声失效）。 */
   let disposedChildren = 0
   /** 最近一次装载的子插件 fiber（供注册数断言）。 */
   let lastChild: { registeredCount: number; ownedCount: number } | undefined
@@ -57,6 +59,13 @@ function fakeContext() {
       },
       register: (registration: Registration) => {
         registrations.push(registration)
+        // 返回 disposer —— 与随包实现一致（`register` 返回撤销函数，
+        // 「disposal authority remains with the registrant」）。"退出即还原"就靠它。
+        return () => {
+          const at = registrations.indexOf(registration)
+          if (at >= 0) registrations.splice(at, 1)
+          disposedRegistrations += 1
+        }
       },
     },
     /**
@@ -140,6 +149,7 @@ function fakeContext() {
     selectedPanels,
     openedPanes,
     startedSessionCount: () => startedSessions,
+    disposedRegistrations: () => disposedRegistrations,
     disposedChildren: () => disposedChildren,
     lastChild: () => lastChild,
   }
@@ -224,7 +234,7 @@ describe('平台插件入口注册契约', () => {
     }
   })
 
-  it('点「云工作空间」进入接管：注册左栏遮蔽与会话标志，且注册归子插件所有', async () => {
+  it('点「云工作空间」进入接管：注册左栏遮蔽与会话标志（从片段上下文注册）', () => {
     const fake = fakeContext()
     apply(fake.ctx as never)
 
@@ -238,17 +248,20 @@ describe('平台插件入口注册契约', () => {
     const names = fake.registrations.map(registration => registration.name)
     expect(names).toContain('sidebar.workspaces')
     expect(names).toContain('conversation.session.header.actions')
-    // 遮蔽用的优先级必须显式给出（ui-workspace 占用时未声明 priority）。
+    // 遮蔽用的优先级必须显式给出（ui-workspace 占用时未声明 priority），
+    // 而且必须**比 0 小**：单席位是 `entriesOfSlot` 投影里"每格第一个存活条目"，
+    // 即 priority 最小者胜（随包实现 + 真机实测）。
     const shadow = fake.registrations.find(registration => registration.name === 'sidebar.workspaces')
-    expect((shadow as unknown as { priority: number }).priority).toBeGreaterThan(0)
+    expect((shadow as unknown as { priority: number }).priority).toBeLessThan(0)
     // 接管的是原生界面：浮层顺手关掉，否则它会盖住刚接管的左栏。
     expect(overlay.controller.getSnapshot()).toBe(false)
-    // **注册必须归子插件所有** —— 否则「退出即还原」是假的（框架只撤销子插件名下的注册）。
-    expect(fake.lastChild()?.registeredCount).toBeGreaterThan(0)
-    expect(fake.lastChild()?.ownedCount).toBe(fake.lastChild()?.registeredCount)
+    // **注册必须来自片段自己的上下文**：真机实测过，放进 `ctx.plugin(...)` 子插件的注册
+    // 渲染器看不到（左栏毫无变化、连另一个席位上的标志也不出现）——
+    // 这条断言把"别再用子插件装接管"钉住：注册表里必须**没有**子插件的痕迹。
+    expect(fake.lastChild()).toBeUndefined()
   })
 
-  it('退出接管撤销全部注册：官方左栏自动回来', async () => {
+  it('退出接管撤销全部注册：官方左栏自动回来', () => {
     const fake = fakeContext()
     apply(fake.ctx as never)
 
@@ -261,10 +274,10 @@ describe('平台插件入口注册契约', () => {
       inject: () => { onExit: () => void }
     }
     sidebar.inject().onExit()
-    await Promise.resolve()
 
-    expect(fake.disposedChildren()).toBe(1)
-    // 接管期间的两处注册都没了 ⇒ 官方占用者重新胜出（这就是"还原"）。
+    // 撤销走 `register` 返回的 disposer（官方：disposal authority remains with the registrant）。
+    expect(fake.disposedRegistrations()).toBe(2)
+    // 两处注册都没了 ⇒ 官方占用者重新胜出（这就是"还原"）。
     const after = fake.registrations.map(registration => registration.name)
     expect(after).not.toContain('sidebar.workspaces')
     expect(after).not.toContain('conversation.session.header.actions')

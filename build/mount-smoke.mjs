@@ -378,14 +378,23 @@ async function browserPhase(token) {
     ).then(() => true).catch(() => false)
     check('browser: 点「云工作空间」接管原生左栏（文件列表 + 退出）', tookOver,
       tookOver ? '接管中的左栏已渲染' : `${await page.evaluate(() => {
+        // 判别式普查：把"我们的占用者到底有没有渲染"拆成可区分的情况，
+        // 而不是只找两个字符串（上一版就是这样把"边界兜底"误判成"没渲染"的）。
+        const text = document.body.innerText
         const census = {
+          files: text.includes('文件列表'),
+          exit: text.includes('退出云工作空间'),
+          boundaryFallback: text.includes('左栏渲染失败'),
           railIcon: document.querySelector('[aria-label="展开云工作空间"]') !== null,
-          officialBrowserText: document.body.innerText.includes('工作区'),
+          officialBrowser: text.includes('工作区'),
+          // 一刀切开的判据：标志注册在**另一个席位**（会话标题栏）。
+          // 它若出现 ⇒ 我们的注册能被渲染器看到，问题只出在 `sidebar.workspaces` 这个单席位；
+          // 它若不出现 ⇒ 我们的注册**整体**没到达渲染器。
+          badge: text.includes('云工作空间 · 已连接'),
         }
         return `DOM 普查: ${JSON.stringify(census)}`
-      })} ／ 错误行: ${consoleLines
-        .filter(line => /Error|error|dsh-ai-coding|Cannot|not a function|undefined|\[probe\]/.test(line))
-        .slice(-4).map(line => line.slice(0, 300)).join(' ⏎ ') || '（没有）'}`)
+      })} ／ 探针: ${consoleLines.filter(line => line.includes('[probe]')).slice(-6)
+        .map(line => line.slice(0, 260)).join(' ⏎ ') || '（无）'}`)
 
     // 退出接管 ⇒ 官方左栏原样回来。这是「退出即还原」的**真机**判据：
     // 它验证的是框架语义（注册随子插件卸载撤销），不是我们的手工清理。
@@ -400,7 +409,13 @@ async function browserPhase(token) {
       { timeout: BROWSER_TIMEOUT_MS },
     ).then(() => true).catch(() => false)
     check('browser: 退出接管后官方左栏回来（退出即还原）', exitClicked && restored,
-      exitClicked ? (restored ? '接管已退出，左栏回到官方实现' : summarizePage(page)) : '没找到「退出云工作空间」按钮')
+      exitClicked
+        ? (restored
+            ? '接管已退出，左栏回到官方实现'
+            : `${await summarizePage(page)} ／ 探针: ${consoleLines
+                .filter(line => line.includes('[probe]') || line.includes('dsh-ai-coding'))
+                .slice(-5).map(line => line.slice(0, 240)).join(' ⏎ ') || '（无）'}`)
+        : '没找到「退出云工作空间」按钮')
 
     // --perf：量右栏开合的**真实浏览器**开销。
     //
