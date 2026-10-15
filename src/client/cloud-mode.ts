@@ -63,6 +63,12 @@ export interface CloudModeDeps {
   /** 进入/退出时的一并动作（关闭浮层等）。 */
   readonly onEnter?: () => void
   readonly onExit?: () => void
+  /**
+   * 左栏点了某条平台会话记录（T3）。实现方负责"映射 + 把外壳切到该会话"。
+   * @param workspaceId - 云工作空间 id。
+   * @param platformSessionId - 平台会话 id。
+   */
+  readonly onSelectPlatformSession?: (workspaceId: string, platformSessionId: string) => void
 }
 
 /**
@@ -118,9 +124,16 @@ export function createCloudMode(ctx: ClientContext, deps: CloudModeDeps): CloudM
           name: WORKSPACES_SLOT,
           priority: SHADOW_PRIORITY,
           locale: NS,
-          inject: (): { remote: PlatformRemote; onExit: () => void } => ({
+          inject: (): {
+            remote: PlatformRemote
+            onExit: () => void
+            onSelectPlatformSession?: (workspaceId: string, platformSessionId: string) => void
+          } => ({
             remote: deps.remote,
             onExit: () => { controller.exit() },
+            ...(deps.onSelectPlatformSession === undefined
+              ? {}
+              : { onSelectPlatformSession: deps.onSelectPlatformSession }),
           }),
         }, CloudSidebarSlot))
         // 会话标题栏右侧：接管标志。

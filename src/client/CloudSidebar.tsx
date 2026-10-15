@@ -33,6 +33,13 @@ export interface CloudSidebarProps extends CloudSidebarOwnerProps {
   readonly remote: PlatformRemote
   /** 退出接管（由模式控制器提供）。 */
   readonly onExit?: () => void
+  /**
+   * 点某条平台会话记录 ⇒ 把中央切到该会话（T3）。
+   *
+   * 参数带上工作空间 id：面板自己知道当前选的是哪个工作空间，调用方（index）只需要
+   * "映射 + 打开"这一件事 —— 免得两处各自读一遍共享通道、各自解读。
+   */
+  readonly onSelectPlatformSession?: (workspaceId: string, platformSessionId: string) => void
 }
 
 /**
@@ -40,12 +47,14 @@ export interface CloudSidebarProps extends CloudSidebarOwnerProps {
  * @param props - 见 {@link CloudSidebarProps}。
  * @returns 会话记录 + 文件列表 + 退出。
  */
-export function CloudSidebar({ remote, onExit, wide = true, expandSidebar }: CloudSidebarProps) {
+export function CloudSidebar({ remote, onExit, onSelectPlatformSession, wide = true, expandSidebar }: CloudSidebarProps) {
   const [workspaceId, setWorkspaceId] = useState<string | undefined>(() => readSelection()?.workspaceId)
   useEffect(() => subscribeSelection(() => { setWorkspaceId(readSelection()?.workspaceId) }), [])
 
   const [records, setRecords] = useState<readonly WorkspaceSessionRecord[] | undefined>(undefined)
   const [recordsError, setRecordsError] = useState<string | undefined>(undefined)
+  // 当前选中的平台会话：只用于左栏高亮（中央显示哪条由外壳的当前会话决定）。
+  const [selectedPlatformSession, setSelectedPlatformSession] = useState<string | undefined>(undefined)
   const [items, setItems] = useState<readonly WorkspaceFileEntry[]>([])
   const [filesError, setFilesError] = useState<string | undefined>(undefined)
 
@@ -103,6 +112,12 @@ export function CloudSidebar({ remote, onExit, wide = true, expandSidebar }: Clo
       <SessionRecords
         {...(records === undefined ? {} : { sessions: records })}
         {...(recordsError === undefined ? {} : { error: recordsError })}
+        {...(selectedPlatformSession === undefined ? {} : { selectedSessionId: selectedPlatformSession })}
+        onSelect={(platformSessionId) => {
+          // 先给左栏反馈（高亮立刻变），再请调用方切中央的会话 —— 点击的即时感不依赖异步映射。
+          setSelectedPlatformSession(platformSessionId)
+          if (workspaceId !== undefined) onSelectPlatformSession?.(workspaceId, platformSessionId)
+        }}
       />
       <section className={css.files} aria-label="文件列表">
         <h3 className={css.filesTitle}>文件列表</h3>

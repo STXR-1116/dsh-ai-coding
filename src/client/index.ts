@@ -227,6 +227,37 @@ export function apply(ctx: ClientContext): void {
   const remote: PlatformRemote = { teamSkills, cloudWorkspaces, workspaceSessions }
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-ai-coding-platform: dictionaries')
 
+  /**
+   * 把外壳的当前会话切到某个云工作空间的会话（T2/T3 共用）。
+   *
+   * **放在回调里、一次点击触发一次**是有来由的：之前在视图的 React effect 里做，
+   * `openSession` 每次渲染都是新闭包 ⇒ 清理函数每次渲染都跑 ⇒ "恢复→渲染→再恢复"死循环，
+   * 直接把界面卡死（0.1.51 的事故）。
+   *
+   * @param workspaceId - 云工作空间 id。
+   * @param platformSessionId - 平台会话 id；给了就映射到**该会话自己的** DSH 会话（左栏点某条记录时）。
+   */
+  const openWorkspaceSession = async (workspaceId: string, platformSessionId?: string): Promise<void> => {
+    try {
+      const account = await remote.teamSkills.account()
+      const accountId = account.ok
+        ? (account.value as { user?: { userId?: string } }).user?.userId
+        : undefined
+      const outcome = await remote.workspaceSessions.ensure({
+        ...(accountId === undefined ? {} : { accountId }),
+        cloudWorkspaceId: workspaceId,
+        ...(platformSessionId === undefined ? {} : { platformSessionId }),
+      })
+      if (!outcome.ok) {
+        console.warn('[dsh-ai-coding] 本工作空间的会话不可用：', outcome.message)
+        return
+      }
+      faces.sessions.open(outcome.sessionId as SessionId)
+    } catch (error) {
+      console.warn('[dsh-ai-coding] 切换工作空间会话失败：', error)
+    }
+  }
+
   // 云工作空间**接管模式**（所有者定义）：点插件里的「云工作空间」即接管 DSH 原生界面。
   // 进入时：关掉浮层（接管的是原生界面，浮层留着会盖住它）+ 把外壳切到**本工作空间的会话**；
   // 退出时：兜底重载，官方界面回来。
@@ -234,31 +265,13 @@ export function apply(ctx: ClientContext): void {
     remote,
     onEnter: () => {
       controller.close()
-      // 切到"本工作空间的会话"。**放在这里而不是 React effect 里**是有来由的：
-      // 之前在视图的 effect 里做，`openSession` 每次渲染都是新闭包 ⇒ 清理函数每次渲染都跑
-      // ⇒ "恢复→渲染→再恢复"死循环，直接把界面卡死（0.1.51 的事故）。
-      // 这里是**一次点击触发一次**，没有闭包身份问题。
       const workspaceId = readSelection()?.workspaceId
       if (workspaceId === undefined) return
-      void (async () => {
-        try {
-          const account = await remote.teamSkills.account()
-          const accountId = account.ok
-            ? (account.value as { user?: { userId?: string } }).user?.userId
-            : undefined
-          const outcome = await remote.workspaceSessions.ensure({
-            ...(accountId === undefined ? {} : { accountId }),
-            cloudWorkspaceId: workspaceId,
-          })
-          if (!outcome.ok) {
-            console.warn('[dsh-ai-coding] 本工作空间的会话不可用：', outcome.message)
-            return
-          }
-          faces.sessions.open(outcome.sessionId as SessionId)
-        } catch (error) {
-          console.warn('[dsh-ai-coding] 切换工作空间会话失败：', error)
-        }
-      })()
+      void openWorkspaceSession(workspaceId)
+    },
+    // 左栏点某条会话记录 ⇒ 切到**该记录自己的**会话（映射按「工作空间 + 平台会话」做键）。
+    onSelectPlatformSession: (workspaceId, platformSessionId) => {
+      void openWorkspaceSession(workspaceId, platformSessionId)
     },
   })
 

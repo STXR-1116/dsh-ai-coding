@@ -106,6 +106,13 @@ export async function ensureWorkspaceSession(input: {
    */
   readonly cloudWorkspaceId: string
   /**
+   * 平台会话 id（`docs/backend-api-requirements.md` §3.1 的会话记录），可选。
+   *
+   * 给了它，映射键就是**「工作空间 + 平台会话」的复合键** —— 左栏点某条会话记录时走这条路，
+   * 于是每条记录各有一条自己的 DSH 会话；不给则仍是工作空间级会话（原行为，向后兼容）。
+   */
+  readonly platformSessionId?: string
+  /**
    * Local working directory for the session, when one is known.
    *
    * A **cloud** workspace contributes none: the plugin never learns its remote
@@ -117,7 +124,14 @@ export async function ensureWorkspaceSession(input: {
   readonly workspaces: WorkspaceArchiveService
   readonly store: WorkspaceSessionStore
 }): Promise<WorkspaceSessionOutcome> {
-  const stored = input.store.read(input.cloudWorkspaceId)
+  // 映射键：默认就是工作空间 id（整个工作空间共用一条会话，原行为）；
+  // 给了**平台会话 id** 时用复合键 —— 左栏每条会话记录因此各有一条自己的 DSH 会话
+  // （所有者 T3：「点一条会话记录 ⇒ 中央切到该会话」）。
+  // 用 `\u0000` 分隔：它在 id 里不可能出现，因此两段不会互相混淆。
+  const mappingKey = input.platformSessionId === undefined
+    ? input.cloudWorkspaceId
+    : `${input.cloudWorkspaceId}\u0000${input.platformSessionId}`
+  const stored = input.store.read(mappingKey)
   if (stored !== undefined && input.sessions.binding(stored) !== undefined) {
     return { ok: true, sessionId: stored, created: false }
   }
@@ -135,7 +149,7 @@ export async function ensureWorkspaceSession(input: {
   // Persist before archiving: sessions cannot be deleted from the client, so a
   // failed archive must be retryable against this same session rather than
   // abandoning it and creating another on the next attempt.
-  input.store.write(input.cloudWorkspaceId, sessionId)
+  input.store.write(mappingKey, sessionId)
 
   let archived: Awaited<ReturnType<WorkspaceArchiveService['archiveSession']>>
   try {

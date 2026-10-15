@@ -129,7 +129,22 @@ export class WorkspaceSessionsRemote implements WorkspaceSessionsFace {
    * @param input - the signed-in account and the cloud Workspace.
    * @returns the session to render, or a stable failure.
    */
-  async ensure(input: { readonly accountId?: string; readonly cloudWorkspaceId: string }): Promise<WorkspaceSessionOutcome> {
+  async ensure(input: {
+    readonly accountId?: string
+    readonly cloudWorkspaceId: string
+    /**
+     * 平台会话 id（可选）。给了它，映射键就是**「工作空间 + 平台会话」**的复合键 ——
+     * 左栏每条会话记录因此各有一条自己的 DSH 会话（不给则整个工作空间共用一条，保持原行为）。
+     */
+    readonly platformSessionId?: string
+    /**
+     * 平台会话 id（`docs/backend-api-requirements.md` §3.1 的会话记录）。
+     *
+     * 给了它就按**「工作空间 + 平台会话」**做映射 —— 左栏点某条会话记录时走这条路，
+     * 于是每条记录对应自己的 DSH 会话，而不是整个工作空间共用一条。
+     * 不给则保持原样（工作空间级会话），向后兼容。
+     */
+  }): Promise<WorkspaceSessionOutcome> {
     const services = this.deps.services()
     if (services === undefined) {
       return { ok: false, code: 'CREATE_FAILED', message: '会话服务不可用：客户端未提供 sessions/workspaces 服务' }
@@ -143,6 +158,7 @@ export class WorkspaceSessionsRemote implements WorkspaceSessionsFace {
     }
     return ensureWorkspaceSession({
       cloudWorkspaceId: input.cloudWorkspaceId,
+      ...(input.platformSessionId === undefined ? {} : { platformSessionId: input.platformSessionId }),
       sessions: services.sessions,
       workspaces: services.workspaces,
       store: createWorkspaceSessionStore(storage, input.accountId),
