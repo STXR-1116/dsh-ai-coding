@@ -365,12 +365,28 @@ async function browserPhase(token) {
         .find(candidate => (candidate.textContent ?? '').includes('稍后配置'))
       later?.click()
     })
+    // 接管后左栏可能是**窄态（rail）**：官方把折叠态的呈现交给占用者，我们那里只画一个图标
+    // （`SidebarSectionOwnerProps.wide`）。所以先看 rail 图标在不在 —— 在就点它展开
+    // （它调的正是官方给的 `expandSidebar`），再断言正文。
+    await page.evaluate(() => {
+      const rail = document.querySelector('[aria-label="展开云工作空间"]')
+      if (rail !== null) rail.click()
+    })
     const tookOver = await page.waitForFunction(
       () => document.body.innerText.includes('文件列表') && document.body.innerText.includes('退出云工作空间'),
       { timeout: BROWSER_TIMEOUT_MS },
     ).then(() => true).catch(() => false)
     check('browser: 点「云工作空间」接管原生左栏（文件列表 + 退出）', tookOver,
-      tookOver ? '接管中的左栏已渲染' : `${await summarizePage(page)} ／ ${summarizeConsole(consoleLines)}`)
+      tookOver ? '接管中的左栏已渲染' : `${await page.evaluate(() => {
+        const census = {
+          railIcon: document.querySelector('[aria-label="展开云工作空间"]') !== null,
+          officialBrowserText: document.body.innerText.includes('工作区'),
+          asides: document.querySelectorAll('aside').length,
+          navs: document.querySelectorAll('nav').length,
+          buttons: document.querySelectorAll('button').length,
+        }
+        return `DOM 普查: ${JSON.stringify(census)}`
+      })} ／ ${summarizeConsole(consoleLines)}`)
 
     // 退出接管 ⇒ 官方左栏原样回来。这是「退出即还原」的**真机**判据：
     // 它验证的是框架语义（注册随子插件卸载撤销），不是我们的手工清理。
