@@ -227,10 +227,18 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-ai-coding-platform: dictionaries')
 
   // 云工作空间**接管模式**（所有者定义）：点插件里的「云工作空间」即接管 DSH 原生界面。
-  // 进去时顺带关掉浮层（接管的是原生界面，浮层留着会盖住它）；退出即撤销全部注册，官方界面回来。
+  // 进去时顺带关掉浮层（接管的是原生界面，浮层留着会盖住它）；退出即兜底重载，官方界面回来。
+  //
+  // 下方三条 `[dsh-ai-coding]` 日志是**临时定位探针**（所有者真机上"点了没反应"）：分别证明
+  // 「新包确实加载了」「点击确实到达了处理器」「关闭浮层确实生效」。定位完成后删除。
+  console.log('[dsh-ai-coding] 构建标记 · 接管入口已装配 · 浮层当前 =', controller.getSnapshot())
   const cloudMode = createCloudMode(ctx, {
     remote,
-    onEnter: () => { controller.close() },
+    onEnter: () => {
+      console.log('[dsh-ai-coding] 进入接管 · 关闭浮层前 =', controller.getSnapshot())
+      controller.close()
+      console.log('[dsh-ai-coding] 进入接管 · 关闭浮层后 =', controller.getSnapshot())
+    },
   })
 
   ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({

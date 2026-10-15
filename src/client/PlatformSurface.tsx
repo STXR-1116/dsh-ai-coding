@@ -1066,6 +1066,8 @@ function PlatformShell({ controller, t, remote, layout, useSessions, useWorkspac
           // 接管模式（所有者定义）：**点「云工作空间」即接管 DSH 原生界面** ——
           // 左栏换成平台会话记录 + 文件列表，中央交给外壳的原生会话区，并挂上接管标志。
           // 其余视图（含登录/配置）行为不变，浮层照旧。
+          // 临时定位探针：证明"点击确实到达了处理器"（所有者真机上"点了没反应"）。
+          console.log('[dsh-ai-coding] 导航点击 · ' + item.id + ' · 接管回调=' + typeof onEnterCloudMode)
           if (item.id === 'cloud-workspaces') onEnterCloudMode?.()
         }}
       >
