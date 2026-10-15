@@ -376,6 +376,17 @@ async function browserPhase(token) {
       () => document.body.innerText.includes('文件列表') && document.body.innerText.includes('退出云工作空间'),
       { timeout: BROWSER_TIMEOUT_MS },
     ).then(() => true).catch(() => false)
+    // **浮层必须真的关掉** —— 这条断言是补上的缺口。
+    //
+    // 之前只查左栏文字，于是"浮层还开着、左栏被盖在下面"也能通过：`innerText` 会把被盖住的元素
+    // 一并算进来（真机事故：标志注册漏 `id` 抛错 ⇒ 关闭浮层那行没执行 ⇒ 用户点了没反应，
+    // 而冒烟照样绿）。浮层根元素带 `data-style-surface`，用它判断"在不在"最直接。
+    const overlayClosed = await page.waitForFunction(
+      () => document.querySelector('[data-style-surface]') === null,
+      { timeout: BROWSER_TIMEOUT_MS },
+    ).then(() => true).catch(() => false)
+    check('browser: 接管时浮层自动关闭（界面交给原生外壳）', overlayClosed,
+      overlayClosed ? '浮层已关闭' : '浮层仍在（data-style-surface 还在 DOM 里）')
     check('browser: 点「云工作空间」接管原生左栏（文件列表 + 退出）', tookOver,
       tookOver ? '接管中的左栏已渲染' : `${await page.evaluate(() => {
         // 判别式普查：把"我们的占用者到底有没有渲染"拆成可区分的情况，

@@ -58,9 +58,20 @@ function fakeContext() {
         register()
       },
       register: (registration: Registration) => {
+        // **复刻真实注册表的校验**：`list` 席位要求 `options.id`，缺了会**直接抛错**
+        // （随包实现：`case "list": … find(e => e.options.id === options.id …)`）。
+        // 这一步是有来由的：真机上标志注册漏了 `id`、异常冒泡出 `enter`，
+        // 于是"关闭浮层"那行没执行 —— 用户看到的是"点了云工作空间没反应"。
+        // 假注册表当时不校验，所以单测全绿而真机炸；现在补上这条契约。
+        const kinds: Record<string, 'single' | 'list'> = {
+          'sidebar.workspaces': 'single',
+          'conversation.session.header.actions': 'list',
+        }
+        if (kinds[registration.name] === 'list' && (registration as unknown as { id?: string }).id === undefined) {
+          throw new Error(`list slot "${registration.name}" requires options.id`)
+        }
         registrations.push(registration)
-        // 返回 disposer —— 与随包实现一致（`register` 返回撤销函数，
-        // 「disposal authority remains with the registrant」）。"退出即还原"就靠它。
+        // 返回 disposer —— 与随包实现一致。
         return () => {
           const at = registrations.indexOf(registration)
           if (at >= 0) registrations.splice(at, 1)

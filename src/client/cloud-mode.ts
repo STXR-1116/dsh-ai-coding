@@ -37,8 +37,11 @@ import { CloudModeBadge } from './CloudModeBadge.tsx'
 /** 左栏（工作区/会话浏览）席位：`kind: 'single'`、`scope: 'root'`。 */
 const WORKSPACES_SLOT = 'sidebar.workspaces'
 
-/** 会话标题栏右侧的动作席位（接管标志挂这里）。 */
+/** 会话标题栏右侧的动作席位（接管标志挂这里）。它是 `list` 类型 ⇒ 注册**必须**带 `id`。 */
 const HEADER_ACTIONS_SLOT = 'conversation.session.header.actions'
+
+/** 接管标志在该 list 席位里的条目 id（漏了它会直接抛错 —— 真机踩过）。 */
+const BADGE_ID = 'ai-coding-cloud-mode'
 
 /** 遮蔽优先级：单席位是**最小者胜**，所以取一个足够小的值。 */
 const SHADOW_PRIORITY = -1000
@@ -92,8 +95,26 @@ export function createCloudMode(ctx: ClientContext, deps: CloudModeDeps): CloudM
       const effectResult = (ctx as unknown as {
         effect: (body: () => () => void) => unknown
       }).effect(() => {
+        const registered: unknown[] = []
+        /**
+         * 逐个注册并**各自兜错**。
+         *
+         * 为什么必须兜：所有者在真机上遇到过 —— 标志那处注册因为漏了 `id`（该席位是 `list` 类型，
+         * 注册契约要求 `options.id`）而**抛错**，异常冒泡出 `enter` ⇒ 后面的
+         * `deps.onEnter?.()` 没执行 ⇒ **浮层永不关闭**，用户看到的就是"点了云工作空间没反应"。
+         * 一处附属注册失败，不该让整个接管动作半途而废。
+         * @param label - 出错时用于指明是哪一处。
+         * @param run - 实际注册。
+         */
+        const attempt = (label: string, run: () => unknown): void => {
+          try {
+            registered.push(run())
+          } catch (error) {
+            console.warn(`[dsh-ai-coding] 接管注册失败（${label}）：`, error)
+          }
+        }
         // 左栏：遮蔽官方占用者（只替换渲染者，声明仍归 ui-workspace）。
-        const left = slots.register({
+        attempt('sidebar.workspaces', () => slots.register({
           name: WORKSPACES_SLOT,
           priority: SHADOW_PRIORITY,
           locale: NS,
@@ -101,22 +122,27 @@ export function createCloudMode(ctx: ClientContext, deps: CloudModeDeps): CloudM
             remote: deps.remote,
             onExit: () => { controller.exit() },
           }),
-        }, CloudSidebarSlot)
+        }, CloudSidebarSlot))
         // 会话标题栏右侧：接管标志。
-        const badge = slots.register({
+        // **`id` 必须有**：该席位是 `list` 类型，注册契约要求它（随包实现：
+        // `case "list": … find(e => e.options.id === options.id …)`）。漏了会直接抛错。
+        attempt('conversation.session.header.actions', () => slots.register({
           name: HEADER_ACTIONS_SLOT,
+          id: BADGE_ID,
           locale: NS,
           inject: () => ({}),
-        }, CloudModeBadge)
+        }, CloudModeBadge))
         // 子 disposer：`register` 的返回值不一定可调用（客户端 runner 的服务代理可能不透传），
         // 所以逐个判类型再调 —— 不假装成功。
         return () => {
-          for (const value of [left, badge]) {
+          for (const value of registered) {
             if (typeof value === 'function') (value as () => void)()
           }
         }
       })
       disposers = typeof effectResult === 'function' ? [effectResult as () => void] : []
+      // **无论如何都要关浮层**：接管注册即便部分失败，用户也不该被困在浮层里
+      // （真机事故就是这么来的）。浮层该不该关，与注册成不成功无关。
       deps.onEnter?.()
     },
     exit: () => {
