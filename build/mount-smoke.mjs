@@ -344,16 +344,9 @@ async function browserPhase(token) {
     // Selecting a project reloads the detail surfaces; give them a beat.
     await delay(1_500)
 
-    // Cloud workspaces view renders the fixture seed workspace.
-    await clickNav(page, '云工作空间')
-    const workspaceRendered = await page.waitForFunction(
-      () => document.body.innerText.includes('ws-alpha-1'),
-      { timeout: BROWSER_TIMEOUT_MS },
-    ).then(() => true).catch(() => false)
-    check('browser: workbench renders fixture seed workspace ws-alpha-1', workspaceRendered,
-      workspaceRendered ? 'ws-alpha-1 visible in the cloud workspaces view' : summarizeConsole(consoleLines))
-
     // Knowledge view renders the fixture seed knowledge base.
+    // 先做这一步：下面点「云工作空间」会**接管原生界面并关掉浮层**（所有者定义的行为），
+    // 之后再导航就得先重新打开浮层。
     await clickNav(page, '知识库')
     const knowledgeRendered = await page.waitForFunction(
       () => document.body.innerText.includes('k-1'),
@@ -361,6 +354,38 @@ async function browserPhase(token) {
     ).then(() => true).catch(() => false)
     check('browser: knowledge view renders fixture seed k-1', knowledgeRendered,
       knowledgeRendered ? 'k-1 visible in the knowledge view' : summarizeConsole(consoleLines))
+
+    // 接管模式（所有者定义）：点「云工作空间」= **接管 DSH 原生界面** ——
+    // 左栏换成平台会话记录 + 文件列表，中央交给外壳的原生会话区，会话标题栏出现接管标志。
+    await clickNav(page, '云工作空间')
+    // 接管会关掉浮层，于是**外壳自己的首次运行引导**（"添加一个 API Key 开始使用"）第一次露出来 ——
+    // 之前它一直被浮层盖着。冒烟是全新浏览器，所以先跳过它（"稍后配置"），才看得到接管后的界面。
+    await page.evaluate(() => {
+      const later = [...document.querySelectorAll('button')]
+        .find(candidate => (candidate.textContent ?? '').includes('稍后配置'))
+      later?.click()
+    })
+    const tookOver = await page.waitForFunction(
+      () => document.body.innerText.includes('文件列表') && document.body.innerText.includes('退出云工作空间'),
+      { timeout: BROWSER_TIMEOUT_MS },
+    ).then(() => true).catch(() => false)
+    check('browser: 点「云工作空间」接管原生左栏（文件列表 + 退出）', tookOver,
+      tookOver ? '接管中的左栏已渲染' : `${await summarizePage(page)} ／ ${summarizeConsole(consoleLines)}`)
+
+    // 退出接管 ⇒ 官方左栏原样回来。这是「退出即还原」的**真机**判据：
+    // 它验证的是框架语义（注册随子插件卸载撤销），不是我们的手工清理。
+    const exitClicked = await page.evaluate(() => {
+      const button = [...document.querySelectorAll('button')]
+        .find(candidate => (candidate.textContent ?? '').includes('退出云工作空间'))
+      button?.click()
+      return button !== undefined
+    })
+    const restored = await page.waitForFunction(
+      () => !document.body.innerText.includes('退出云工作空间'),
+      { timeout: BROWSER_TIMEOUT_MS },
+    ).then(() => true).catch(() => false)
+    check('browser: 退出接管后官方左栏回来（退出即还原）', exitClicked && restored,
+      exitClicked ? (restored ? '接管已退出，左栏回到官方实现' : summarizePage(page)) : '没找到「退出云工作空间」按钮')
 
     // --perf：量右栏开合的**真实浏览器**开销。
     //

@@ -1,0 +1,19 @@
+/* 接管标志：贴着会话标题栏右侧，形态与"已连接"状态点一致。 */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border: 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover));
+  border-radius: 999px;
+  color: var(--dsh-text-secondary);
+  font-size: var(--dsh-content-font-size-secondary, 12px);
+  white-space: nowrap;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dsh-status-success, #3fb950);
+}

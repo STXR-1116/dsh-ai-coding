@@ -9,13 +9,6 @@
 import { describe, expect, it } from 'vitest'
 import * as entry from '../src/client/index.ts'
 import { apply, inject } from '../src/client/index.ts'
-import {
-  CLOUD_FILES_TAB_ID,
-  CLOUD_FILES_TAB_KIND,
-  CLOUD_PREVIEW_TAB_ID,
-  CLOUD_WORKSPACE_TAB_ID,
-  CLOUD_WORKSPACE_TAB_KIND,
-} from '../src/client/index.ts'
 import { NS } from '../src/client/locales.ts'
 
 /** Fixture bearer value for the fake backend; it authorizes nothing anywhere. */
@@ -40,6 +33,10 @@ function fakeContext() {
   // 方案 A：入口改为打开右栏面板，这里记录 openTab 的调用。
   const openedPanes: string[] = []
   let startedSessions = 0
+  /** 被 dispose 掉的子插件数（接管模式"退出即还原"的判据）。 */
+  let disposedChildren = 0
+  /** 最近一次装载的子插件 fiber（供注册数断言）。 */
+  let lastChild: { registeredCount: number; ownedCount: number } | undefined
   const ctx = {
     effect: (run: () => () => void) => {
       effects.push(run())
@@ -61,6 +58,43 @@ function fakeContext() {
       register: (registration: Registration) => {
         registrations.push(registration)
       },
+    },
+    /**
+     * 最小 `ctx.plugin`：装载子插件并返回 fiber。
+     *
+     * 「退出即还原」的依据是官方语义——注册属于 effect、随所属插件卸载撤销
+     * （`develop/cordis-tutorial/02-lifecycle-and-effects`）。这个假实现把那条语义**如实模拟**：
+     * 子插件注册的东西记在它自己的名下，`dispose()` 时只移除它名下的那些。
+     * 若产品代码把注册错挂到父上下文（本项目第一版就是那样），这里会**报错**而不是悄悄放过。
+     */
+    plugin: (child: { apply?: (ctx: unknown) => void }) => {
+      const owned: Registration[] = []
+      const before = registrations.length
+      const childCtx = {
+        slots: {
+          inject: (_name: string, register: () => unknown) => { register() },
+          register: (registration: Registration) => {
+            registrations.push(registration)
+            owned.push(registration)
+          },
+        },
+        locale: ctx.locale,
+      }
+      child.apply?.(childCtx)
+      // 子插件没注册任何东西 = 注册挂错了上下文（正是我们要防的漂移）。
+      const registered = registrations.length - before
+      lastChild = { registeredCount: registered, ownedCount: owned.length }
+      return {
+        registeredCount: registered,
+        ownedCount: owned.length,
+        dispose: () => {
+          for (const entry of owned) {
+            const at = registrations.indexOf(entry)
+            if (at >= 0) registrations.splice(at, 1)
+          }
+          disposedChildren += 1
+        },
+      }
     },
     remote: { marker: 'remote' },
     layout: { marker: 'layout', selectPanel: (panelId: string) => { selectedPanels.push(panelId) } },
@@ -106,6 +140,8 @@ function fakeContext() {
     selectedPanels,
     openedPanes,
     startedSessionCount: () => startedSessions,
+    disposedChildren: () => disposedChildren,
+    lastChild: () => lastChild,
   }
 }
 
@@ -170,35 +206,73 @@ describe('平台插件入口注册契约', () => {
     expect(Object.keys(fake.dictionaries[0]?.en as object)).toEqual(['platform.name', 'platform.shortName', 'platform.open', 'platform.close', 'platform.demo', 'platform.offline'])
   })
 
-  it('注册侧栏动作、浮层与右栏三个 pane，归属 id 与顺序稳定；不占中央列', () => {
+  it('只注册侧栏动作与浮层两个扩展点；不占右栏、不占中央列（接管模式之前）', () => {
     const fake = fakeContext()
 
     apply(fake.ctx as never)
 
-    // 本插件自己的扩展点：侧栏动作 + 浮层（浮层保留但入口不再指向它）。
-    const entries = fake.registrations.filter(registration =>
-      registration.name !== 'sidebar.right.pane.tab' && registration.name !== 'main' && registration.name !== 'sidebar.panellist')
-    expect(entries.map(registration => registration.name)).toEqual(['sidebar.footer.action', 'shell.overlay'])
-    expect(entries.map(registration => registration.id)).toEqual(['ai-coding-platform-entry', 'ai-coding-platform-surface'])
-    expect(entries.map(registration => registration.order)).toEqual([30, 30])
-    expect(entries.every(registration => registration.locale === NS)).toBe(true)
+    // 本插件自己的扩展点：侧栏动作 + 浮层。接管模式的两个席位注册**不在启动期**发生 ——
+    // 它们属于接管子插件（只有点了「云工作空间」才装载，见下一条用例）。
+    expect(fake.registrations.map(registration => registration.name)).toEqual(['sidebar.footer.action', 'shell.overlay'])
+    expect(fake.registrations.map(registration => registration.id)).toEqual(['ai-coding-platform-entry', 'ai-coding-platform-surface'])
+    expect(fake.registrations.map(registration => registration.order)).toEqual([30, 30])
+    expect(fake.registrations.every(registration => registration.locale === NS)).toBe(true)
 
-    // 方案 A：官方右栏的三个产品页（工作空间 / 目录 / 预览）。断言的是**我们的实现身份**，
-    // 因为正文席位按 key 关联 —— key 漂移会让面板正文挂到别处，而界面看起来只是"面板空了"。
-    const panes = fake.registrations.filter(registration => registration.name === 'sidebar.right.pane.tab')
-    // 顺序 = 注册顺序（目录 → 预览 → 工作空间）。页面类型本身按 kind 索引，列表顺序只影响
-    // 「＋」菜单里的排列，所以这里钉住它只是为了"顺序变了看得见"。
-    expect(panes.map(registration => (registration as unknown as { key: string }).key))
-      .toEqual([CLOUD_FILES_TAB_ID, CLOUD_PREVIEW_TAB_ID, CLOUD_WORKSPACE_TAB_ID])
-
-    // **我们不再占用中央列**：`main` 主面板与 `sidebar.panellist` rail 图标都已撤除
-    // （A3 曾用它们把工作台放进中央列，所有者对照效果图后选定 A ⇒ 中央列永远属于外壳的会话区）。
-    // 这条断言是那个决定的门禁：谁再把产品面塞进中央列，这里会红。
-    expect(fake.registrations.filter(registration => registration.name === 'main')).toHaveLength(0)
-    expect(fake.registrations.filter(registration => registration.name === 'sidebar.panellist')).toHaveLength(0)
+    // 启动期不碰这三处：右栏页签（A2/A3 的产物已按所有者决定撤除）、中央主面板、rail 图标。
+    for (const name of ['sidebar.right.pane.tab', 'main', 'sidebar.panellist']) {
+      expect(fake.registrations.filter(registration => registration.name === name)).toHaveLength(0)
+    }
   })
 
-  it('侧栏动作打开浮层（登录/配置/完整工作台在那里）；我们不占中央列（方案 A）', () => {
+  it('点「云工作空间」进入接管：注册左栏遮蔽与会话标志，且注册归子插件所有', async () => {
+    const fake = fakeContext()
+    apply(fake.ctx as never)
+
+    const overlay = fake.registrations[1]?.inject() as {
+      controller: { getSnapshot: () => boolean }
+      onEnterCloudMode: () => void
+    }
+    overlay.onEnterCloudMode()
+
+    // 接管期间的两处注册：左栏（遮蔽官方占用者）与会话标题栏标志。
+    const names = fake.registrations.map(registration => registration.name)
+    expect(names).toContain('sidebar.workspaces')
+    expect(names).toContain('conversation.session.header.actions')
+    // 遮蔽用的优先级必须显式给出（ui-workspace 占用时未声明 priority）。
+    const shadow = fake.registrations.find(registration => registration.name === 'sidebar.workspaces')
+    expect((shadow as unknown as { priority: number }).priority).toBeGreaterThan(0)
+    // 接管的是原生界面：浮层顺手关掉，否则它会盖住刚接管的左栏。
+    expect(overlay.controller.getSnapshot()).toBe(false)
+    // **注册必须归子插件所有** —— 否则「退出即还原」是假的（框架只撤销子插件名下的注册）。
+    expect(fake.lastChild()?.registeredCount).toBeGreaterThan(0)
+    expect(fake.lastChild()?.ownedCount).toBe(fake.lastChild()?.registeredCount)
+  })
+
+  it('退出接管撤销全部注册：官方左栏自动回来', async () => {
+    const fake = fakeContext()
+    apply(fake.ctx as never)
+
+    const overlay = fake.registrations[1]?.inject() as { onEnterCloudMode: () => void }
+    overlay.onEnterCloudMode()
+    const during = fake.registrations.map(registration => registration.name)
+
+    // 退出由左栏占用者自己的按钮触发（inject 里给的回调）。
+    const sidebar = fake.registrations.find(registration => registration.name === 'sidebar.workspaces') as unknown as {
+      inject: () => { onExit: () => void }
+    }
+    sidebar.inject().onExit()
+    await Promise.resolve()
+
+    expect(fake.disposedChildren()).toBe(1)
+    // 接管期间的两处注册都没了 ⇒ 官方占用者重新胜出（这就是"还原"）。
+    const after = fake.registrations.map(registration => registration.name)
+    expect(after).not.toContain('sidebar.workspaces')
+    expect(after).not.toContain('conversation.session.header.actions')
+    // 插件自己的两个扩展点不受影响。
+    expect(after).toEqual(during.filter(name => name !== 'sidebar.workspaces' && name !== 'conversation.session.header.actions'))
+  })
+
+  it('侧栏动作只打开浮层（登录/配置/各视图都在那里），不碰中央列', () => {
     const fake = fakeContext()
     apply(fake.ctx as never)
 
@@ -207,13 +281,10 @@ describe('平台插件入口注册契约', () => {
 
     expect(overlay.controller.getSnapshot()).toBe(false)
     entry.onOpen()
-    // 浮层是插件自己的管理台（登录、配置、完整工作台）——关掉它之后就是方案 A 的画面：
-    // 中央是外壳的原生会话区，右栏是我们的三个 pane。
+    // 浮层是插件自己的管理台：登录、配置与各个视图都在里面，行为与从前一致。
     expect(overlay.controller.getSnapshot()).toBe(true)
-    // **同时**打开右栏的「云文件」面板：产品面住在右栏，而浮层盖着它 ——
-    // 不顺手打开的话，用户关掉浮层也**没有路径发现**那些面板（所有者验收时就是这样找不到 Tab 条的）。
-    expect(fake.openedPanes).toEqual([CLOUD_FILES_TAB_KIND])
-    // 但仍然**不占中央列**（不 selectPanel）：中央永远是外壳的原生会话区。
+    // 接管原生界面是**浮层内**点「云工作空间」触发的，不是入口的职责（所有者：插件功能都不变）。
+    expect(fake.registrations.map(registration => registration.name)).not.toContain('sidebar.workspaces')
     expect(fake.selectedPanels).toEqual([])
   })
 

@@ -42,10 +42,8 @@ import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
 import { en, NS, zh, type PlatformKey } from './locales.ts'
 import { WorkspaceSessionsRemote, type UiConversationFace } from './remote/workspace-sessions.ts'
-import { CloudFilesTree } from './cloud-workspaces/CloudFilesTree.tsx'
-import { CloudPreviewPane } from './cloud-workspaces/CloudPreviewPane.tsx'
-import { CloudWorkspacePane } from './CloudWorkspacePane.tsx'
 import { resolveBrowserStorage } from './cloud-workspaces/workspace-session-store.ts'
+import { createCloudMode } from './cloud-mode.ts'
 import { PlatformDemoController } from './controller.ts'
 import { PlatformEntry } from './PlatformEntry.tsx'
 import { PlatformSurfaceEntry } from './PlatformSurfaceEntry.tsx'
@@ -228,22 +226,23 @@ export function apply(ctx: ClientContext): void {
   const remote: PlatformRemote = { teamSkills, cloudWorkspaces, workspaceSessions }
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-ai-coding-platform: dictionaries')
 
+  // 云工作空间**接管模式**（所有者定义）：点插件里的「云工作空间」即接管 DSH 原生界面。
+  // 进去时顺带关掉浮层（接管的是原生界面，浮层留着会盖住它）；退出即撤销全部注册，官方界面回来。
+  const cloudMode = createCloudMode(ctx, {
+    remote,
+    onEnter: () => { controller.close() },
+  })
+
   ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
     name: 'sidebar.footer.action',
     id: 'ai-coding-platform-entry',
     order: 30,
     locale: NS,
     inject: (): { onOpen: () => void } => ({
-      // 入口打开**浮层**：登录、配置与完整工作台都在那个面里（`PlatformSurfaceEntry` 是浮层席位的
-      // 占用者，需要该席位的 runtime props，不能在右栏 pane 里当普通组件渲染）。
-      // 同时展开右栏并选中**云文件**面板 —— 我们的产品面住在右栏，而这层浮层盖着它；
-      // 不顺手打开的话，用户关掉浮层也**没有路径发现**那些面板（实测：所有者验收时找不到 Tab 条）。
-      // 落点选「云文件」而不是「云工作空间」：效果图里右栏就是文件树 + 预览 ——
-      // 关掉浮层后应当看到**文件**，而不是把管理面压在预览的位置上（所有者对照后指出）。
-      onOpen: () => {
-        controller.open()
-        openRightPane(ctx, CLOUD_FILES_TAB_KIND)
-      },
+      // 入口只打开**浮层**：登录、配置与插件的各个视图都在那个面里，行为与从前一致。
+      // 接管原生界面是**浮层内**点「云工作空间」触发的（见 PlatformShell 的导航处理），
+      // 而不是入口的职责 —— 所有者明确要求"插件功能都不变，只有云工作空间走接管"。
+      onOpen: controller.open,
     }),
   }, PlatformEntry))
 
@@ -258,6 +257,8 @@ export function apply(ctx: ClientContext): void {
       layout: ILayout
       openSession: (sessionId: SessionId) => void
       startSession: () => void
+      /** 接管入口：浮层里点「云工作空间」时调用（所有者定义的行为）。 */
+      onEnterCloudMode: () => void
     } => ({
       controller,
       remote,
@@ -267,127 +268,9 @@ export function apply(ctx: ClientContext): void {
       // Session-layer operation, and the client `ISessions.create(opts?)` is its
       // replacement. The workspace registry no longer owns Session creation.
       startSession: () => { faces.sessions.create() },
+      // 接管入口：浮层里点「云工作空间」时调用（所有者定义的行为）。
+      onEnterCloudMode: () => { cloudMode.enter() },
     }),
   }, PlatformSurfaceEntry))
 
-  // 方案 A：产品面全部落在**右栏的 pane**（云工作空间 / 云文件 / 预览），中央列不再归我们 ——
-  // 那里永远是外壳的原生会话区。因此原 A3 的 `main` 主面板注册已撤除（见设计 §16.4 A3）。
-  registerCloudFilePanes(ctx, remote)
-
 }
-
-
-/** 云文件**目录**面板在官方 tab 系统里的实现身份（同时是正文席位的 key）。 */
-export const CLOUD_FILES_TAB_ID = '@dsh-ai-coding/cloud-files'
-
-/** 云文件目录面板的 kind：页面类型，按 kind 打开、不认地址。 */
-export const CLOUD_FILES_TAB_KIND = 'ai-coding-cloud-files'
-
-/** 云文件**预览**面板的实现身份。 */
-export const CLOUD_PREVIEW_TAB_ID = '@dsh-ai-coding/cloud-preview'
-
-/** 云文件预览面板的 kind。 */
-export const CLOUD_PREVIEW_TAB_KIND = 'ai-coding-cloud-preview'
-
-/**
- * 把「云文件」注册成官方右侧 Sidebar 的**两个**产品页：目录与预览。
- *
- * 为什么是两个而不是一个：所有者对照原生后指出「面板上会一直有文件列表，原生的直接是文件预览」。
- * 官方本身就是分开的 —— 内置 `files` 与 `text` 是两个 tab 类型。合成一个面板，等于让预览永远被
- * 目录压着一半。
- *
- * 两处都必须**带接收者**调用：注册表用私有字段（`this.ids`），把方法摘下来调用会丢 `this` 并抛
- * `Cannot read properties of undefined (reading 'ids')` —— 本仓在探针里踩过一次，白跑两轮。
- * @param ctx - 客户端插件上下文。
- * @param remote - 本插件的浏览器侧远程面，供面板正文读取云文件。
- */
-function registerCloudFilePanes(ctx: ClientContext, remote: PlatformRemote): void {
-  const tabs = (ctx.get as (name: string) => unknown)('sidebarRightTabs') as undefined | {
-    register?: (definition: {
-      readonly id: string
-      readonly kind: string
-      readonly title: (address: string) => string
-    }) => unknown
-  }
-  for (const [id, kind, title] of [
-    [CLOUD_WORKSPACE_TAB_ID, CLOUD_WORKSPACE_TAB_KIND, '云工作空间'],
-    [CLOUD_FILES_TAB_ID, CLOUD_FILES_TAB_KIND, '云文件'],
-    [CLOUD_PREVIEW_TAB_ID, CLOUD_PREVIEW_TAB_KIND, '预览'],
-  ] as const) {
-    try {
-      // 省略 `patterns` ⇒ 页面类型：只按 kind 打开，不认 `dsh-resource://` 地址。
-      tabs?.register?.({ id, kind, title: () => title })
-    } catch (error) {
-      // 重复注册等接线错误按官方语义是错误；这里只记录，不让它拖垮整个片段。
-      console.warn(`[dsh-ai-coding] tab 类型注册失败（${id}）：`, error)
-    }
-  }
-
-  // `sidebar.right.pane.tab` 由 `dsh-client-ui-sidebar-right` 声明，而本仓**装不上**那个包
-  // （registry 不可达；它只随 DSH 安装存在），所以 `ctx.slots.inject` 的名字联合里没有这个席位。
-  // 这里只把**类型**窄化，值仍是真实的 slots 服务 —— 因此接收者不丢。
-  const slots = ctx.slots as unknown as {
-    inject: (name: string, register: () => unknown) => unknown
-    register: (registration: Record<string, unknown>, component: unknown) => unknown
-  }
-  slots.inject('sidebar.right.pane.tab', () => slots.register({
-    name: 'sidebar.right.pane.tab',
-    key: CLOUD_FILES_TAB_ID,
-    locale: NS,
-    inject: (): { remote: PlatformRemote; openPreview: () => void } => ({
-      remote,
-      // 点目录里的文件时打开/聚焦预览面板（带接收者调用）。
-      openPreview: () => { openRightPane(ctx, CLOUD_PREVIEW_TAB_KIND) },
-    }),
-  }, CloudFilesTree))
-  slots.inject('sidebar.right.pane.tab', () => slots.register({
-    name: 'sidebar.right.pane.tab',
-    key: CLOUD_PREVIEW_TAB_ID,
-    locale: NS,
-    inject: (): { remote: PlatformRemote } => ({ remote }),
-  }, CloudPreviewPane))
-  // 方案 A 的第三个 pane：产品面（工作空间列表 / 生命周期 / 运行与审批 / 会话记录）。
-  slots.inject('sidebar.right.pane.tab', () => slots.register({
-    name: 'sidebar.right.pane.tab',
-    key: CLOUD_WORKSPACE_TAB_ID,
-    locale: NS,
-    inject: (): { remote: PlatformRemote } => ({ remote }),
-  }, CloudWorkspacePane))
-}
-
-/**
- * 打开（或聚焦）官方右侧 Sidebar 里我们自己的某个面板。
- *
- * 官方契约：写操作需要**已挂载的会话面**，没有时抛错而不是写进没人绘制的面。
- * 收起态的右栏也会吞掉这个调用，所以先按需展开一次。
- * @param ctx - 客户端插件上下文。
- * @param kind - 我们的 tab kind。
- */
-export function openRightPane(ctx: ClientContext, kind: string): void {
-  const sidebarRight = (ctx.get as (name: string) => unknown)('sidebarRight') as undefined | {
-    openTab?: (kind: string) => unknown
-    isExpanded?: () => boolean
-    toggleExpanded?: () => unknown
-  }
-  try {
-    // 带接收者调用（同上）。
-    // 收起态下 openTab 无处可画：先展开，再打开 —— 否则表现为"点了没反应"。
-    if (sidebarRight?.isExpanded?.() === false) sidebarRight.toggleExpanded?.()
-    sidebarRight?.openTab?.(kind)
-  } catch (error) {
-    console.warn('[dsh-ai-coding] 打开右栏面板失败（可能当前没有挂载的会话面）：', error)
-  }
-}
-
-/**
- * 「云工作空间」面板（方案 A 的产品面落点）：管理列，与「云文件」「预览」并列在官方右栏。
- *
- * 它与另两个 pane 一起构成方案 A 的落点分配：**中央列永远是外壳的原生会话区**，
- * 插件的产品面全部在右栏。原先 A3 把工作台注册成 `main` 主面板（占中央列），
- * 所有者对照效果图后选定 A ⇒ 该注册已撤除。
- */
-export const CLOUD_WORKSPACE_TAB_ID = '@dsh-ai-coding/cloud-workspace'
-
-/** 「云工作空间」面板的 kind。 */
-export const CLOUD_WORKSPACE_TAB_KIND = 'ai-coding-cloud-workspace'
-
