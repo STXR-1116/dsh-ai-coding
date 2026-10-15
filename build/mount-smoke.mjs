@@ -381,12 +381,11 @@ async function browserPhase(token) {
         const census = {
           railIcon: document.querySelector('[aria-label="展开云工作空间"]') !== null,
           officialBrowserText: document.body.innerText.includes('工作区'),
-          asides: document.querySelectorAll('aside').length,
-          navs: document.querySelectorAll('nav').length,
-          buttons: document.querySelectorAll('button').length,
         }
         return `DOM 普查: ${JSON.stringify(census)}`
-      })} ／ ${summarizeConsole(consoleLines)}`)
+      })} ／ 错误行: ${consoleLines
+        .filter(line => /Error|error|dsh-ai-coding|Cannot|not a function|undefined|\[probe\]/.test(line))
+        .slice(-4).map(line => line.slice(0, 300)).join(' ⏎ ') || '（没有）'}`)
 
     // 退出接管 ⇒ 官方左栏原样回来。这是「退出即还原」的**真机**判据：
     // 它验证的是框架语义（注册随子插件卸载撤销），不是我们的手工清理。
