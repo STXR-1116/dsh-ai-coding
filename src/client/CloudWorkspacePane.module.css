@@ -1,8 +1,0 @@
-/* 右栏「云工作空间」面板的外壳：撑满 pane，内部滚动交给视图自己。 */
-.pane {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  height: 100%;
-  overflow: auto;
-}

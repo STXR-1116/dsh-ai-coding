@@ -344,16 +344,9 @@ async function browserPhase(token) {
     // Selecting a project reloads the detail surfaces; give them a beat.
     await delay(1_500)
 
-    // Cloud workspaces view renders the fixture seed workspace.
-    await clickNav(page, '云工作空间')
-    const workspaceRendered = await page.waitForFunction(
-      () => document.body.innerText.includes('ws-alpha-1'),
-      { timeout: BROWSER_TIMEOUT_MS },
-    ).then(() => true).catch(() => false)
-    check('browser: workbench renders fixture seed workspace ws-alpha-1', workspaceRendered,
-      workspaceRendered ? 'ws-alpha-1 visible in the cloud workspaces view' : summarizeConsole(consoleLines))
-
     // Knowledge view renders the fixture seed knowledge base.
+    // 先做这一步：下面点「云工作空间」会**接管原生界面并关掉浮层**（所有者定义的行为），
+    // 之后再导航就得先重新打开浮层。
     await clickNav(page, '知识库')
     const knowledgeRendered = await page.waitForFunction(
       () => document.body.innerText.includes('k-1'),
@@ -361,6 +354,68 @@ async function browserPhase(token) {
     ).then(() => true).catch(() => false)
     check('browser: knowledge view renders fixture seed k-1', knowledgeRendered,
       knowledgeRendered ? 'k-1 visible in the knowledge view' : summarizeConsole(consoleLines))
+
+    // 接管模式（所有者定义）：点「云工作空间」= **接管 DSH 原生界面** ——
+    // 左栏换成平台会话记录 + 文件列表，中央交给外壳的原生会话区，会话标题栏出现接管标志。
+    await clickNav(page, '云工作空间')
+    // 接管会关掉浮层，于是**外壳自己的首次运行引导**（"添加一个 API Key 开始使用"）第一次露出来 ——
+    // 之前它一直被浮层盖着。冒烟是全新浏览器，所以先跳过它（"稍后配置"），才看得到接管后的界面。
+    await page.evaluate(() => {
+      const later = [...document.querySelectorAll('button')]
+        .find(candidate => (candidate.textContent ?? '').includes('稍后配置'))
+      later?.click()
+    })
+    // 接管后左栏可能是**窄态（rail）**：官方把折叠态的呈现交给占用者，我们那里只画一个图标
+    // （`SidebarSectionOwnerProps.wide`）。所以先看 rail 图标在不在 —— 在就点它展开
+    // （它调的正是官方给的 `expandSidebar`），再断言正文。
+    await page.evaluate(() => {
+      const rail = document.querySelector('[aria-label="展开云工作空间"]')
+      if (rail !== null) rail.click()
+    })
+    const tookOver = await page.waitForFunction(
+      () => document.body.innerText.includes('文件列表') && document.body.innerText.includes('退出云工作空间'),
+      { timeout: BROWSER_TIMEOUT_MS },
+    ).then(() => true).catch(() => false)
+    check('browser: 点「云工作空间」接管原生左栏（文件列表 + 退出）', tookOver,
+      tookOver ? '接管中的左栏已渲染' : `${await page.evaluate(() => {
+        // 判别式普查：把"我们的占用者到底有没有渲染"拆成可区分的情况，
+        // 而不是只找两个字符串（上一版就是这样把"边界兜底"误判成"没渲染"的）。
+        const text = document.body.innerText
+        const census = {
+          files: text.includes('文件列表'),
+          exit: text.includes('退出云工作空间'),
+          boundaryFallback: text.includes('左栏渲染失败'),
+          railIcon: document.querySelector('[aria-label="展开云工作空间"]') !== null,
+          officialBrowser: text.includes('工作区'),
+          // 一刀切开的判据：标志注册在**另一个席位**（会话标题栏）。
+          // 它若出现 ⇒ 我们的注册能被渲染器看到，问题只出在 `sidebar.workspaces` 这个单席位；
+          // 它若不出现 ⇒ 我们的注册**整体**没到达渲染器。
+          badge: text.includes('云工作空间 · 已连接'),
+        }
+        return `DOM 普查: ${JSON.stringify(census)}`
+      })} ／ 探针: ${consoleLines.filter(line => line.includes('[probe]')).slice(-6)
+        .map(line => line.slice(0, 260)).join(' ⏎ ') || '（无）'}`)
+
+    // 退出接管 ⇒ 官方左栏原样回来。这是「退出即还原」的**真机**判据：
+    // 它验证的是框架语义（注册随子插件卸载撤销），不是我们的手工清理。
+    const exitClicked = await page.evaluate(() => {
+      const button = [...document.querySelectorAll('button')]
+        .find(candidate => (candidate.textContent ?? '').includes('退出云工作空间'))
+      button?.click()
+      return button !== undefined
+    })
+    const restored = await page.waitForFunction(
+      () => !document.body.innerText.includes('退出云工作空间'),
+      { timeout: BROWSER_TIMEOUT_MS },
+    ).then(() => true).catch(() => false)
+    check('browser: 退出接管后官方左栏回来（退出即还原）', exitClicked && restored,
+      exitClicked
+        ? (restored
+            ? '接管已退出，左栏回到官方实现'
+            : `${await summarizePage(page)} ／ 探针: ${consoleLines
+                .filter(line => line.includes('[probe]') || line.includes('dsh-ai-coding'))
+                .slice(-5).map(line => line.slice(0, 240)).join(' ⏎ ') || '（无）'}`)
+        : '没找到「退出云工作空间」按钮')
 
     // --perf：量右栏开合的**真实浏览器**开销。
     //

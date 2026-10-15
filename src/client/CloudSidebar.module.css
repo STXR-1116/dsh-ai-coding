@@ -1,0 +1,77 @@
+/* 接管模式下的左栏：占满官方左栏区域，三段式（会话记录 / 文件列表 / 退出）。 */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  height: 100%;
+  padding: 10px 8px 8px;
+  overflow: auto;
+}
+
+.files {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  /* 文件列表吃掉剩余高度，会话记录保持内容高度 —— 与所有者标注图的比例一致。 */
+  flex: 1 1 auto;
+}
+
+.filesTitle {
+  margin: 0;
+  color: var(--dsh-text-secondary);
+  font-size: var(--dsh-content-font-size-secondary, 12px);
+  font-weight: 600;
+}
+
+.foot {
+  flex: none;
+  padding-top: 6px;
+  border-top: 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover));
+}
+
+.exit {
+  width: 100%;
+  padding: 5px 10px;
+  border: 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover));
+  border-radius: var(--dsh-cw-radius-control, 6px);
+  background: transparent;
+  color: var(--dsh-text-primary);
+  font-size: var(--dsh-content-font-size-secondary, 12px);
+  cursor: pointer;
+}
+
+.exit:hover {
+  background: var(--dsh-bg-hover);
+}
+
+/* 失败与"还没选中工作空间"都要说出来，不能表现成空列表。 */
+.failed {
+  margin: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover));
+  border-radius: var(--dsh-cw-radius-control, 6px);
+  color: var(--dsh-status-danger-text, #d9534f);
+  font-size: var(--dsh-content-font-size-secondary, 12px);
+}
+
+.hint {
+  margin: 0;
+  color: var(--dsh-text-secondary);
+  font-size: var(--dsh-content-font-size-secondary, 12px);
+}
+
+/* 官方把窄态（rail）的呈现交给占用者：只画一个能请求展开的图标。 */
+.rail {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin: 0 auto;
+  border: 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover));
+  border-radius: var(--dsh-cw-radius-control, 6px);
+  background: transparent;
+  color: var(--dsh-text-primary);
+  cursor: pointer;
+}

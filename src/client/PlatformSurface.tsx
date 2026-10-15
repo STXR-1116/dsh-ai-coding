@@ -68,6 +68,13 @@ export type PlatformSurfaceProps = PropsRuntime<'shell.overlay'> &
      *    也不接管 Esc（面板里按 Esc 不该去关一个并不存在的浮层）。
      */
     presentation?: 'overlay' | 'panel'
+    /**
+     * 进入「云工作空间接管模式」（点导航里的「云工作空间」时调用一次）。
+     *
+     * 所有者定义的行为：**点它 = 接管 DSH 原生界面**（左栏换成平台会话记录 + 文件列表、
+     * 中央交给外壳的原生会话区、会话标题栏出现接管标志），插件其余功能与浮层都不变。
+     */
+    onEnterCloudMode?: () => void
   }
 
 type ViewId = 'overview' | 'projects' | 'skills' | 'cloud-workspaces' | 'knowledge' | 'memory' | 'collector' | 'agent-config'
@@ -151,7 +158,7 @@ const LOCAL_ENVIRONMENT: TeamSkillEnvironment = {
 
 /** Root overlay: listens to the local controller and mounts the demo shell. */
 export function PlatformSurface(props: PlatformSurfaceProps) {
-  const { controller, t, remote, layout, useSessions, useWorkspaces, openSession, startSession, presentation } = props
+  const { controller, t, remote, layout, useSessions, useWorkspaces, openSession, startSession, presentation, onEnterCloudMode } = props
   const overlayOpen = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot)
   // A3：同一个人界面有两种呈现 —— `overlay`（浮层，按 controller 开合）与 `panel`（官方主面板的正文，
   // 由外壳在选择该面板时挂载，没有"开合"这回事）。hook 必须**无条件**调用，所以只用布尔把闸门并起来。
@@ -174,6 +181,7 @@ export function PlatformSurface(props: PlatformSurfaceProps) {
   return (
     <PlatformShell
       presentation={presentation ?? 'overlay'}
+      {...(onEnterCloudMode === undefined ? {} : { onEnterCloudMode })}
       controller={controller}
       t={t}
       remote={remote}
@@ -186,7 +194,7 @@ export function PlatformSurface(props: PlatformSurfaceProps) {
   )
 }
 
-function PlatformShell({ controller, t, remote, layout, useSessions, useWorkspaces, openSession, startSession, presentation }: Pick<PlatformSurfaceProps, 'controller' | 't' | 'remote' | 'layout' | 'useSessions' | 'useWorkspaces' | 'openSession' | 'startSession' | 'presentation'>) {
+function PlatformShell({ controller, t, remote, layout, useSessions, useWorkspaces, openSession, startSession, presentation, onEnterCloudMode }: Pick<PlatformSurfaceProps, 'controller' | 't' | 'remote' | 'layout' | 'useSessions' | 'useWorkspaces' | 'openSession' | 'startSession' | 'presentation' | 'onEnterCloudMode'>) {
   const [view, setView] = useState<ViewId>('overview')
   // Appearance (theme/density), rail collapse, and focus mode are visual-only
   // state: none of them reorder content or touch business requests (spec §8).
@@ -1055,6 +1063,10 @@ function PlatformShell({ controller, t, remote, layout, useSessions, useWorkspac
         onClick={() => {
           setView(item.id)
           setMobileNavOpen(false)
+          // 接管模式（所有者定义）：**点「云工作空间」即接管 DSH 原生界面** ——
+          // 左栏换成平台会话记录 + 文件列表，中央交给外壳的原生会话区，并挂上接管标志。
+          // 其余视图（含登录/配置）行为不变，浮层照旧。
+          if (item.id === 'cloud-workspaces') onEnterCloudMode?.()
         }}
       >
         <Icon size={16} />
