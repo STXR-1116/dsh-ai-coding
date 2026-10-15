@@ -43,6 +43,7 @@ import type {} from '@deepseek-ai/dsh-api-workspace-controller/client'
 import { en, NS, zh, type PlatformKey } from './locales.ts'
 import { WorkspaceSessionsRemote, type UiConversationFace } from './remote/workspace-sessions.ts'
 import { resolveBrowserStorage } from './cloud-workspaces/workspace-session-store.ts'
+import { readSelection } from './cloud-workspaces/cloud-files-state.ts'
 import { createCloudMode } from './cloud-mode.ts'
 import { PlatformDemoController } from './controller.ts'
 import { PlatformEntry } from './PlatformEntry.tsx'
@@ -227,17 +228,37 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-ai-coding-platform: dictionaries')
 
   // 云工作空间**接管模式**（所有者定义）：点插件里的「云工作空间」即接管 DSH 原生界面。
-  // 进去时顺带关掉浮层（接管的是原生界面，浮层留着会盖住它）；退出即兜底重载，官方界面回来。
-  //
-  // 下方三条 `[dsh-ai-coding]` 日志是**临时定位探针**（所有者真机上"点了没反应"）：分别证明
-  // 「新包确实加载了」「点击确实到达了处理器」「关闭浮层确实生效」。定位完成后删除。
-  console.log('[dsh-ai-coding] 构建标记 · 接管入口已装配 · 浮层当前 =', controller.getSnapshot())
+  // 进入时：关掉浮层（接管的是原生界面，浮层留着会盖住它）+ 把外壳切到**本工作空间的会话**；
+  // 退出时：兜底重载，官方界面回来。
   const cloudMode = createCloudMode(ctx, {
     remote,
     onEnter: () => {
-      console.log('[dsh-ai-coding] 进入接管 · 关闭浮层前 =', controller.getSnapshot())
       controller.close()
-      console.log('[dsh-ai-coding] 进入接管 · 关闭浮层后 =', controller.getSnapshot())
+      // 切到"本工作空间的会话"。**放在这里而不是 React effect 里**是有来由的：
+      // 之前在视图的 effect 里做，`openSession` 每次渲染都是新闭包 ⇒ 清理函数每次渲染都跑
+      // ⇒ "恢复→渲染→再恢复"死循环，直接把界面卡死（0.1.51 的事故）。
+      // 这里是**一次点击触发一次**，没有闭包身份问题。
+      const workspaceId = readSelection()?.workspaceId
+      if (workspaceId === undefined) return
+      void (async () => {
+        try {
+          const account = await remote.teamSkills.account()
+          const accountId = account.ok
+            ? (account.value as { user?: { userId?: string } }).user?.userId
+            : undefined
+          const outcome = await remote.workspaceSessions.ensure({
+            ...(accountId === undefined ? {} : { accountId }),
+            cloudWorkspaceId: workspaceId,
+          })
+          if (!outcome.ok) {
+            console.warn('[dsh-ai-coding] 本工作空间的会话不可用：', outcome.message)
+            return
+          }
+          faces.sessions.open(outcome.sessionId as SessionId)
+        } catch (error) {
+          console.warn('[dsh-ai-coding] 切换工作空间会话失败：', error)
+        }
+      })()
     },
   })
 
