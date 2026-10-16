@@ -19,6 +19,7 @@
  */
 
 import css from './SessionRecords.module.css'
+import { compactAge, AGE_LABELS_ZH, type AgeLabels } from './session-age.ts'
 
 /** 一条会话记录（字段按后端接口要求 §3.1 的语义命名，接口落地后按实际形状收敛）。 */
 export interface SessionRecord {
@@ -43,6 +44,11 @@ export interface SessionRecordsProps {
   /** 当前选中的会话。 */
   readonly selectedSessionId?: string
   /**
+   * 相对时间文案（本地化）。不传时用与官方 zh 字典一致的兜底文案 ——
+   * **绝不退回原始 ISO 串**：所有者对照原生后指出这里必须与原生一致。
+   */
+  readonly ageLabels?: AgeLabels
+  /**
    * 读取失败的原因（就地显示）。
    *
    * 该读取是**次要面板**的数据：失败只影响这一块，不该顶成页面级错误横幅 ——
@@ -56,7 +62,7 @@ export interface SessionRecordsProps {
  * @param props - 会话记录与选择回调。
  * @returns 会话记录区。
  */
-export function SessionRecords({ sessions, onSelect, selectedSessionId, error }: SessionRecordsProps) {
+export function SessionRecords({ sessions, onSelect, selectedSessionId, error, ageLabels = AGE_LABELS_ZH }: SessionRecordsProps) {
   return (
     <section className={css.pane} aria-label="会话记录区">
       <p className={css.title}>会话记录</p>
@@ -80,7 +86,9 @@ export function SessionRecords({ sessions, onSelect, selectedSessionId, error }:
                 onClick={() => { onSelect?.(session.sessionId) }}
               >
                 <span className={css.itemTitle}>{session.title}</span>
-                {session.updatedAt !== undefined && <span className={css.itemTime}>{session.updatedAt}</span>}
+                {session.updatedAt !== undefined && (
+                  <span className={css.itemTime}>{compactAge(session.updatedAt, ageLabels)}</span>
+                )}
               </button>
             </li>
           ))}

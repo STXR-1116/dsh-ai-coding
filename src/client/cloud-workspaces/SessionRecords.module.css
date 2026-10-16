@@ -37,7 +37,10 @@
   border: 0;
   border-radius: var(--dsh-cw-radius-control, 6px);
   font: inherit;
-  font-size: var(--dsh-content-font-size, 14px);
+  /* 紧凑一行：与原生左栏的会话行同尺度（所有者对照原生指出"样式需一致"）。
+     14px 的行在左栏里明显偏大、一行放不下标题 + 时间。 */
+  font-size: var(--dsh-content-font-size-secondary, 12px);
+  line-height: 18px;
   text-align: left;
   cursor: pointer;
 }
