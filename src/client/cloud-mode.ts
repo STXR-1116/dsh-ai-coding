@@ -3,6 +3,7 @@ import type { PlatformRemote } from './remote/types.ts'
 import { NS } from './locales.ts'
 import { CloudSidebarSlot } from './CloudSidebar.tsx'
 import { CloudModeBadge } from './CloudModeBadge.tsx'
+import { CloudWorkspaceHero } from './CloudWorkspaceHero.tsx'
 
 /**
  * 「云工作空间接管模式」控制器。
@@ -42,6 +43,14 @@ const HEADER_ACTIONS_SLOT = 'conversation.session.header.actions'
 
 /** 接管标志在该 list 席位里的条目 id（漏了它会直接抛错 —— 真机踩过）。 */
 const BADGE_ID = 'ai-coding-cloud-mode'
+
+/**
+ * 空白会话页里的**工作区控制**席位（`kind: 'single'`、`scope: 'root'`）。
+ *
+ * 默认占用者列的是 **DSH 本地工作区**；接管期间由我们用云工作空间替换它 ——
+ * 所有者的要求是「整个会话页面的数据都应该来自于后端」。
+ */
+const HERO_WORKSPACE_SLOT = 'conversation.hero.workspace'
 
 /** 遮蔽优先级：单席位是**最小者胜**，所以取一个足够小的值。 */
 const SHADOW_PRIORITY = -1000
@@ -145,6 +154,16 @@ export function createCloudMode(ctx: ClientContext, deps: CloudModeDeps): CloudM
           locale: NS,
           inject: () => ({}),
         }, CloudModeBadge))
+        // 空白会话页的「选择工作区」：接管期间换成**云工作空间**。
+        // 所有者问：「为什么在云工作空间里点会话，跳出来选择的工程还是本地的？」
+        // ——那块控件是外壳席位（`kind: 'single'`），默认列 DSH 本地工作区；
+        // 手册：「复用已有 cell 表示**有意替换其展示**」⇒ 用它换成云端来源。
+        attempt(HERO_WORKSPACE_SLOT, () => slots.register({
+          name: HERO_WORKSPACE_SLOT,
+          priority: SHADOW_PRIORITY,
+          locale: NS,
+          inject: () => ({}),
+        }, CloudWorkspaceHero))
         // 子 disposer：`register` 的返回值不一定可调用（客户端 runner 的服务代理可能不透传），
         // 所以逐个判类型再调 —— 不假装成功。
         return () => {

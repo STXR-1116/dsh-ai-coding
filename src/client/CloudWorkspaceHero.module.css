@@ -1,0 +1,20 @@
+/* 接管期间替换「选择工作区」的只读标签：说明本会话的工程来自云工作空间（后端）。 */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border: var(--dsh-cw-divider, 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover)));
+  border-radius: var(--dsh-cw-radius-control, 6px);
+  font-size: var(--dsh-content-font-size-secondary, 12px);
+  line-height: 18px;
+}
+
+.label {
+  color: var(--dsh-text-tertiary);
+}
+
+.value {
+  color: var(--dsh-text-primary);
+  font-family: var(--dsh-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+}
