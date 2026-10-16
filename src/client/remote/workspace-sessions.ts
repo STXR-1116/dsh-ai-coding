@@ -30,7 +30,21 @@ export interface WorkspaceSessionsFace {
    *   workspace id — the two are not interchangeable (see `ensureWorkspaceSession`).
    * @returns the session to render, or a stable failure the caller must show.
    */
-  ensure(input: { readonly accountId?: string; readonly cloudWorkspaceId: string }): Promise<WorkspaceSessionOutcome>
+  ensure(input: {
+    readonly accountId?: string
+    readonly cloudWorkspaceId: string
+    /**
+     * 平台会话 id（`docs/backend-api-requirements.md` §3.1）。给了它就按
+     * **「工作空间 + 平台会话」**映射 —— 左栏每条会话记录各有一条自己的 DSH 会话。
+     */
+    readonly platformSessionId?: string
+    /**
+     * 建出来的会话**留在会话列表里**（不归档）。接管模式用它 ——
+     * 归档态的会话当"当前会话"用时，外壳过一会儿就不再认它（所有者实测：
+     * 停留一段时间自动新开一个会话）。
+     */
+    readonly keepInList?: boolean
+  }): Promise<WorkspaceSessionOutcome>
   /**
    * Resolve this session's chat snapshot source for rendering.
    *
@@ -138,12 +152,11 @@ export class WorkspaceSessionsRemote implements WorkspaceSessionsFace {
      */
     readonly platformSessionId?: string
     /**
-     * 平台会话 id（`docs/backend-api-requirements.md` §3.1 的会话记录）。
-     *
-     * 给了它就按**「工作空间 + 平台会话」**做映射 —— 左栏点某条会话记录时走这条路，
-     * 于是每条记录对应自己的 DSH 会话，而不是整个工作空间共用一条。
-     * 不给则保持原样（工作空间级会话），向后兼容。
+     * 建出来的会话**留在会话列表里**（不归档）。接管模式用它 ——
+     * 归档态的会话当"当前会话"用时，外壳过一会儿就不再认它（所有者实测：
+     * 停留一段时间自动新开一个会话）。
      */
+    readonly keepInList?: boolean
   }): Promise<WorkspaceSessionOutcome> {
     const services = this.deps.services()
     if (services === undefined) {
@@ -159,6 +172,7 @@ export class WorkspaceSessionsRemote implements WorkspaceSessionsFace {
     return ensureWorkspaceSession({
       cloudWorkspaceId: input.cloudWorkspaceId,
       ...(input.platformSessionId === undefined ? {} : { platformSessionId: input.platformSessionId }),
+      ...(input.keepInList === undefined ? {} : { keepInList: input.keepInList }),
       sessions: services.sessions,
       workspaces: services.workspaces,
       store: createWorkspaceSessionStore(storage, input.accountId),

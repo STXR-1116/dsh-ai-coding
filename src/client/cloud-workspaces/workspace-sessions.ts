@@ -113,6 +113,13 @@ export async function ensureWorkspaceSession(input: {
    */
   readonly platformSessionId?: string
   /**
+   * 建出来的会话**留在会话列表里**（不归档）。接管模式用它。
+   *
+   * 理由见下面归档处的注释：归档态的会话当"当前会话"用时，外壳过一会儿就不再认它，
+   * 中央退回"新会话"空态（所有者实测：停留一段时间自动新开一个会话）。
+   */
+  readonly keepInList?: boolean
+  /**
    * Local working directory for the session, when one is known.
    *
    * A **cloud** workspace contributes none: the plugin never learns its remote
@@ -128,9 +135,15 @@ export async function ensureWorkspaceSession(input: {
   // 给了**平台会话 id** 时用复合键 —— 左栏每条会话记录因此各有一条自己的 DSH 会话
   // （所有者 T3：「点一条会话记录 ⇒ 中央切到该会话」）。
   // 用 `\u0000` 分隔：它在 id 里不可能出现，因此两段不会互相混淆。
-  const mappingKey = input.platformSessionId === undefined
-    ? input.cloudWorkspaceId
-    : `${input.cloudWorkspaceId}\u0000${input.platformSessionId}`
+  //
+  // `keepInList`（接管模式）再加一段后缀：**它必须拿到"留着不归档"的会话**，
+  // 而此前建的同类会话都是归档态的 —— 复用它们会立刻复现"过一会儿退回新会话"的问题。
+  // 分开存键，老映射继续服务视图那条路（归档 ✓），接管这条路拿到全新的、留在列表里的会话。
+  const mappingKey = [
+    input.cloudWorkspaceId,
+    ...(input.platformSessionId === undefined ? [] : [input.platformSessionId]),
+    ...(input.keepInList === true ? ['live'] : []),
+  ].join('\u0000')
   const stored = input.store.read(mappingKey)
   if (stored !== undefined && input.sessions.binding(stored) !== undefined) {
     return { ok: true, sessionId: stored, created: false }
@@ -150,6 +163,15 @@ export async function ensureWorkspaceSession(input: {
   // failed archive must be retryable against this same session rather than
   // abandoning it and creating another on the next attempt.
   input.store.write(mappingKey, sessionId)
+
+  // **接管模式的会话不归档**（`keepInList`）。
+  //
+  // 实测（所有者真机）：归档态的会话用作"当前会话"时，外壳过一会儿（列表刷新）就不再认它，
+  // 中央于是退回"新会话"空态 —— 表现为"停留一段时间就自动新开一个会话"。
+  // 接管时用户**正是在这条会话里工作**，它就该像一条普通会话那样留在列表里；
+  // 而接管期间左栏由我们渲染（平台会话记录 + 文件列表），不会被它干扰。
+  // 视图自己那条路（浮层里的会话列）仍按原样归档，避免污染外壳列表。
+  if (input.keepInList === true) return { ok: true, sessionId, created: true }
 
   let archived: Awaited<ReturnType<WorkspaceArchiveService['archiveSession']>>
   try {

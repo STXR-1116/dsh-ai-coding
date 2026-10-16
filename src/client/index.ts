@@ -247,6 +247,10 @@ export function apply(ctx: ClientContext): void {
         ...(accountId === undefined ? {} : { accountId }),
         cloudWorkspaceId: workspaceId,
         ...(platformSessionId === undefined ? {} : { platformSessionId }),
+        // 接管模式的会话**留在会话列表里**（不归档）：归档态的会话当"当前会话"用时，
+        // 外壳过一会儿就不再认它，中央退回"新会话"空态 ——
+        // 所有者实测：「进入云工作空间后停留一段时间就会自动新开一个会话」。
+        keepInList: true,
       })
       if (!outcome.ok) {
         console.warn('[dsh-ai-coding] 本工作空间的会话不可用：', outcome.message)
