@@ -16,7 +16,6 @@ import { describe, expect, it } from 'vitest'
 import { TeamSkillGateway } from '../src/gateway.ts'
 import { WorkspaceGateway } from '../src/workspace-gateway.ts'
 import * as clientEntry from '../src/client/index.ts'
-import * as invariant from '../src/invariant.ts'
 
 describe('宿主行的 inject 是最小集', () => {
   it('Team Skill 行只要它真正读取的三个服务', () => {
@@ -35,9 +34,9 @@ describe('宿主行的 inject 是最小集', () => {
     expect(WorkspaceGateway.inject).toEqual([])
   })
 
-  it('invariant 伴生行只依赖 invariants 注册表', () => {
-    expect(invariant.inject).toEqual(['invariants'])
-  })
+  // 原先这里还有一条「invariant 伴生行只依赖 invariants 注册表」。
+  // 0.2.1 **没有** `invariants` 服务（`InvariantInstaller` 也不再导出）⇒ 该伴生插件已退役，
+  // 用例随之删除。这是一项**能力损失**：0.2.1 下不再有那个"知识检索自检"。
 })
 
 describe('浏览器 fragment 的 inject 是最小集', () => {

@@ -82,7 +82,7 @@ describe('TeamSkillKnowledgeLoop', () => {
     agent.followup(
       createUserMessage({
         content: [{ type: 'text', text: 'plugin-sourced pre-step message' }],
-        source: { kind: 'plugin', plugin: '@deepseek-ai/dsh-test-harness', form: 'relay' },
+        source: { kind: 'system-prompt' },
       }),
     )
     await waitForIdle(ctx, agent)
@@ -119,7 +119,7 @@ describe('TeamSkillKnowledgeLoop', () => {
         }),
         expect.objectContaining({
           type: 'user/message',
-          data: expect.objectContaining({ source: { kind: 'plugin', plugin: '@deepseek-ai/dsh-ai-coding-platform', form: 'recall' } }),
+          data: expect.objectContaining({ source: { kind: 'system-prompt' } }),
         }),
       ]),
     )

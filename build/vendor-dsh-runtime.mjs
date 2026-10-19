@@ -32,8 +32,13 @@ if (!existsSync(source)) {
 /** DSH 自己的版本，写进日志便于核对。 */
 const dshVersion = JSON.parse(readFileSync(join(source, '..', '..', 'package.json'), 'utf8')).version
 
-/** 需要 vendor 的包：运行时框架 + cordis。 */
-const names = readdirSync(source).filter(name => name === 'cordis' || name.startsWith('dsh-'))
+/** 需要 vendor 的包：**整个 `@deepseek-ai` 作用域**。
+ *
+ * 早先这里只认 `dsh-*` 与 `cordis`，于是漏掉了同作用域下的其它包 ——
+ * 实测后果：`cordis` 自己 `import '@deepseek-ai/cosmokit'` 解析不到，
+ * 测试在**加载期**就失败（`Cannot find package '@deepseek-ai/cosmokit'`）。
+ * 一律复制，别再用前缀猜。 */
+const names = readdirSync(source).filter(name => name !== 'node_modules')
 if (names.length < 20) {
   console.error(`✘ 源目录里只找到 ${names.length} 个包，路径可能不对`)
   process.exit(1)

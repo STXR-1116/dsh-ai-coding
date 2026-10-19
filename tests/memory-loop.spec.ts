@@ -220,7 +220,7 @@ describe('TeamSkillMemoryLoop', () => {
     agent.followup(
       createUserMessage({
         content: [{ type: 'text', text: 'plugin-sourced pre-step message' }],
-        source: { kind: 'plugin', plugin: '@deepseek-ai/dsh-test-harness', form: 'relay' },
+        source: { kind: 'system-prompt' },
       }),
     )
     await waitForIdle(ctx, agent)
