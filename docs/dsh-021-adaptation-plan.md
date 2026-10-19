@@ -98,15 +98,22 @@ Remove-Item "$env:USERPROFILE\.dsh\profiles\web\pnpm-lock.yaml" -Force
 
 > 具体命令以 3.4 的安装方式为准；目标是**让 `dsh-workspace` 那一行不再指向 0.1.5-rc.2**。
 
-### 3.4 构建环境（需要所有者定一个）
+### 3.4 构建环境：**直接安装 0.2.1-rc.2 的类型**（修正掉上一版结论）
 
-本机 **npm registry 不可达**，`0.2.1-rc.2` 的类型取不到包 ✗。三个选项：
+**上一版写"registry 不可达、只能 vendor 类型"是错的**，必须更正：
 
-| 选项 | 做法 | 代价 |
-| --- | --- | --- |
-| **A（推荐）** | 从 DSH 安装里把 `0.2.1-rc.2` 的类型**复制/vendor** 到本仓 `node_modules/@deepseek-ai/*`（一次性脚本 + 记录来源版本），构建与类型检查都对齐运行时 | 多一个 `build/vendor-dsh-types.ps1`；`node_modules` 不入库 |
-| B | 用 `tsconfig` 的 `paths` 指向 DSH 安装（我这次探针就是这么做的） | 路径依赖本机安装位置，CI 上要另配 |
-| C | 保持 0.1.5 类型构建 | **不可接受**：类型与运行时不一致，等于没适配 |
+- 我先前的依据是**几天前**的一次探测；这次复核时我又用 `Invoke-WebRequest` 测了一遍，
+  报的是 PowerShell 的 `NonInteractive` 提示错误 —— **那是我的工具有问题，不是网络结论**。
+- 复核结果 **【实测】**：
+  - `npm ping` → **PONG，3.6 s**（registry 可达）；
+  - `npm view @deepseek-ai/dsh-session@0.2.1-rc.2 version` → **`0.2.1-rc.2`**（这个版本确实在仓库里）；
+  - 代价是**慢**：单次 `npm view` 约 **39 s**，所以 `pnpm install` 会明显变慢，但不阻塞。
+- 本仓 `node_modules` 目前仍是 **0.1.5-rc.2**（构建实际用的就是它）。
+
+⇒ **做法**：T1 里直接 `pnpm add -D`（或改 `package.json` 后 `pnpm install`）把 30 余个
+`@deepseek-ai/*` 升到 `0.2.1-rc.2`，让**类型检查与运行时版本一致**；不再需要 vendor 脚本。
+安装耗时长要预留时间，失败时按普通网络重试处理。
+
 
 ## 4. 分步计划（每步可验，随时可退）
 
