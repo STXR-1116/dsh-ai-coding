@@ -1,5 +1,5 @@
 /** Compact sidebar action that opens the first-party platform demo. */
-import { IconSparkle16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Sparkles as IconSparkle16 } from 'lucide-react'
 import { NS } from './locales.ts'
 import type { PlatformKey } from './locales.ts'
 import { SlotBoundary } from './slot-boundary.tsx'

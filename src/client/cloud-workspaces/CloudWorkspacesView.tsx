@@ -24,7 +24,7 @@ import type {
   ContextLensSnapshot,
   RunAssetSnapshot,
 } from '../../types.ts'
-import { IconCloseOutline16, IconFolderOpenOutline16, IconRefreshOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { X as IconCloseOutline16, FolderOpen as IconFolderOpenOutline16, RefreshCw as IconRefreshOutline16 } from 'lucide-react'
 import { evidenceFromFailure, evidenceFromRun } from './operation-evidence.ts'
 import { groupLensLayers, lensEntryStatus, lensMemoryToggles, projectFilesSection } from './context-lens.ts'
 import { buildRunPulse, type PulseReconnect } from './run-pulse.ts'

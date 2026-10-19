@@ -55,7 +55,9 @@ import { TeamSkillsRemoteService } from './remote/team-skills.ts'
 import { CloudWorkspacesRemoteService } from './remote/cloud-workspaces.ts'
 import type { PlatformRemote } from './remote/types.ts'
 
-declare module '@deepseek-ai/dsh-client-ui-renderer/client' {
+// `LocaleNamespaceMap` 由 `@deepseek-ai/dsh-client-ui-slots` 声明（0.2.1 仍是如此），
+// 所以增广**必须指向那个包** —— 指向 renderer/client 不会合并，命名空间等于没登记。
+declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
     /** Platform demo shell copy. */
     aiCodingPlatform: PlatformKey

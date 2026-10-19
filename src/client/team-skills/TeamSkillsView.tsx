@@ -17,13 +17,8 @@ import type { PlatformRemote } from '../remote/types.ts'
 // both expose `items: readonly WorkspaceView[]`.
 import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { SnapshotSelectorHook } from '@deepseek-ai/dsh-client-ui-renderer/client'
-import {
-  IconCheckOutline14,
-  IconCloseOutline16,
-  IconPlusOutline16,
-  IconRefreshOutline16,
-  IconSkillOutline16,
-} from '@deepseek-ai/dsh-client-ui-primitives'
+import { Check as IconCheckOutline14, Plus as IconPlusOutline16 } from 'lucide-react'
+import { X as IconCloseOutline16, RefreshCw as IconRefreshOutline16, Wrench as IconSkillOutline16 } from 'lucide-react'
 import css from './TeamSkillsView.module.css'
 
 export interface TeamSkillsViewProps {

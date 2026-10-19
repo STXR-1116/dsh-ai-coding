@@ -8,7 +8,7 @@ import type {
   TeamSkillProject,
   WorkspaceQueryResult,
 } from '../../types.ts'
-import { IconRefreshOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { RefreshCw as IconRefreshOutline16 } from 'lucide-react'
 import { AgentConfigEditor } from './AgentConfigEditor.tsx'
 import css from './AgentConfigView.module.css'
 

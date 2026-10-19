@@ -1,7 +1,7 @@
 /** First-run deployment settings form for the browser remote client layer. */
 
 import { useState } from 'react'
-import { IconSparkle16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Sparkles as IconSparkle16 } from 'lucide-react'
 import { resolvePlatformClientConfig } from './remote/config.ts'
 import { clearBrowserSettings, readBrowserSettings, readDeploymentSettings, resolveBrowserSettings, writeBrowserSettings } from './remote/settings.ts'
 import type { BrowserRemoteSettings } from './remote/settings.ts'

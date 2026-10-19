@@ -31,13 +31,15 @@
  */
 
 import { memo, useCallback, useEffect, useState } from 'react'
+import { FileTypeIcon } from '@deepseek-ai/dsh-client-ui-primitives'
+// 0.2.1 的 primitives **不再导出任何图标**（IconRefreshOutline16 / IconChevron* 等
+// 在整个 DSH 安装里都搜不到）⇒ 一律换成 lucide 等价图标，用别名保持调用点不变。
 import {
-  FileTypeIcon,
-  IconChevronDownOutline14,
-  IconChevronRightOutline14,
-  IconChevronUpOutline14,
-  IconRefreshOutline16,
-} from '@deepseek-ai/dsh-client-ui-primitives'
+  ChevronDown as IconChevronDownOutline14,
+  ChevronRight as IconChevronRightOutline14,
+  ChevronUp as IconChevronUpOutline14,
+  RefreshCw as IconRefreshOutline16,
+} from 'lucide-react'
 
 import type { PlatformRemote } from '../remote/types.ts'
 import type { WorkspaceFileEntry, WorkspaceQueryResult } from '../../workspace-types.ts'

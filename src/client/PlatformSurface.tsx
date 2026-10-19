@@ -28,7 +28,8 @@ import type { ILayout } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { PlatformKey } from './locales.ts'
-import { IconArchiveOutline20, IconAgentPresetOutline16, IconChevronLeftOutline14, IconChevronRightOutline14, IconCloseOutline16, IconDataOutline16, IconFolderOpenOutline16, IconGoalOutline16, IconInspectOutline12, IconPauseOutline16, IconPlayOutline16, IconQueueOutline14, IconRefreshOutline16, IconSearchOutline16, IconSettingsOutline14, IconSkillOutline16, IconSparkle16, IconUserOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { LucideIcon } from 'lucide-react'
+import { Archive as IconArchiveOutline20, Sparkles as IconAgentPresetOutline16, ChevronLeft as IconChevronLeftOutline14, ChevronRight as IconChevronRightOutline14, X as IconCloseOutline16, Database as IconDataOutline16, FolderOpen as IconFolderOpenOutline16, Target as IconGoalOutline16, ScanSearch as IconInspectOutline12, Pause as IconPauseOutline16, Play as IconPlayOutline16, ListOrdered as IconQueueOutline14, RefreshCw as IconRefreshOutline16, Search as IconSearchOutline16, Settings as IconSettingsOutline14, Wrench as IconSkillOutline16, Sparkles as IconSparkle16, User as IconUserOutline16 } from 'lucide-react'
 import { DEFAULT_APPEARANCE, loadAppearance, resolveTheme, saveAppearance, type Appearance } from './appearance.ts'
 import { NS } from './locales.ts'
 import type { PlatformDemoController } from './controller.ts'
@@ -88,7 +89,14 @@ export type PlatformSurfaceProps = {
   }
 
 type ViewId = 'overview' | 'projects' | 'skills' | 'cloud-workspaces' | 'knowledge' | 'memory' | 'collector' | 'agent-config'
-type IconComponent = ComponentType<{ size?: number; className?: string }>
+/**
+ * 图标类型：直接用 lucide 自己的 `LucideIcon`。
+ *
+ * 这里曾经是本仓自定的窄 props（`{ size?: number; className?: string }`），
+ * 与 lucide 图标的 props **逆变不兼容**（TS2322 一片）。换用官方类型即可，
+ * 也顺带说明了为什么"自己抄一份 props"在这种位置会咬人。
+ */
+type IconComponent = LucideIcon
 
 interface NavItem {
   id: ViewId
