@@ -41,35 +41,24 @@ dsh: disabling profile plugin row "workspace": Plugin @deepseek-ai/dsh-workspace
 
 > 卸载后仍报错，是因为 profile 的**陈旧 lockfile / node_modules 残留**仍在参与解析。**【实测：目录里有 `*.bak-preuninstall`】**
 
-### 2.2 类型增广失效 ⇒ 129 条编译错误，但**根因很少**
+### 2.2 类型增广失效 ⇒ **真实规模是 516 条**（此前的 129 条是"混装树"造成的假象）
 
-用 `paths` 把 `@deepseek-ai/*` 全部指向 DSH 安装里的 **0.2.1-rc.2 类型**做了一次编译：**【实测】**
+第一次探测（用 `paths` 指向 DSH 安装的类型）报 **129 条**；但那次 `node_modules` 里
+**还留着 `dsh-client-ui-slots@0.1.5-rc.2`**（0.2.1 里**已经没有这个包**），于是我们的旧导入
+仍然解析得通 —— 数字被**低估**了。
 
-```
-error 数量：129
-按错误码：TS2339(22) TS7031(15) TS7006(13) TS2345(11) TS2344(7) TS2322(4) TS2367(3) TS18046(2)
-```
-
-典型：
+把运行时包从本机 DSH 安装 vendor 过来、并**删掉那个残留**之后，`tsc` 对干净的 0.2.1 类型报：
 
 ```
-Property 'slots' does not exist on type 'Context'          ← 服务增广没生效
-Property 'sessions' / 'locale' / 'layout' 同上
-Type '"sidebar.footer.action"' does not satisfy 'never'    ← SlotMap 在我们这边是空的
+516 条
+按文件：CloudWorkspacesView 146 / gateway 17 / memory-loop 13 / PlatformSurface 12 / index 11 / AgentConfigView 9 …
+典型：Argument of type 'unknown' is not assignable to parameter of type 'WorkspaceQueryResult<…>'
+      'result' is of type 'unknown'
 ```
 
-**28 条"隐式 any" + 7 条"约束不满足"都是上面两条的下游连锁**，不是 129 个独立破坏。**{推断}**
+⇒ 主导原因不是"导入路径"（那只是一小部分），而是 **typert / 传输层的返回类型变了**（退化为 `unknown`），
+**每一处远程调用点都要重新取型**。**【实测】**
 
-而 0.2.1 里 `slots` 服务与 `SlotMap` **仍在同类包里声明** **【随包类型】**：
-
-```
-slots 服务：dsh-client-ui-renderer/lib/types/client/index.d.ts:27
-           dsh-cordis-client-runner/lib/types/client/runtime.d.ts:98
-SlotMap  ：dsh-client-ui-layout / dsh-client-ui-conversation / dsh-client-ui-chat / … 各自的 contract/slots.d.ts
-```
-
-⇒ 结论：**机制没变**，是**增广没有被加载进来**（我们代码里那些
-`import type {} from '@deepseek-ai/…'` 的副作用导入指向了不再携带增广的模块路径）。**{推断，需验证}**
 
 ## 3. 方案
 
@@ -98,21 +87,26 @@ Remove-Item "$env:USERPROFILE\.dsh\profiles\web\pnpm-lock.yaml" -Force
 
 > 具体命令以 3.4 的安装方式为准；目标是**让 `dsh-workspace` 那一行不再指向 0.1.5-rc.2**。
 
-### 3.4 构建环境：**直接安装 0.2.1-rc.2 的类型**（修正掉上一版结论）
+### 3.4 构建环境：**从本机 DSH 安装 vendor 运行时包**（结论再修正）
 
-**上一版写"registry 不可达、只能 vendor 类型"是错的**，必须更正：
+上一版写"registry 可达，直接 `pnpm install` 就行"—— 也**不成立**：
 
-- 我先前的依据是**几天前**的一次探测；这次复核时我又用 `Invoke-WebRequest` 测了一遍，
-  报的是 PowerShell 的 `NonInteractive` 提示错误 —— **那是我的工具有问题，不是网络结论**。
-- 复核结果 **【实测】**：
-  - `npm ping` → **PONG，3.6 s**（registry 可达）；
-  - `npm view @deepseek-ai/dsh-session@0.2.1-rc.2 version` → **`0.2.1-rc.2`**（这个版本确实在仓库里）；
-  - 代价是**慢**：单次 `npm view` 约 **39 s**，所以 `pnpm install` 会明显变慢，但不阻塞。
-- 本仓 `node_modules` 目前仍是 **0.1.5-rc.2**（构建实际用的就是它）。
+- `npm ping` 确实 PONG（3.6 s）、`npm view …@0.2.1-rc.2` 也确实查得到，所以"不可达"是错的；
+- **但** `pnpm install` 实测反复 `UND_ERR_DESTROYED` 断流，并最终死在
+  **`ERR_PNPM_NO_MATCHING_VERSION: @deepseek-ai/dsh-invariants@0.2.1-rc.2`**
+  —— 该包在仓库里最新是 `0.0.1-rc.1`（tag `next` 为 `0.2.0-rc.2`），**根本没有 0.2.1-rc.2**：
+  它只随 DSH 安装分发。**【实测】**
 
-⇒ **做法**：T1 里直接 `pnpm add -D`（或改 `package.json` 后 `pnpm install`）把 30 余个
-`@deepseek-ai/*` 升到 `0.2.1-rc.2`，让**类型检查与运行时版本一致**；不再需要 vendor 脚本。
-安装耗时长要预留时间，失败时按普通网络重试处理。
+⇒ **采用**：`build/vendor-dsh-runtime.mjs` 从本机 DSH 安装把运行时包（类型 + 代码）
+复制进 `node_modules/@deepseek-ai/*`（复制前先删目标，避免 0.1.5 与 0.2.1 混装）。
+
+配套的两条硬约束（都是实测踩出来的）：
+
+1. **`devDependencies` 里不声明任何 `@deepseek-ai/*`** —— 否则每一次 `pnpm` 调用都会先尝试安装，
+   然后因为上面那个"仓库里没有该版本"而失败（连 `pnpm typecheck` 都跑不到 `tsc`）；
+   运行时包只留在 **`peerDependencies`**（由运行时满足），本地类型检查用 vendor 的副本。
+2. 本机必须装有**同版本** DSH（本工作流本就如此）；否则先跑 vendor 脚本再构建。
+
 
 
 ## 4. 分步计划（每步可验，随时可退）
