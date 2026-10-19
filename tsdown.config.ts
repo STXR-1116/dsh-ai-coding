@@ -24,11 +24,12 @@ const PACKAGE_NAME = 'dsh-ai-coding'
 export default clientBundle(PACKAGE_NAME, [
   // Host half: the Cordis plugin (default export = TeamSkillGateway).
   'lib/types/index.js',
-  // Host half: the package-owned invariant companion.
-  'lib/types/invariant.js',
+  // 0.2.1 起**没有** `invariants` 服务（`InvariantInstaller` 也不再导出），
+  // 所以原先那两个"不变量伴生插件"入口（`lib/types/invariant.js` 与
+  // `lib/types/client-node/invariant.js`）已随功能退役删除。
+  // 这是一项**能力损失**：0.2.1 下不再有那个"知识检索自检"。
   // Host half: the cloud-workspace Remote face mounted as its own row.
   'lib/types/workspace-gateway.js',
   // Merged-in client-package node halves (the former two-package split).
   'lib/types/client-node/index.js',
-  'lib/types/client-node/invariant.js',
 ])
