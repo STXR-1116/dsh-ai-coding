@@ -24,7 +24,6 @@ import type {
   TeamSkillProject,
   TeamSkillProjectAsset,
 } from '../types.ts'
-import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ILayout } from '@deepseek-ai/dsh-client-ui-layout/client'
 import { IconArchiveOutline20, IconAgentPresetOutline16, IconChevronLeftOutline14, IconChevronRightOutline14, IconCloseOutline16, IconDataOutline16, IconFolderOpenOutline16, IconGoalOutline16, IconInspectOutline12, IconPauseOutline16, IconPlayOutline16, IconQueueOutline14, IconRefreshOutline16, IconSearchOutline16, IconSettingsOutline14, IconSkillOutline16, IconSparkle16, IconUserOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { DEFAULT_APPEARANCE, loadAppearance, resolveTheme, saveAppearance, type Appearance } from './appearance.ts'
@@ -45,8 +44,7 @@ import { resolveBrowserSettings, subscribeBrowserSettings } from './remote/setti
 import css from './PlatformSurface.module.css'
 
 /** Full props for the root-scoped overlay slot. */
-export type PlatformSurfaceProps = PropsRuntime<'shell.overlay'> &
-  PropsLocale<typeof NS> & {
+export type PlatformSurfaceProps = {
     controller: PlatformDemoController
     /**
      * The two remote namespaces this plugin provides in the browser. The

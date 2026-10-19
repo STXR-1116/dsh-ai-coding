@@ -55,7 +55,7 @@ import { TeamSkillsRemoteService } from './remote/team-skills.ts'
 import { CloudWorkspacesRemoteService } from './remote/cloud-workspaces.ts'
 import type { PlatformRemote } from './remote/types.ts'
 
-declare module '@deepseek-ai/dsh-client-ui-slots' {
+declare module '@deepseek-ai/dsh-client-ui-renderer/client' {
   interface LocaleNamespaceMap {
     /** Platform demo shell copy. */
     aiCodingPlatform: PlatformKey

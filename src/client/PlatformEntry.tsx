@@ -1,5 +1,4 @@
 /** Compact sidebar action that opens the first-party platform demo. */
-import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import { IconSparkle16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { NS } from './locales.ts'
 import { SlotBoundary } from './slot-boundary.tsx'
@@ -12,9 +11,7 @@ export interface PlatformEntryInjected {
 }
 
 /** Full props for the root-scoped sidebar action. */
-export type PlatformEntryProps = PropsRuntime<'sidebar.footer.action'>
-  & PropsLocale<typeof NS>
-  & PlatformEntryInjected
+export type PlatformEntryProps = PlatformEntryInjected
 
 /** The labelled, styled action; everything that could fail at render lives here. */
 function StyledEntry({ wide, onOpen, t }: PlatformEntryProps) {

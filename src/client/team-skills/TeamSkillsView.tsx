@@ -16,7 +16,7 @@ import type { PlatformRemote } from '../remote/types.ts'
 // `SnapshotSelectorHook<WorkspaceSnapshot>`. The consumed shape is unchanged:
 // both expose `items: readonly WorkspaceView[]`.
 import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
-import type { SnapshotSelectorHook } from '@deepseek-ai/dsh-client-ui-slots'
+import type { SnapshotSelectorHook } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import {
   IconCheckOutline14,
   IconCloseOutline16,

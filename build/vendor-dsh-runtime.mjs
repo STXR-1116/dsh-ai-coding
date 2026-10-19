@@ -47,7 +47,10 @@ for (const name of names) {
   const to = join(target, name)
   // 先删再拷：0.1.5 与 0.2.1 混装是这次事故的形态，不允许残留。
   rmSync(to, { recursive: true, force: true })
-  cpSync(from, to, { recursive: true })
+  // **必须 dereference**：pnpm 与 DSH 安装里的 `@deepseek-ai/*` 是**符号链接**，
+  // 默认行为会把链接原样复制过来 ⇒ 复制出来全是断链 ⇒ tsc 报
+  // `TS2307: Cannot find module '@deepseek-ai/…'`（本轮实测踩过）。
+  cpSync(from, to, { recursive: true, dereference: true })
   copied += 1
 }
 

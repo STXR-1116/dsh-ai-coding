@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { PlatformRemote } from '../remote/types.ts'
-import type { SnapshotSelectorHook } from '@deepseek-ai/dsh-client-ui-slots'
+import type { SnapshotSelectorHook } from '@deepseek-ai/dsh-client-ui-renderer/client'
 // `WorkspaceListState` (client-runtime, withdrawn) became the workspace
 // controller's `WorkspaceSnapshot`; `ui-workspace` declares the global
 // `useWorkspaces` hook over it. Same `items: readonly WorkspaceView[]` shape.
