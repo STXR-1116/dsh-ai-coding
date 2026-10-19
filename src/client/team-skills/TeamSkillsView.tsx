@@ -30,7 +30,7 @@ export interface TeamSkillsViewProps {
   /** Typed DSH Remote assembly carrying the Host-owned Team Skill namespace. */
   readonly remote: PlatformRemote
   /** DSH workspace projection used only to select an opaque project id. */
-  readonly useWorkspaces: SnapshotSelectorHook<WorkspaceSnapshot>
+  readonly useWorkspaces: <T,>(selector: (state: WorkspaceSnapshot) => T) => T
   /** Opaque selected project identity used for server-side authorization. */
   readonly projectId?: string
   /** Projects the account may explicitly choose for project-scoped Skill operations. */

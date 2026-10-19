@@ -60,3 +60,36 @@ for (const name of sample) {
   const pkg = join(target, name, 'package.json')
   if (existsSync(pkg)) console.log(`    ${name} ${JSON.parse(readFileSync(pkg, 'utf8')).version}`)
 }
+
+// ---------------------------------------------------------------------------
+// 第三方依赖：vendored 的官方包自己会 import 它们（实测：zustand / immer / diff /
+// simple-icons …）。只复制 @deepseek-ai/* 会让测试在"加载期"就失败：
+//   Failed to resolve import "zustand/shallow" from …@deepseek-ai+dsh-client-store…
+// 所以按**依赖声明自动补齐**：读每个 vendored 包的 dependencies，把其中非
+// `@deepseek-ai/*` 的第三方包也从 DSH 安装的 node_modules 复制过来。
+// 这样不必一个个追（本轮已两次踩到"打地鼠"）。
+// ---------------------------------------------------------------------------
+const dshNodeModules = join(source, '..', '..')
+const needed = new Set()
+for (const name of names) {
+  const manifest = join(target, name, 'package.json')
+  if (!existsSync(manifest)) continue
+  const deps = JSON.parse(readFileSync(manifest, 'utf8')).dependencies ?? {}
+  for (const dep of Object.keys(deps)) {
+    if (dep.startsWith('@deepseek-ai/')) continue
+    needed.add(dep)
+  }
+}
+
+let thirdParty = 0
+const missing = []
+for (const dep of needed) {
+  const from = join(dshNodeModules, dep)
+  if (!existsSync(from)) { missing.push(dep); continue }
+  const to = join(process.cwd(), 'node_modules', dep)
+  rmSync(to, { recursive: true, force: true })
+  mkdirSync(join(to, '..'), { recursive: true })
+  cpSync(from, to, { recursive: true, dereference: true })
+  thirdParty += 1
+}
+console.log(`✓ 另按依赖声明补齐第三方包 ${thirdParty} 个${missing.length === 0 ? '' : `（DSH 安装里缺 ${missing.length} 个：${missing.slice(0, 5).join(', ')}）`}`)

@@ -1,6 +1,7 @@
 /** Compact sidebar action that opens the first-party platform demo. */
 import { IconSparkle16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { NS } from './locales.ts'
+import type { PlatformKey } from './locales.ts'
 import { SlotBoundary } from './slot-boundary.tsx'
 import css from './PlatformSurface.module.css'
 
@@ -8,6 +9,10 @@ import css from './PlatformSurface.module.css'
 export interface PlatformEntryInjected {
   /** Show the platform surface. */
   onOpen: () => void
+  /** 侧栏折叠态（官方席位 owner props 给的；宽态显示文字、窄态显示图标）。 */
+  wide?: boolean
+  /** 本地化函数：由 slot runtime 按注册时的 `locale` 注入。 */
+  t: (key: PlatformKey) => string
 }
 
 /** Full props for the root-scoped sidebar action. */

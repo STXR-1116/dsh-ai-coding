@@ -25,6 +25,9 @@ import type {
   TeamSkillProjectAsset,
 } from '../types.ts'
 import type { ILayout } from '@deepseek-ai/dsh-client-ui-layout/client'
+import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
+import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
+import type { PlatformKey } from './locales.ts'
 import { IconArchiveOutline20, IconAgentPresetOutline16, IconChevronLeftOutline14, IconChevronRightOutline14, IconCloseOutline16, IconDataOutline16, IconFolderOpenOutline16, IconGoalOutline16, IconInspectOutline12, IconPauseOutline16, IconPlayOutline16, IconQueueOutline14, IconRefreshOutline16, IconSearchOutline16, IconSettingsOutline14, IconSkillOutline16, IconSparkle16, IconUserOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { DEFAULT_APPEARANCE, loadAppearance, resolveTheme, saveAppearance, type Appearance } from './appearance.ts'
 import { NS } from './locales.ts'
@@ -45,6 +48,15 @@ import css from './PlatformSurface.module.css'
 
 /** Full props for the root-scoped overlay slot. */
 export type PlatformSurfaceProps = {
+  /**
+   * 本地化函数：由 slot runtime 按注册时的 `locale` 注入（0.2.1 不再有 PropsLocale 辅助类型，
+   * 见 docs/dsh-021-adaptation-plan.md）。
+   */
+  t: (key: PlatformKey) => string
+  /** 会话列表的 selector hook（外壳注入）。用显式签名，不再依赖搬家的辅助类型。 */
+  useSessions: <T,>(selector: (state: SessionListState) => T) => T
+  /** 工作区列表的 selector hook（外壳注入）。 */
+  useWorkspaces: <T,>(selector: (state: WorkspaceSnapshot) => T) => T
     controller: PlatformDemoController
     /**
      * The two remote namespaces this plugin provides in the browser. The
@@ -372,13 +384,16 @@ function PlatformShell({ controller, t, remote, layout, useSessions, useWorkspac
     if (confirmation !== undefined) document.querySelector<HTMLButtonElement>('[aria-label="确认操作"] button')?.focus()
     else if (accountDrawerOpen) document.querySelector<HTMLButtonElement>('[aria-label="关闭账号抽屉"]')?.focus()
   }, [confirmation, accountDrawerOpen])
-  const currentSessionId = useSessions(s => s.current)
+  // 0.2.1：`SessionListState` 不再有 `current`（官方 ISessions：「navigation belongs to view owners」）
+  // ⇒ 插件侧拿不到"当前会话"，如实置空（浮层不再标高亮），不编造值。
+  const currentSessionId: string | undefined = undefined
   const sessionSnapshot = useSessions(s => s)
   // Native-session rows for the workbench switcher: plain strings plus the
   // human-facing label, derived from the same snapshot the sidebar reads.
   const nativeSessions = useMemo(() => ({
     ids: sessionSnapshot.ids.map(String),
-    current: sessionSnapshot.current === undefined ? undefined : String(sessionSnapshot.current),
+    // 同上：0.2.1 不再暴露当前会话，投影里就不再声称知道它。
+    current: undefined,
     titleOf: (sessionId: string): string => sessionSnapshot.byId[sessionId as SessionId]?.displayTitle ?? sessionId,
   }), [sessionSnapshot])
   const knowledgeBinding = useRef<
