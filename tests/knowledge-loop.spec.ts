@@ -234,7 +234,8 @@ describe('TeamSkillKnowledgeLoop', () => {
 
     expect(agent.session.ownEvents().some(event => event.type === 'assistant/message')).toBe(true)
     expect(agent.session.ownEvents().some(
-      event => event.type === 'user/message' && event.data.source.kind === 'plugin',
+      // 0.2.1：注入上下文的 source.kind 是 'system-prompt'（kind 联合里已无 'plugin'）。
+      event => event.type === 'user/message' && event.data.source.kind === 'system-prompt',
     )).toBe(false)
     loop.dispose()
   })
@@ -288,7 +289,9 @@ describe('TeamSkillKnowledgeLoop', () => {
     expect(event.data.results[0]?.citation).not.toHaveProperty('page')
     expect(event.data.results[1]).not.toHaveProperty('citation')
 
-    const recall = agent.session.ownEvents().find(item => item.type === 'user/message' && item.data.source.kind === 'plugin')
+    // 注入走 createUserMessage ⇒ 事件类型是 user/message；0.2.1 只改了 source.kind
+    //（kind 联合里已无 'plugin'，注入上下文归 'system-prompt'）。
+    const recall = agent.session.ownEvents().find(item => item.type === 'user/message' && item.data.source.kind === 'system-prompt')
     if (recall?.type !== 'user/message') throw new Error('recall message missing')
     const text = recall.data.content.map(block => (block.type === 'text' ? block.text : '')).join('')
     expect(text).toContain('无页码')

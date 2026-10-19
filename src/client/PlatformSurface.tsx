@@ -28,6 +28,7 @@ import type { ILayout } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { PlatformKey } from './locales.ts'
+import { readCurrentSession, subscribeCurrentSession } from './current-session.ts'
 import type { LucideIcon } from 'lucide-react'
 import { Archive as IconArchiveOutline20, Sparkles as IconAgentPresetOutline16, ChevronLeft as IconChevronLeftOutline14, ChevronRight as IconChevronRightOutline14, X as IconCloseOutline16, Database as IconDataOutline16, FolderOpen as IconFolderOpenOutline16, Target as IconGoalOutline16, ScanSearch as IconInspectOutline12, Pause as IconPauseOutline16, Play as IconPlayOutline16, ListOrdered as IconQueueOutline14, RefreshCw as IconRefreshOutline16, Search as IconSearchOutline16, Settings as IconSettingsOutline14, Wrench as IconSkillOutline16, Sparkles as IconSparkle16, User as IconUserOutline16 } from 'lucide-react'
 import { DEFAULT_APPEARANCE, loadAppearance, resolveTheme, saveAppearance, type Appearance } from './appearance.ts'
@@ -392,9 +393,12 @@ function PlatformShell({ controller, t, remote, layout, useSessions, useWorkspac
     if (confirmation !== undefined) document.querySelector<HTMLButtonElement>('[aria-label="确认操作"] button')?.focus()
     else if (accountDrawerOpen) document.querySelector<HTMLButtonElement>('[aria-label="关闭账号抽屉"]')?.focus()
   }, [confirmation, accountDrawerOpen])
-  // 0.2.1：`SessionListState` 不再有 `current`（官方 ISessions：「navigation belongs to view owners」）
-  // ⇒ 插件侧拿不到"当前会话"，如实置空（浮层不再标高亮），不编造值。
-  const currentSessionId: string | undefined = undefined
+  // 插件自己拥有的会话（方案 A）：0.2.1 的 `SessionListState` 不再有 `current`
+  // （官方 ISessions：「navigation belongs to view owners」，插件读不到外壳的当前会话）。
+  // 于是知识库绑定改绑**插件自己打开的那个会话** —— 由接管流程写入，
+  // 语义正好是使用者的真实意图（"在这个工作空间的会话里用这个知识库"）。
+  const [currentSessionId, setCurrentSessionIdState] = useState<string | undefined>(() => readCurrentSession())
+  useEffect(() => subscribeCurrentSession(() => { setCurrentSessionIdState(readCurrentSession()) }), [])
   const sessionSnapshot = useSessions(s => s)
   // Native-session rows for the workbench switcher: plain strings plus the
   // human-facing label, derived from the same snapshot the sidebar reads.

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { setCurrentSession } from '../src/client/current-session.ts'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { ClientRemote, WorkspaceId } from '@deepseek-ai/dsh-api-remotes/client'
 import type { PlatformRemote } from '../src/client/remote/types.ts'
@@ -11,12 +12,15 @@ import { PlatformDemoController } from '../src/client/controller.ts'
 import { seedBrowserSettings } from './helpers/browser-settings.ts'
 
 afterEach(() => {
+  setCurrentSession(undefined)
   cleanup()
   window.localStorage.clear()
 })
 
 // 工作台整体被设置面门控：渲染型用例先种入 fixture 部署设置。
 beforeEach(() => {
+  // 方案 A：知识库绑定读的是"插件自己打开的那个会话"（0.2.1 起读不到外壳的当前会话）
+  setCurrentSession('session-1')
   seedBrowserSettings()
 })
 

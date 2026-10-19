@@ -44,6 +44,7 @@ import { en, NS, zh, type PlatformKey } from './locales.ts'
 import { WorkspaceSessionsRemote, type UiConversationFace } from './remote/workspace-sessions.ts'
 import { resolveBrowserStorage } from './cloud-workspaces/workspace-session-store.ts'
 import { readSelection } from './cloud-workspaces/cloud-files-state.ts'
+import { setCurrentSession } from './current-session.ts'
 import { createCloudMode } from './cloud-mode.ts'
 import { PlatformDemoController } from './controller.ts'
 import { PlatformEntry } from './PlatformEntry.tsx'
@@ -259,6 +260,9 @@ export function apply(ctx: ClientContext): void {
         return
       }
       faces.sessions.open(outcome.sessionId as SessionId)
+      // 方案 A：记住"插件自己打开的这个会话" —— 知识库绑定跟着它走
+      //（0.2.1 起插件读不到外壳的当前会话，官方：navigation belongs to view owners）。
+      setCurrentSession(String(outcome.sessionId))
     } catch (error) {
       console.warn('[dsh-ai-coding] 切换工作空间会话失败：', error)
     }
@@ -275,6 +279,8 @@ export function apply(ctx: ClientContext): void {
       if (workspaceId === undefined) return
       void openWorkspaceSession(workspaceId)
     },
+    // 退出接管：清掉"插件自己的会话" —— 否则知识库绑定会算到已经离开的会话上。
+    onExit: () => { setCurrentSession(undefined) },
     // 左栏点某条会话记录 ⇒ 切到**该记录自己的**会话（映射按「工作空间 + 平台会话」做键）。
     onSelectPlatformSession: (workspaceId, platformSessionId) => {
       void openWorkspaceSession(workspaceId, platformSessionId)
