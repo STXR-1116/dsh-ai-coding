@@ -151,7 +151,17 @@ ctx.get('workspaces')          // ✓ 缺服务时返回 undefined
 ## 仓库定位
 
 `dsh-ai-coding` —— DSH 的 AI Coding 平台插件，双半结构（host `src/*.ts` + browser `src/client/*`）。
-基线 `@deepseek-ai/*@0.1.5-rc.2`。构建/测试入口见 `package.json` scripts（`typecheck` / `test` / `build`）。
+基线 **`@deepseek-ai/*@0.2.1-rc.2`**（2026-10-19 从 0.1.5-rc.2 迁移完成，见
+`docs/dsh-021-adaptation-plan.md` 与逐条文档核对 `docs/dsh-021-verification.md`）。
+构建/测试入口见 `package.json` scripts（`typecheck` / `test` / `build`）。
+
+**迁移后新增的两条构建前提**（踩过，写在 `package.json` / `.npmrc` / `build/` 里）：
+
+- 运行时包只声明在 **`peerDependencies`**（由 DSH 运行时满足），**不进 `devDependencies`** ——
+  否则每次 `pnpm <脚本>` 前的依赖检查都会尝试安装 peer，并死在
+  `ERR_PNPM_NO_MATCHING_VERSION`（`dsh-invariants` 没有 0.2.1-rc.2 这个发布版本）；
+- 本地类型检查用 **`node build/vendor-dsh-runtime.mjs`** 从本机 DSH 安装 vendor 一份
+  （脚本必须 `dereference`，否则复制出来全是断链）。**顺序**：先 `pnpm add`，后 vendor。
 
 ## TypeSafe / Jev：**不集成进本插件**（所有者已决定）
 
