@@ -96,6 +96,42 @@ type HeaderActionProps = PropsRuntime<'conversation.session.header.actions'>
 
 ---
 
+## 安装与冒烟记录（0.2.0，2026-10-19）
+
+安装方式：手工离线安装（`dependencies` 指向 tgz + `pnpm install --offline`）。
+安装前清掉了 profile 的陈旧解析结果（`node_modules` + `pnpm-lock.yaml`）。
+
+**第一次冒烟在第 5 步就停**：
+
+```
+FAIL  roster: boot graph registers this package as a client module
+      — no record for dsh-ai-coding in the boot graph
+```
+
+根因：**`dsh.profile.bundles` 里没有 `dsh-ai-coding`**。`dsh plugin add` 会更新这个列表，
+**手工改 `dependencies` 不会**（本仓 `AGENTS.md` 已警告过"若新 profile 则需自行补上"）。
+把它加进 `dsh.profile.bundles` 之后：
+
+```
+SMOKE GREEN (23/23 steps)
+  PASS  browser: 接管时浮层自动关闭（界面交给原生外壳）
+  PASS  browser: 点「云工作空间」接管原生左栏（文件列表 + 退出）
+  PASS  browser: 退出接管后官方左栏回来（退出即还原）
+```
+
+⇒ 适配在**真实运行环境**（DSH 0.2.1-rc.2 + 装好的 0.2.0）上成立，含接管模式的三条真机判据。
+
+### 遗留（与下一次功能改动一起处理，不为它单独重启实例）
+
+`package.json` 的 `exports` 里还留着两个指向**已删除文件**的入口：
+
+- `./invariant` → `lib/invariant.js`
+- `./client-node/invariant` → `lib/client-node-invariant.js`
+
+当前无任何引用，不影响运行；属于该清的残留。
+
+---
+
 ## 复核方式（可重跑）
 
 ```pwsh
