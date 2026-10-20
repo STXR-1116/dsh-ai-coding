@@ -822,9 +822,17 @@ export class WorkspaceFixture {
         }
         break
       case 'sessions':
-        // 会话记录：只读列表（后端接口要求 §3.1）。没有子路径，GET 即返回全部。
+        // 会话记录：列表（后端接口要求 §3.1）。
         if (method === 'GET' && parts[4] === undefined) {
           this.sendJson(response, 200, requestId, { items: sessionRecordDtos(advanced.workspaceId) })
+          return
+        }
+        // 新建会话（§3.1.1）：幂等，成功后列表立即能查到。
+        if (method === 'POST' && parts[4] === undefined) {
+          const body = await readJsonBody(request, response, requestId)
+          if (body === undefined) return
+          const record = createSessionRecord(advanced.workspaceId, body as Record<string, unknown>)
+          this.sendJson(response, 201, requestId, { session: record })
           return
         }
         break
@@ -5310,8 +5318,49 @@ function toCheckpointDto(checkpoint: RunCheckpoint): Record<string, unknown> {
  * @param workspaceId - 工作空间 id。
  * @returns 会话记录 DTO 列表。
  */
+/**
+ * 夹具进程内新建的会话记录（按工作空间分桶）。
+ *
+ * 夹具是长驻进程，内存即可；重启后回到种子数据 —— 对"可执行规范"够用，
+ * 且不会让测试之间通过磁盘互相污染。
+ */
+const createdSessions = new Map<string, Record<string, unknown>[]>()
+/** 幂等表：`client_request_id` → 已创建的记录。 */
+const sessionIdempotency = new Map<string, Record<string, unknown>>()
+
+/**
+ * 新建一条会话记录（幂等）。契约见 `docs/backend-api-requirements.md` §3.1.1。
+ * @param workspaceId - 工作空间 id。
+ * @param input - 请求体（`title` 可选、`client_request_id` 可选）。
+ * @returns 创建的记录。
+ */
+function createSessionRecord(
+  workspaceId: string,
+  input: Record<string, unknown>,
+): Record<string, unknown> {
+  const requestId = typeof input.client_request_id === 'string' ? input.client_request_id : undefined
+  if (requestId !== undefined) {
+    const existing = sessionIdempotency.get(`${workspaceId}\u0000${requestId}`)
+    if (existing !== undefined) return existing
+  }
+  const rows = createdSessions.get(workspaceId) ?? []
+  const title = typeof input.title === 'string' && input.title.trim().length > 0
+    ? input.title.trim()
+    : `新会话 ${rows.length + 1}`
+  const record: Record<string, unknown> = {
+    session_id: `sess-${workspaceId}-new-${rows.length + 1}`,
+    title,
+    updated_at: new Date().toISOString(),
+  }
+  createdSessions.set(workspaceId, [record, ...rows])
+  if (requestId !== undefined) sessionIdempotency.set(`${workspaceId}\u0000${requestId}`, record)
+  return record
+}
+
 function sessionRecordDtos(workspaceId: string): readonly Record<string, unknown>[] {
   return [
+    // 新建的排在前面（最近的在前，与左栏阅读习惯一致）
+    ...(createdSessions.get(workspaceId) ?? []),
     { session_id: `sess-${workspaceId}-1`, title: '联调记录：云工作空间状态序列', updated_at: '2026-09-22T09:10:00Z' },
     { session_id: `sess-${workspaceId}-2`, title: '初始化与依赖安装', updated_at: '2026-09-21T18:40:00Z' },
   ]

@@ -66,6 +66,43 @@
 
 > ⚠️ 这一条是**新增工作量最大**的部分，也是"复用 DSH 会话界面"能不能成立的关键。
 
+#### 3.1.1 会话的 REST 面（列表 / 新建 / 内容）
+
+上表描述的是**事件流语义**；会话本体的增删查是 REST，形状如下（与夹具
+`dev/team-skill-service` 的可执行实现一致）。
+
+| 方法 | 路径 | 语义 |
+| --- | --- | --- |
+| `GET` | `/v1/workspaces/:workspaceId/sessions` | 列出该工作空间的会话记录 |
+| `POST` | `/v1/workspaces/:workspaceId/sessions` | **新建**一条会话记录 |
+| `GET` | `/v1/workspaces/:workspaceId/sessions/:sessionId/messages` | 取会话内容（可分页；事件流化由 §3.1 决定） |
+
+**列表**：
+
+```json
+{ "items": [ { "session_id": "sess-…", "title": "…", "updated_at": "2026-10-20T02:11:00Z" } ] }
+```
+
+**新建**：
+
+```json
+// 请求
+{ "title": "可选；缺省时由服务端生成", "client_request_id": "可选；重试幂等键" }
+// 响应 201
+{ "session": { "session_id": "sess-…", "title": "…", "updated_at": "2026-10-20T02:11:00Z" } }
+```
+
+规则：
+
+- `session_id` **稳定、不透明**；同一 `client_request_id` 重试必须返回**同一条**（幂等）；
+- `title` 允许服务端生成（前端不拼标题）；
+- 新建成功后，列表接口必须**立即**能查到它（前端重新拉列表，不做本地乐观插入）；
+- 失败用统一错误信封（见 §1），并给出稳定 `code`。
+
+**为什么需要写接口**：原生「新会话」按钮建的是 **DSH 本地会话**，在云工作空间里语义是错的
+（刷新后它不在平台记录里）。所以接管模式提供**自己的**「新建会话」，它必须落到后端 ——
+界面见 `docs/mockups/takeover-d.png`。
+
 ### 3.2 云端文件（右侧栏的文件树与预览消费）
 
 | 需求 | 具体要求 |
