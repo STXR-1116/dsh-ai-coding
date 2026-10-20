@@ -36,13 +36,25 @@ const options = [
     newSession: false,
     note: '「新会话」按钮一旦不是席位，隐藏它属于 CSS 手段（本仓踩过连带影响按角色查询的坑）。',
   },
+  {
+    id: 'd',
+    title: '方案 D：B + 我们自己的「新建会话」（推荐）',
+    subtitle: '原生「新会话」建的是 DSH 本地会话 —— 在云工作空间里那是错的。换成我们自己的入口，建的是后端会话。',
+    nativeTop: false,
+    nativePanel: false,
+    newSession: 'ours',
+    note: '依赖后端「新建会话」写接口（docs/backend-api-requirements.md §3.1 目前只有读）。后端就绪前：按钮禁用并说明原因，或先建本地会话并标注「未同步」。',
+  },
 ]
 
 /** 生成一张图的 HTML。 */
 function page(option) {
-  const newSession = option.newSession
-    ? `<div class="btn-new">＋ 新会话</div>`
-    : `<div class="btn-new gone">＋ 新会话<em>（本方案去掉）</em></div>`
+  const newSession = option.newSession === 'ours'
+    ? `<div class="btn-new ours">＋ 新建会话<em class="ours-tag">后端会话</em></div>
+       <div class="annot ours">原生「新会话」建的是本地会话 ⇒ 换我们的（见方案 D 说明）</div>`
+    : option.newSession
+      ? `<div class="btn-new">＋ 新会话</div>`
+      : `<div class="btn-new gone">＋ 新会话<em>（本方案去掉）</em></div>`
 
   const nativeRows = option.nativePanel
     ? `<div class="row native"><span>🧩</span>插件</div>
