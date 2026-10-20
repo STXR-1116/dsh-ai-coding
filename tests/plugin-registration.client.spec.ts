@@ -159,6 +159,14 @@ function fakeContext() {
           : name === 'sidebarRight'
             ? ctx.sidebarRight
             : undefined),
+    /**
+     * cordis 的 `ctx.inject(names, callback)`：服务就绪后再回调。
+     *
+     * 假件按"服务已在"同步回调 —— 插件里那次注入是给**真机**用的
+     * （`apply` 时客户端服务还没注册，`ctx.get` 只会拿到 undefined），
+     * 假件没有时序问题，同步即可。
+     */
+    inject: (_names: readonly string[], callback: (scoped: unknown) => void) => { callback(ctx) },
   }
   return {
     ctx,

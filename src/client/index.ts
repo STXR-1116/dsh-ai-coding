@@ -173,6 +173,25 @@ interface ClientUiWorkspaceFace {
 }
 
 /**
+ * 由 `ctx.inject` 在服务就绪时填充的导航面。
+ *
+ * 为什么还要它，而不是只靠 `ctx.get`：`ctx.get` 只在服务**已在同一可见范围**内时才返回实例；
+ * 客户端服务是后注册的，`apply()` 那一刻必然取不到。`ctx.inject(['uiWorkspace'], …)` 是 cordis 的
+ * 官方等待方式 —— 服务就绪后才回调，拿到的实例一定有效。两者配合：注入的先验值优先，其次现读。
+ */
+let injectedUiWorkspace: ClientUiWorkspaceFace | undefined
+
+/**
+ * 取导航面。
+ * @param ctx - 客户端片段上下文（服务查找用它的实时视图）。
+ * @returns 导航面；服务尚未就绪或未提供时为 `undefined`。
+ */
+function readUiWorkspace(ctx: ClientContext): ClientUiWorkspaceFace | undefined {
+  if (injectedUiWorkspace !== undefined) return injectedUiWorkspace
+  return ctx.get('uiWorkspace') as unknown as ClientUiWorkspaceFace | undefined
+}
+
+/**
  * Read the client-side service faces off the shared context.
  * @param ctx - client plugin context carrying the assembled services.
  * @returns the session and workspace faces, client-side typed.
@@ -180,7 +199,6 @@ interface ClientUiWorkspaceFace {
 function clientFaces(ctx: ClientContext): {
   sessions: ClientSessionFace
   workspaces: ClientWorkspacesFace | undefined
-  uiWorkspace: ClientUiWorkspaceFace | undefined
 } {
   return {
     sessions: ctx.sessions as unknown as ClientSessionFace,
@@ -195,11 +213,7 @@ function clientFaces(ctx: ClientContext): {
     // `undefined` instead of throwing, and it is the pattern this repository
     // already uses for optional services (`ctx.get('credentials')`).
     workspaces: ctx.get('workspaces') as unknown as ClientWorkspacesFace | undefined,
-    // 0.2.1 把**会话导航**放在这里：`uiWorkspace.openSession(target)`
-    // （声明见 `@deepseek-ai/dsh-client-ui-workspace` 的 client/navigation.d.ts：
-    //  `interface Context { uiWorkspace: UiWorkspace }`）。
-    // 真机实测：`ctx.get('workspaces')` 拿不到 ⇒ 导航必须走 `uiWorkspace`。
-    uiWorkspace: ctx.get('uiWorkspace') as unknown as ClientUiWorkspaceFace | undefined,
+    // 导航面见 `readUiWorkspace()`：它是**现读**的，不在这里捕获（apply 时服务还没注册）。
   }
 }
 
@@ -243,6 +257,15 @@ export function apply(ctx: ClientContext): void {
   )
   const controller = new PlatformDemoController()
   const faces = clientFaces(ctx)
+  // 导航面：用 `ctx.inject` **等服务就绪**再取（`apply` 那一刻客户端服务还没注册，
+  // 直接 `ctx.get` 只会拿到 undefined —— 真机上"无法切换会话"就是这个形态）。
+  // 服务名不在本仓的 cordis 增广里，按本仓既有做法做一次类型窄化。
+  ctx.inject(['uiWorkspace'] as never, (scoped) => {
+    scoped.effect(() => {
+      injectedUiWorkspace = (scoped as unknown as { uiWorkspace?: ClientUiWorkspaceFace }).uiWorkspace
+      return () => { injectedUiWorkspace = undefined }
+    })
+  })
   // Cloud-Workspace conversation sessions: one session per Workspace, created on
   // demand and archived the moment it exists, so it never appears in the shell's
   // session list while the session controller still resolves it (redesign notes
@@ -296,13 +319,17 @@ export function apply(ctx: ClientContext): void {
         console.warn('[dsh-ai-coding] 本工作空间的会话不可用：', outcome.message)
         return
       }
-      // 0.2.1：导航在 **uiWorkspace** 面（`UiWorkspace.openSession`），不在 `ISessions` 上。
-      // 真机实测：`ctx.get('workspaces')` 拿不到，而 `uiWorkspace` 才是导航的家
+      // 0.2.1：导航在 **uiWorkspace** 面（`UiWorkspace.openSession`），不在 `ISessions` 上
       //（`dsh-client-ui-workspace` 的 `interface Context { uiWorkspace: UiWorkspace }`）。
-      if (faces.uiWorkspace === undefined) {
+      //
+      // **必须惰性读取**：`clientFaces(ctx)` 在 `apply()` 时就被调用，而那时客户端服务
+      // 往往**还没注册** —— 闭包捕获到的会是 `undefined`，之后永远失败（真机实测的正是这个形态）。
+      // `readUiWorkspace()` 每次都现读，服务就绪后自然可用。
+      const navigation = readUiWorkspace(ctx)
+      if (navigation === undefined) {
         console.warn('[dsh-ai-coding] 无法切换会话：客户端未提供 uiWorkspace 服务')
       } else {
-        faces.uiWorkspace.openSession(outcome.sessionId)
+        navigation.openSession(outcome.sessionId)
       }
       // 方案 A：记住"插件自己打开的这个会话" —— 知识库绑定跟着它走
       //（0.2.1 起插件读不到外壳的当前会话，官方：navigation belongs to view owners）。
@@ -362,12 +389,14 @@ export function apply(ctx: ClientContext): void {
       remote,
       layout: ctx.layout,
       // 0.2.1：导航走 uiWorkspace 面（`UiWorkspace.openSession`）—— `ISessions.open` 已不存在。
+      // 与上面同理：**现读**，不要在 apply 时捕获（那时服务还没注册）。
       openSession: (sessionId) => {
-        if (faces.uiWorkspace === undefined) {
+        const navigation = readUiWorkspace(ctx)
+        if (navigation === undefined) {
           console.warn('[dsh-ai-coding] 无法切换会话：客户端未提供 uiWorkspace 服务')
           return
         }
-        faces.uiWorkspace.openSession(sessionId)
+        navigation.openSession(sessionId)
       },
       // 0.1.5 removed `IWorkspaces.startSession()`: starting a Session is a
       // Session-layer operation, and the client `ISessions.create(opts?)` is its
