@@ -130,10 +130,12 @@ function fakeContext() {
         startedSessions += 1
       },
     },
-    // 0.2.1：会话导航在**工作空间面**（`UiWorkspace.openSession`），不在 `ISessions` 上。
-    // 假件必须提供它，否则接管时的"切会话"会像真机一样抛 TypeError。
-    workspaces: {
-      marker: 'workspaces',
+    // 0.2.1：会话导航在 **`uiWorkspace`** 面（`UiWorkspace.openSession`），不在 `ISessions` 上。
+    // 真机实测：`ctx.get('workspaces')` 拿不到（服务名是 workspaces，但导航不在它上面），
+    // 导航的家是 `dsh-client-ui-workspace` 声明的 `interface Context { uiWorkspace: UiWorkspace }`。
+    workspaces: { marker: 'workspaces' },
+    uiWorkspace: {
+      marker: 'uiWorkspace',
       openSession: (sessionId: string) => { openedSessions.push(sessionId) },
     },
     /**
@@ -149,11 +151,14 @@ function fakeContext() {
     // 可选服务一律经 `ctx.get`（本仓硬规则：未 inject 的属性访问会抛错）——
     // `openRightPane` 读 `sidebarRight`、`registerCloudFilePanes` 读 `sidebarRightTabs`，
     // 所以这个假表必须把它们供上，否则那些注册会被静默跳过（测试看似通过、其实什么都没验）。
-    get: (name: string): unknown => (name === 'workspaces'
-      ? ctx.workspaces
-      : name === 'sidebarRight'
-        ? ctx.sidebarRight
-        : undefined),
+    get: (name: string): unknown => (
+      name === 'workspaces'
+        ? ctx.workspaces
+        : name === 'uiWorkspace'
+          ? ctx.uiWorkspace
+          : name === 'sidebarRight'
+            ? ctx.sidebarRight
+            : undefined),
   }
   return {
     ctx,

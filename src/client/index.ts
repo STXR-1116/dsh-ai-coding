@@ -162,11 +162,26 @@ interface ClientWorkspacesFace {
 }
 
 /**
+ * 0.2.1 的**会话导航**面（官方 `UiWorkspace`，服务键 `uiWorkspace`）。
+ *
+ * 从 0.1.5 的 `ISessions.open(id)` 搬到这里 —— 官方原话「navigation belongs to view owners」。
+ * 只声明我们用到的那一个成员；其余成员不抄（抄一份不用的接口，是这次踩坑的同一个来源）。
+ */
+interface ClientUiWorkspaceFace {
+  /** 选一个会话并显示它的对话。 */
+  openSession(target: unknown): void
+}
+
+/**
  * Read the client-side service faces off the shared context.
  * @param ctx - client plugin context carrying the assembled services.
  * @returns the session and workspace faces, client-side typed.
  */
-function clientFaces(ctx: ClientContext): { sessions: ClientSessionFace; workspaces: ClientWorkspacesFace | undefined } {
+function clientFaces(ctx: ClientContext): {
+  sessions: ClientSessionFace
+  workspaces: ClientWorkspacesFace | undefined
+  uiWorkspace: ClientUiWorkspaceFace | undefined
+} {
   return {
     sessions: ctx.sessions as unknown as ClientSessionFace,
     // Read through `ctx.get`, **not** as a property. This plugin does not inject
@@ -180,6 +195,11 @@ function clientFaces(ctx: ClientContext): { sessions: ClientSessionFace; workspa
     // `undefined` instead of throwing, and it is the pattern this repository
     // already uses for optional services (`ctx.get('credentials')`).
     workspaces: ctx.get('workspaces') as unknown as ClientWorkspacesFace | undefined,
+    // 0.2.1 把**会话导航**放在这里：`uiWorkspace.openSession(target)`
+    // （声明见 `@deepseek-ai/dsh-client-ui-workspace` 的 client/navigation.d.ts：
+    //  `interface Context { uiWorkspace: UiWorkspace }`）。
+    // 真机实测：`ctx.get('workspaces')` 拿不到 ⇒ 导航必须走 `uiWorkspace`。
+    uiWorkspace: ctx.get('uiWorkspace') as unknown as ClientUiWorkspaceFace | undefined,
   }
 }
 
@@ -276,13 +296,13 @@ export function apply(ctx: ClientContext): void {
         console.warn('[dsh-ai-coding] 本工作空间的会话不可用：', outcome.message)
         return
       }
-      // 0.2.1：导航在**工作空间面**（`UiWorkspace.openSession`），不在 `ISessions` 上。
-      // 旧写法 `faces.sessions.open(...)` 在真机上是 `undefined`（TypeError 被 catch 吞成一条 warn，
-      // 于是"切会话"一直静默失败）。工作空间面是可选的，缺失时如实告警而不是装作成功。
-      if (faces.workspaces === undefined) {
-        console.warn('[dsh-ai-coding] 无法切换会话：客户端未提供 workspaces 服务')
+      // 0.2.1：导航在 **uiWorkspace** 面（`UiWorkspace.openSession`），不在 `ISessions` 上。
+      // 真机实测：`ctx.get('workspaces')` 拿不到，而 `uiWorkspace` 才是导航的家
+      //（`dsh-client-ui-workspace` 的 `interface Context { uiWorkspace: UiWorkspace }`）。
+      if (faces.uiWorkspace === undefined) {
+        console.warn('[dsh-ai-coding] 无法切换会话：客户端未提供 uiWorkspace 服务')
       } else {
-        faces.workspaces.openSession(outcome.sessionId)
+        faces.uiWorkspace.openSession(outcome.sessionId)
       }
       // 方案 A：记住"插件自己打开的这个会话" —— 知识库绑定跟着它走
       //（0.2.1 起插件读不到外壳的当前会话，官方：navigation belongs to view owners）。
@@ -341,14 +361,14 @@ export function apply(ctx: ClientContext): void {
       controller,
       remote,
       layout: ctx.layout,
-      // 0.2.1：导航走工作空间面（`UiWorkspace.openSession`）—— `ISessions.open` 已不存在。
-    openSession: (sessionId) => {
-      if (faces.workspaces === undefined) {
-        console.warn('[dsh-ai-coding] 无法切换会话：客户端未提供 workspaces 服务')
-        return
-      }
-      faces.workspaces.openSession(sessionId)
-    },
+      // 0.2.1：导航走 uiWorkspace 面（`UiWorkspace.openSession`）—— `ISessions.open` 已不存在。
+      openSession: (sessionId) => {
+        if (faces.uiWorkspace === undefined) {
+          console.warn('[dsh-ai-coding] 无法切换会话：客户端未提供 uiWorkspace 服务')
+          return
+        }
+        faces.uiWorkspace.openSession(sessionId)
+      },
       // 0.1.5 removed `IWorkspaces.startSession()`: starting a Session is a
       // Session-layer operation, and the client `ISessions.create(opts?)` is its
       // replacement. The workspace registry no longer owns Session creation.
