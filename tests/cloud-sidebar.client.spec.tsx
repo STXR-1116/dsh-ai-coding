@@ -8,19 +8,26 @@
  * 同时钉住另一件事：**当前选中行必须有可见反馈**（`aria-current`）——
  * 点击后的中央内容一时看不到（要等后端内容），高亮就是用户唯一的即时反馈。
  */
-import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { CloudSidebar } from '../src/client/CloudSidebar.tsx'
 import type { PlatformRemote } from '../src/client/remote/types.ts'
 
+// 显式 cleanup：本项目的 jsdom 项目没有开 globals，testing-library 的自动清理不生效。
+// 实测后果：前一个用例的组件留在 DOM 里 ⇒ `findByRole` 拿到两个同名按钮 ⇒ 点到旧的那个，
+// 断言拿到的是旧 mock（"单独跑通过、一起跑失败"的典型形状）。
+afterEach(() => { cleanup() })
+
 const ready = (value: unknown) => ({ ok: true as const, value: { status: 'ready' as const, value, fixtureOnly: true } })
 
-/** 只实现左栏用到的两个读：会话记录与目录。 */
+/** 只实现左栏用到的读与新建：会话记录、目录、新建会话。 */
 function fakeRemote(): PlatformRemote {
   return {
     teamSkills: {},
     workspaceSessions: {},
     cloudWorkspaces: {
+      // 新建：返回一条新记录（契约 §3.1.1：`{ session: {...} }` 由 host 映射成 camelCase）。
+      createWorkspaceSession: vi.fn(async () => ready({ sessionId: 'sess-new', title: '新会话 1' })),
       workspaceSessionRecords: vi.fn(async () => ready([
         // **camelCase**：这是 host 映射后的形状（平台给的是 snake_case，host 负责转换）。
         // 第一版这里写成 `{session_id, title, updated_at}`，于是 `sessionId` 恒为 undefined ——
@@ -39,6 +46,24 @@ function selectWorkspace(workspaceId: string): void {
 }
 
 describe('左栏会话记录的点击', () => {
+  it('点「＋ 新建」⇒ 调后端新建接口，并切到新建的会话', async () => {
+    selectWorkspace('ws-alpha-1')
+    const remote = fakeRemote()
+    const onSelectPlatformSession = vi.fn()
+    render(<CloudSidebar remote={remote} onSelectPlatformSession={onSelectPlatformSession} />)
+
+    // 新会话按钮在「会话记录」标题行右侧（契约 §3.1.1：接管模式自己的入口）。
+    const create = await screen.findByRole('button', { name: '新建会话' })
+    fireEvent.click(create)
+    await vi.waitFor(() => {
+      expect(remote.cloudWorkspaces.createWorkspaceSession).toHaveBeenCalledWith('ws-alpha-1')
+    })
+    // 新建成功后切到它（中央随后由外壳切会话）。
+    await vi.waitFor(() => {
+      expect(onSelectPlatformSession).toHaveBeenCalledWith('ws-alpha-1', 'sess-new')
+    })
+  })
+
   it('点一条记录 ⇒ 回调带上（工作空间 id, 平台会话 id）', async () => {
     selectWorkspace('ws-alpha-1')
     const onSelectPlatformSession = vi.fn()

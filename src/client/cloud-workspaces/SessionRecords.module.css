@@ -18,6 +18,28 @@
   font-weight: 600;
 }
 
+/* 标题行：标题在左、新建按钮在右（接管模式的入口，见 §3.1.1）。 */
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.create {
+  flex: none;
+  padding: 3px 8px;
+  color: var(--dsh-text-secondary, var(--dsh-text-primary));
+  background: transparent;
+  border: var(--dsh-cw-divider, 1px solid var(--dsh-border-subtle, var(--dsh-bg-hover)));
+  border-radius: var(--dsh-cw-radius-control, 6px);
+  font: inherit;
+  font-size: var(--dsh-content-font-size-secondary, 12px);
+  cursor: pointer;
+}
+
+.create:hover { background: var(--dsh-bg-hover); }
+
 .list {
   margin: 0;
   padding: 0;

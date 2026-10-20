@@ -497,6 +497,17 @@ export class WorkspaceGateway extends TypertRemoteService {
     return this.host.workspaceSessionRecords(workspaceId)
   }
 
+  /**
+   * 新建一条平台会话记录（后端接口要求 §3.1.1）。
+   * @param workspaceId - 工作空间 id。
+   * @param title - 可选标题；缺省由服务端生成。
+   * @returns 新建的记录。
+   */
+  @Remote
+  async createWorkspaceSession(workspaceId: string, title?: string): Promise<WorkspaceQueryResult<WorkspaceSessionRecord>> {
+    return this.host.createWorkspaceSession(workspaceId, title)
+  }
+
 
   /**
    * Reads one plan snapshot.

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { PlatformRemote } from './remote/types.ts'
 import type { WorkspaceFileEntry, WorkspaceSessionRecord } from '../types.ts'
 import { readSelection, subscribeSelection } from './cloud-workspaces/cloud-files-state.ts'
@@ -55,6 +55,9 @@ export function CloudSidebar({ remote, onExit, onSelectPlatformSession, wide = t
   const [recordsError, setRecordsError] = useState<string | undefined>(undefined)
   // 当前选中的平台会话：只用于左栏高亮（中央显示哪条由外壳的当前会话决定）。
   const [selectedPlatformSession, setSelectedPlatformSession] = useState<string | undefined>(undefined)
+  // 新建之后重拉列表用（后端是真相，前端不做本地乐观插入）；兼作错误复位。
+  const [recordsRefresh, setRecordsRefresh] = useState(0)
+  const [creating, setCreating] = useState(false)
   const [items, setItems] = useState<readonly WorkspaceFileEntry[]>([])
   const [filesError, setFilesError] = useState<string | undefined>(undefined)
 
@@ -96,7 +99,40 @@ export function CloudSidebar({ remote, onExit, onSelectPlatformSession, wide = t
       })
       .catch((error: unknown) => { if (!cancelled) setFilesError(`目录不可读：${String(error)}`) })
     return () => { cancelled = true }
-  }, [remote, workspaceId])
+  }, [remote, workspaceId, recordsRefresh])
+
+  /**
+   * 新建会话（接管模式的入口）。
+   *
+   * 落到后端（§3.1.1），成功后**重拉列表**并切到新会话 —— 不做本地乐观插入：
+   * 假插入会让"刷新后它不见了"这种问题藏到最后。失败就如实显示原因，不静默。
+   */
+  const createSession = useCallback(async (): Promise<void> => {
+    if (workspaceId === undefined || creating) return
+    setCreating(true)
+    try {
+      const result = await remote.cloudWorkspaces.createWorkspaceSession(workspaceId)
+      if (!result.ok) { setRecordsError(`新建会话失败：${result.error.message}`); return }
+      const value = result.value as { status?: string; value?: { sessionId?: string }; code?: string; message?: string }
+      if (value.status !== 'ready') {
+        setRecordsError(value.status === 'failed'
+          ? `${value.code ?? 'FAILED'}：${value.message ?? '新建失败'}`
+          : value.status === 'signed-out' ? '尚未登录：无法新建会话。' : '服务未就绪：无法新建会话。')
+        return
+      }
+      setRecordsError(undefined)
+      setRecordsRefresh(count => count + 1)
+      const sessionId = value.value?.sessionId
+      if (sessionId !== undefined) {
+        setSelectedPlatformSession(sessionId)
+        onSelectPlatformSession?.(workspaceId, sessionId)
+      }
+    } catch (error) {
+      setRecordsError(`新建会话失败：${String(error)}`)
+    } finally {
+      setCreating(false)
+    }
+  }, [creating, onSelectPlatformSession, remote, workspaceId])
 
   // 收窄成 rail 时只画一个图标：官方契约把窄态的呈现交给占用者。
   if (!wide) {
@@ -113,6 +149,7 @@ export function CloudSidebar({ remote, onExit, onSelectPlatformSession, wide = t
         {...(records === undefined ? {} : { sessions: records })}
         {...(recordsError === undefined ? {} : { error: recordsError })}
         {...(selectedPlatformSession === undefined ? {} : { selectedSessionId: selectedPlatformSession })}
+        {...(workspaceId === undefined ? {} : { onCreate: () => { void createSession() } })}
         onSelect={(platformSessionId) => {
           // 先给左栏反馈（高亮立刻变），再请调用方切中央的会话 —— 点击的即时感不依赖异步映射。
           setSelectedPlatformSession(platformSessionId)

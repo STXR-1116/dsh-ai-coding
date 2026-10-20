@@ -46,6 +46,8 @@ describe('WorkspaceGateway', () => {
       // 平台会话记录（后端接口要求 §3.1）：新端点必须同时出现在网关导出与客户端面的守卫清单里 ——
       // 这条守卫就是为此存在的（remote-face.spec.ts 另按 @Remote 数量对账）。
       'workspaceSessionRecords',
+      // 新建会话（后端接口要求 §3.1.1）：原生「新会话」建的是本地会话，接管模式必须用后端这条。
+      'createWorkspaceSession',
       'plan',
       'createPlan',
       'updatePlan',

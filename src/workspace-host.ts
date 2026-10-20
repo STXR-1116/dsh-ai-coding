@@ -855,6 +855,37 @@ export class WorkspaceHost {
   }
 
   /**
+   * Creates a platform session record for this workspace (backend requirements §3.1.1).
+   *
+   * 为什么必须有写接口：原生「新会话」建的是 **DSH 本地会话**，在云工作空间里语义是错的
+   * （刷新后它不在平台记录里）。接管模式的「新建会话」因此落到后端。
+   *
+   * 带 `client_request_id` 是为了**重试幂等** —— 网络抖动时重发不会变成两条会话。
+   * @param workspaceId - Opaque workspace id.
+   * @param title - Optional title; the server generates one when omitted.
+   * @returns the created session record.
+   */
+  createWorkspaceSession(workspaceId: string, title?: string): Promise<WorkspaceQueryResult<WorkspaceSessionRecord>> {
+    return this.authorizedQuery(async (client, accessToken) => {
+      const payload = await client.request(
+        `/v1/workspaces/${encodeURIComponent(workspaceId)}/sessions`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            ...(title === undefined ? {} : { title }),
+            client_request_id: globalThis.crypto.randomUUID(),
+          }),
+        },
+        accessToken,
+      )
+      const record = (payload as { session?: unknown }).session
+      if (record === undefined) throw new TypeError('sessions create returned no session record')
+      return parseSessionRecord(record)
+    })
+  }
+
+  /**
    * Reads one plan snapshot.
    * @param workspaceId - Opaque workspace id.
    * @param planId - Opaque plan id.

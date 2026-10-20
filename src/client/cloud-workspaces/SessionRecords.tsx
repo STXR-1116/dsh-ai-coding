@@ -44,6 +44,14 @@ export interface SessionRecordsProps {
   /** 当前选中的会话。 */
   readonly selectedSessionId?: string
   /**
+   * 新建会话（接管模式的入口）。
+   *
+   * 原生「新会话」建的是 **DSH 本地会话**，在云工作空间里语义是错的（刷新后它不在平台记录里）
+   * ⇒ 接管模式提供自己的入口，落到后端（契约见 `docs/backend-api-requirements.md` §3.1.1）。
+   * 不传则**不渲染**该按钮（其他场景沿用原生行为）。
+   */
+  readonly onCreate?: () => void
+  /**
    * 相对时间文案（本地化）。不传时用与官方 zh 字典一致的兜底文案 ——
    * **绝不退回原始 ISO 串**：所有者对照原生后指出这里必须与原生一致。
    */
@@ -62,10 +70,17 @@ export interface SessionRecordsProps {
  * @param props - 会话记录与选择回调。
  * @returns 会话记录区。
  */
-export function SessionRecords({ sessions, onSelect, selectedSessionId, error, ageLabels = AGE_LABELS_ZH }: SessionRecordsProps) {
+export function SessionRecords({ sessions, onSelect, selectedSessionId, error, ageLabels = AGE_LABELS_ZH, onCreate }: SessionRecordsProps) {
   return (
     <section className={css.pane} aria-label="会话记录区">
-      <p className={css.title}>会话记录</p>
+      <div className={css.head}>
+        <p className={css.title}>会话记录</p>
+        {onCreate !== undefined && (
+          <button type="button" className={css.create} onClick={onCreate} aria-label="新建会话">
+            ＋ 新建
+          </button>
+        )}
+      </div>
       {error !== undefined && <p className={css.failed} role="alert">{error}</p>}
       {error === undefined && sessions === undefined && (
         <p className={css.pending}>
