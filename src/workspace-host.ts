@@ -867,15 +867,20 @@ export class WorkspaceHost {
    */
   createWorkspaceSession(workspaceId: string, title?: string): Promise<WorkspaceQueryResult<WorkspaceSessionRecord>> {
     return this.authorizedQuery(async (client, accessToken) => {
+      // 诊断：把**实际发出的 body**记下来。所有者真机上出现过夹具回
+      // 「请求体必须是 JSON 对象」，而同样的 body 用 curl 打是 201 —— 所以"实际发出去的是什么"
+      // 必须能看见，而不是靠猜。
+      const body = JSON.stringify({
+        ...(title === undefined ? {} : { title }),
+        client_request_id: globalThis.crypto.randomUUID(),
+      })
+      console.warn('[dsh-ai-coding] 新建会话请求体：', body)
       const payload = await client.request(
         `/v1/workspaces/${encodeURIComponent(workspaceId)}/sessions`,
         {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            ...(title === undefined ? {} : { title }),
-            client_request_id: globalThis.crypto.randomUUID(),
-          }),
+          body,
         },
         accessToken,
       )

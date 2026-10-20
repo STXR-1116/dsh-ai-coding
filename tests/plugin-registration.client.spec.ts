@@ -130,7 +130,12 @@ function fakeContext() {
         startedSessions += 1
       },
     },
-    workspaces: { marker: 'workspaces' },
+    // 0.2.1：会话导航在**工作空间面**（`UiWorkspace.openSession`），不在 `ISessions` 上。
+    // 假件必须提供它，否则接管时的"切会话"会像真机一样抛 TypeError。
+    workspaces: {
+      marker: 'workspaces',
+      openSession: (sessionId: string) => { openedSessions.push(sessionId) },
+    },
     /**
      * cordis' accessor for a service this fiber does not inject.
      *

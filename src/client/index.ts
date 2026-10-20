@@ -117,8 +117,16 @@ export const inject = ['locale', 'slots', 'sessions', 'layout']
  * that crosses from the shared context type into client behaviour.
  */
 interface ClientSessionFace {
-  /** Focus one existing Session. */
-  open(id: SessionId): void
+  /**
+   * （0.2.1 已**移除**）聚焦一个既有会话。
+   *
+   * 旧版本 `ISessions` 有 `open(id)`，我们照着它声明了这个成员 —— 于是编译通过、
+   * **运行时是 `undefined`**（真机报 `faces.sessions.open is not a function`）。
+   * 0.2.1 把会话导航搬到了**工作空间面**（`UiWorkspace.openSession`，见 `ClientWorkspacesFace`），
+   * 官方 `ISessions` 现在只剩 `retain` / `using` / `retainInfo`。
+   * 成员保留为可选只是为了把"别再用它"写在类型上。
+   */
+  open?(id: SessionId): void
   /** Create and adopt a Session on the Host; resolves once addressable. */
   create(opts?: { readonly workspaceId?: string; readonly cwd?: string }): Promise<string>
   /** Resolve one Session's binding; `undefined` when the id is unknown. */
@@ -135,6 +143,15 @@ interface ClientSessionFace {
  * see `docs/cloud-workspace-redesign.md` §10), not guessed.
  */
 interface ClientWorkspacesFace {
+  /**
+   * 选一个会话并显示它的对话（0.2.1 的导航入口）。
+   *
+   * 官方 `UiWorkspace.openSession(target: SessionTarget): void`
+   * （`dsh-client-ui-workspace/lib/types/client/navigation.d.ts`）。
+   * 0.2.1 把"当前显示哪个会话"从 `ISessions` 挪到了这里 —— 官方原话是
+   * 「navigation belongs to view owners」。
+   */
+  openSession(target: unknown): void
   /**
    * Archive a Session into the registry-global archive set: hidden from every
    * grouping surface, log and accounting slot retained.
@@ -259,7 +276,14 @@ export function apply(ctx: ClientContext): void {
         console.warn('[dsh-ai-coding] 本工作空间的会话不可用：', outcome.message)
         return
       }
-      faces.sessions.open(outcome.sessionId as SessionId)
+      // 0.2.1：导航在**工作空间面**（`UiWorkspace.openSession`），不在 `ISessions` 上。
+      // 旧写法 `faces.sessions.open(...)` 在真机上是 `undefined`（TypeError 被 catch 吞成一条 warn，
+      // 于是"切会话"一直静默失败）。工作空间面是可选的，缺失时如实告警而不是装作成功。
+      if (faces.workspaces === undefined) {
+        console.warn('[dsh-ai-coding] 无法切换会话：客户端未提供 workspaces 服务')
+      } else {
+        faces.workspaces.openSession(outcome.sessionId)
+      }
       // 方案 A：记住"插件自己打开的这个会话" —— 知识库绑定跟着它走
       //（0.2.1 起插件读不到外壳的当前会话，官方：navigation belongs to view owners）。
       setCurrentSession(String(outcome.sessionId))
@@ -317,7 +341,14 @@ export function apply(ctx: ClientContext): void {
       controller,
       remote,
       layout: ctx.layout,
-      openSession: (sessionId) => { faces.sessions.open(sessionId) },
+      // 0.2.1：导航走工作空间面（`UiWorkspace.openSession`）—— `ISessions.open` 已不存在。
+    openSession: (sessionId) => {
+      if (faces.workspaces === undefined) {
+        console.warn('[dsh-ai-coding] 无法切换会话：客户端未提供 workspaces 服务')
+        return
+      }
+      faces.workspaces.openSession(sessionId)
+    },
       // 0.1.5 removed `IWorkspaces.startSession()`: starting a Session is a
       // Session-layer operation, and the client `ISessions.create(opts?)` is its
       // replacement. The workspace registry no longer owns Session creation.
