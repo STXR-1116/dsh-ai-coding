@@ -145,3 +145,26 @@ Select-String -Path "$env:USERPROFILE\.dsh\dsh-manual\site\reference__subsystems
 # 3) 与随包实现对照（示例：确认 0.2.1 没有 dsh-client-ui-slots）
 Test-Path "$env:USERPROFILE\AppData\Roaming\npm\node_modules\@deepseek-ai\dsh\node_modules\@deepseek-ai\dsh-client-ui-slots"
 ```
+
+---
+
+## 追加：0.2.1（会话新建）安装与冒烟（2026-10-20）
+
+装了 `0.2.1`（含「＋ 新建会话」与 §3.1.1 契约）：
+
+```
+已装版本 0.2.1 ✓ · 包内含 createWorkspaceSession ✓ · bundles 含 dsh-ai-coding ✓
+mount-smoke  23/23 PASS（含 roster / 接管三步 / 退出还原）
+```
+
+## 方案 D 的一处**不可行**（记下来，别再试）
+
+`sidebar.panellist` 的随包声明是 **`kind: 'list'`**：
+
+```ts
+'sidebar.panellist': { kind: 'list'; scope: 'root'; owner: SidebarPanelIconOwnerProps }
+```
+
+**遮蔽机制只对 `single` 生效** ⇒ 「插件 / 自动化任务」那两行**无法**用席位去掉，
+只有 CSS 隐藏可行（会连带改变按角色查询，本仓踩过）。所以方案 D 的"整块替换"落地为
+**保留原生那两行 + 我们自己的「新建会话」**。
